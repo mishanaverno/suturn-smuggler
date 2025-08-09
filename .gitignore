@@ -1,0 +1,8 @@
+Packages/*
+Temp/*
+Logs/*
+.vs/*
+*.sln
+.vsconfig
+*/*.meta
+*/*.asset
