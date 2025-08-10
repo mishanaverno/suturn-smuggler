@@ -2,10 +2,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Space
+namespace OuterSpace
 {
-    public class ShipMono : CelestialBody
+    public class ShipMono: MonoBehaviour
     {
-
+        void Start ()
+        {
+        }
+        void Update ()
+        {
+ 
+        }
     }
 }

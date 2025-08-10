@@ -1,15 +1,14 @@
-using Space;
-using System.Collections;
-using System.Collections.Generic;
-using System.Xml.Serialization;
+
 using UnityEngine;
 
-namespace Space {
+namespace OuterSpace {
     public class StarMono : CelestialBody, ICentralBody
     {
         public StaticSpaceObject spaceObject;
         public Vector3d Position => new(transform.position);
+        public Vector3d RelativePostion => new(transform.position);
         public double Mass => spaceObject.mass;
+        public double SOI => double.PositiveInfinity;
 
         void Awake() {
             spaceObject = new(M);

@@ -1,11 +1,10 @@
-using Space;
+
 using System;
 using UnityEngine;
 
-namespace Space
+namespace OuterSpace
 {
     [RequireComponent(typeof(LineRenderer))]
-    [RequireComponent(typeof(PlanetMono))]
     public class OrbitRenderer : MonoBehaviour
     {
         public ICentralBody centralBody;
@@ -16,7 +15,6 @@ namespace Space
         private PlanetMono planet;
         private StarMono star;
         private Boolean needRender = true;
-        private Space.OrbitParams orbitParams;
         // Start is called before the first frame update
         void Start()
         {
@@ -24,6 +22,7 @@ namespace Space
             lineRenderer.positionCount = orbitPoints;
             lineRenderer.useWorldSpace = true;
             planet = GetComponent<PlanetMono>();
+            if (planet == null || !planet.enabled ) { planet = GetComponent<SystemBuilder.SBPlanetMono>(); }
             star = GetComponentInParent<StarMono>();
         }
 
@@ -32,11 +31,11 @@ namespace Space
         {
             if (needRender)
             {
-                if (planet.spaceObject.orbitParams.eccentricity < 1.0f)
+                if (planet.spaceObject.orbitParams != null && planet.spaceObject.orbitParams.eccentricity < 1.0f)
                 {
                     if (!lineRenderer.enabled) lineRenderer.enabled = true;
-                    orbitParams = planet.spaceObject.orbitParams;
-                    DrawOrbit(star.transform.position);
+                    //DrawOrbit(star.transform.position, planet.spaceObject.orbitParams);
+                    needRender = false;
                 }
                 else
                 {
@@ -45,8 +44,9 @@ namespace Space
                 }
             }
         }
-        private void DrawOrbit(Vector3 centerPosition)
+        public void DrawOrbit(Vector3 centerPosition, OrbitParams orbitParams)
         {
+
             Vector3[] orbitPositions = new Vector3[orbitPoints + 1];
 
             // Создаем матрицу поворота из углов Эйлера
@@ -78,10 +78,8 @@ namespace Space
                 Vector3 rotatedPosition = rotation * (Vector3)orbitPosition;
                 orbitPositions[j] = centerPosition + rotatedPosition;
             }
-
             lineRenderer.positionCount = orbitPositions.Length;
             lineRenderer.SetPositions(orbitPositions);
-            needRender = false;
         }
     }
 }

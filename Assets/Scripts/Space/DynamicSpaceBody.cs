@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Space
+namespace OuterSpace
 {
     public class DynamicSpaceObject : StaticSpaceObject
     {
@@ -19,12 +19,82 @@ namespace Space
         {
             this.velocity = velocity;
             CalculateOrbit(position);
-            Debug.Log(position);
-            Debug.Log(orbitParams.eccentricity);
         }
         public void CalculateOrbit(Vector3d position)
         {
-            double mu = Constanst.G * centralbody.Mass;
+            // Использование double для всех расчетов
+            double mu = SpaceMono.instance.G * centralbody.Mass;
+
+            // --- Расчет удельной энергии и удельного момента импульса ---
+            double r = position.magnitude;
+            double v2 = velocity.sqrMagnitude;
+            double specificEnergy = v2 / 2.0 - mu / r;
+            Vector3d h = Vector3d.Cross(position, velocity);
+
+            // --- Большая полуось (a) ---
+            double a;
+            if (Mathd.Abs(specificEnergy) < Constanst.Tolerance)
+            {
+                a = double.PositiveInfinity; // Параболическая орбита
+            }
+            else
+            {
+                a = -mu / (2.0 * specificEnergy);
+            }
+
+            // --- Эксцентриситет (e) ---
+            Vector3d eVector = (Vector3d.Cross(velocity, h) / mu) - (position / r);
+            double e = eVector.magnitude;
+
+            // --- Наклонение (i) ---
+            double i = Mathd.Acos(Mathd.Clamp(h.z / h.magnitude, -1.0, 1.0));
+
+            // --- Долгота восходящего узла (Omega) ---
+            Vector3d n = Vector3d.Cross(Vector3d.forward, h); // Вектор узла
+            double Omega, omega;
+
+            if (n.magnitude < Constanst.Tolerance)
+            {
+                Omega = 0.0;
+                omega = 0.0;
+            }
+            else
+            {
+                Omega = Mathd.Acos(Mathd.Clamp(n.x / n.magnitude, -1.0, 1.0));
+                if (n.y < 0) Omega = 2.0 * Mathd.PI - Omega;
+
+                if (e < Constanst.Tolerance)
+                {
+                    omega = 0.0;
+                }
+                else
+                {
+                    omega = Mathd.Acos(Mathd.Clamp(Vector3d.Dot(n, eVector) / (n.magnitude * e), -1.0, 1.0));
+                    if (eVector.z < 0) omega = 2.0 * Mathd.PI - omega;
+                }
+            }
+
+            // --- Истинная аномалия (nu) ---
+            double nu;
+            if (e < Constanst.Tolerance)
+            {
+                // Упрощенный расчет истинной аномалии для круговой орбиты
+                nu = Mathd.Acos(Mathd.Clamp(Vector3d.Dot(n, position) / (n.magnitude * r), -1.0, 1.0));
+                if (Vector3d.Dot(position, Vector3d.Cross(n, h)) < 0) nu = 2.0 * Mathd.PI - nu;
+            }
+            else
+            {
+                nu = Mathd.Acos(Mathd.Clamp(Vector3d.Dot(eVector, position) / (e * r), -1.0, 1.0));
+                if (Vector3d.Dot(position, velocity) < 0) nu = 2.0 * Mathd.PI - nu;
+            }
+
+            // Конвертация углов в градусы только при сохранении
+            this.orbitParams = new OrbitParams(mu, a, e, i * Mathd.Rad2Deg, Omega * Mathd.Rad2Deg, omega * Mathd.Rad2Deg, nu * Mathd.Rad2Deg);
+        }
+        /*public void CalculateOrbit(Vector3d position)
+        {
+            double mu = SpaceMono.instance.G * centralbody.Mass; //Constanst.G * centralbody.Mass;
+
             // --- Расчет общей энергии и удельного момента импульса ---
             double r = position.magnitude;
             double v2 = velocity.sqrMagnitude;
@@ -82,7 +152,7 @@ namespace Space
                 if (Vector3d.Dot(position, velocity) < 0) nu = 360f - nu;
             }
             this.orbitParams = new OrbitParams(mu, a, e, i, Omega, omega, nu);
-        }
+        }*/
 
         public Vector3 CalculatePositionAtTime(float time)
         {

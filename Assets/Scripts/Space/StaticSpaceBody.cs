@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Space
+namespace OuterSpace
 {
     public class StaticSpaceObject
     {
