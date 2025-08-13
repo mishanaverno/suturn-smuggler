@@ -1,12 +1,14 @@
 using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+using System;
 
 namespace OuterSpace
 {
     public static class Constanst
     {
-        public static double G = 1f; // Гравитационная постоянная
-        public static double Tolerance = 0.0001f; // Допуск для сравнения с нулем
+        public static double realG = 6.674e-11;
+        public static double simDistanceMultiplier = 1e+9; // Множитель расстояний в симуляции
+        public static double simMassMultiplier = 1e+20; // Множитель массы в симуляции
+        public static double Tolerance = 0.000000000000000000000000000000001; // Допуск для сравнения с нулем
+        public static double G = Constanst.realG * (Constanst.simMassMultiplier / Math.Pow(Constanst.simDistanceMultiplier, 3));
     }
 }

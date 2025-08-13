@@ -1,4 +1,4 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,10 +8,11 @@ namespace OuterSpace
     {
         public static SpaceMono instance;
         public List<PlanetMono> planets = new();
-        public double G = 1;
+
         private void Awake()
         {
             instance = this;
         }
+
     }
 }

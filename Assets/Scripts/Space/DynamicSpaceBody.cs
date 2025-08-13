@@ -1,4 +1,4 @@
-using UnityEngine;
+п»їusing UnityEngine;
 
 namespace OuterSpace
 {
@@ -6,15 +6,16 @@ namespace OuterSpace
     {
         public Vector3d velocity;
         public OrbitParams orbitParams;
-        public ICentralBody centralbody;
+        public ICentralBody centralBody;
         public float startTime;
 
-        public DynamicSpaceObject(double mass, ICentralBody centralBody) : base(mass)
+        public DynamicSpaceObject(double mass, Vector3d position, Vector3d velocity, ICentralBody centralBody) : base(mass, position)
         {
             startTime = Time.time;
-            this.centralbody = centralBody;
-            Debug.Log("DSO instatiated");
+            this.centralBody = centralBody;
+            this.velocity = velocity;
         }
+
         public void UpdateVelocity(Vector3d position, Vector3d velocity)
         {
             this.velocity = velocity;
@@ -22,35 +23,35 @@ namespace OuterSpace
         }
         public void CalculateOrbit(Vector3d position)
         {
-            // Использование double для всех расчетов
-            double mu = SpaceMono.instance.G * centralbody.Mass;
+            // РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ double РґР»СЏ РІСЃРµС… СЂР°СЃС‡РµС‚РѕРІ
+            double mu = Constanst.G * centralBody.Mass;
 
-            // --- Расчет удельной энергии и удельного момента импульса ---
+
             double r = position.magnitude;
             double v2 = velocity.sqrMagnitude;
             double specificEnergy = v2 / 2.0 - mu / r;
             Vector3d h = Vector3d.Cross(position, velocity);
 
-            // --- Большая полуось (a) ---
+            // ---  (a) ---
             double a;
             if (Mathd.Abs(specificEnergy) < Constanst.Tolerance)
             {
-                a = double.PositiveInfinity; // Параболическая орбита
+                a = double.PositiveInfinity; 
             }
             else
             {
                 a = -mu / (2.0 * specificEnergy);
             }
 
-            // --- Эксцентриситет (e) ---
+            // ---  (e) ---
             Vector3d eVector = (Vector3d.Cross(velocity, h) / mu) - (position / r);
             double e = eVector.magnitude;
 
-            // --- Наклонение (i) ---
+            // ---(i) ---
             double i = Mathd.Acos(Mathd.Clamp(h.z / h.magnitude, -1.0, 1.0));
 
-            // --- Долгота восходящего узла (Omega) ---
-            Vector3d n = Vector3d.Cross(Vector3d.forward, h); // Вектор узла
+            // ---(Omega) ---
+            Vector3d n = Vector3d.Cross(Vector3d.forward, h);
             double Omega, omega;
 
             if (n.magnitude < Constanst.Tolerance)
@@ -74,11 +75,11 @@ namespace OuterSpace
                 }
             }
 
-            // --- Истинная аномалия (nu) ---
+            // ---(nu) ---
             double nu;
             if (e < Constanst.Tolerance)
             {
-                // Упрощенный расчет истинной аномалии для круговой орбиты
+                //
                 nu = Mathd.Acos(Mathd.Clamp(Vector3d.Dot(n, position) / (n.magnitude * r), -1.0, 1.0));
                 if (Vector3d.Dot(position, Vector3d.Cross(n, h)) < 0) nu = 2.0 * Mathd.PI - nu;
             }
@@ -88,121 +89,60 @@ namespace OuterSpace
                 if (Vector3d.Dot(position, velocity) < 0) nu = 2.0 * Mathd.PI - nu;
             }
 
-            // Конвертация углов в градусы только при сохранении
+            // РљРѕРЅРІРµСЂС‚Р°С†РёСЏ СѓРіР»РѕРІ РІ РіСЂР°РґСѓСЃС‹ С‚РѕР»СЊРєРѕ РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё
             this.orbitParams = new OrbitParams(mu, a, e, i * Mathd.Rad2Deg, Omega * Mathd.Rad2Deg, omega * Mathd.Rad2Deg, nu * Mathd.Rad2Deg);
         }
-        /*public void CalculateOrbit(Vector3d position)
-        {
-            double mu = SpaceMono.instance.G * centralbody.Mass; //Constanst.G * centralbody.Mass;
-
-            // --- Расчет общей энергии и удельного момента импульса ---
-            double r = position.magnitude;
-            double v2 = velocity.sqrMagnitude;
-            double specificEnergy = v2 / 2f - mu / r;
-            Vector3d h = Vector3d.Cross(position, velocity);
-
-            // --- Большая полуось (a) ---
-            double a = -mu / (2f * specificEnergy);
-
-            // --- Эксцентриситет (e) ---
-            Vector3d eVector = (Vector3d.Cross(velocity, h) /mu) - (position / r);
-            double e = eVector.magnitude;
-
-            // --- Наклоненеи (i) ---
-            double i = Mathd.Acos(Mathd.Clamp(h.z / h.magnitude, -1f, 1f)) * Mathf.Rad2Deg;
-
-            // --- Долгота восходящего узла (Omega) ---
-            Vector3d n = Vector3d.Cross(Vector3d.forward, h); // Вектор узла
-            double Omega, omega;
-            if (n.magnitude < Constanst.Tolerance) // Если орбита в плоскости XY
-            {
-                Omega = 0f;
-                omega = 0f;
-            }
-            else
-            {
-                Omega = Mathd.Acos(Mathd.Clamp(n.x / n.magnitude, -1f, 1f)) * Mathf.Rad2Deg;
-                if (n.y < 0) Omega = 360f - Omega;
-
-                if (e < Constanst.Tolerance) // Если орбита круговая, но не в плоскости XY
-                {
-                    omega = 0f;
-                }
-                else
-                {
-                    omega = Mathd.Acos(Mathd.Clamp(Vector3d.Dot(n, eVector) / (n.magnitude * e), -1f, 1f)) * Mathd.Rad2Deg;
-                    if (eVector.z < 0) omega = 360f - omega;
-                }
-            }
-
-            // --- Истинная аномалия (nu) ---
-            double nu;
-            if (e < Constanst.Tolerance)
-            {
-                // Для круговой орбиты истинная аномалия - это просто угол позиции
-                // относительно восходящего узла (или оси X в нашем тестовом случае).
-                // rework to Vector3d
-                Vector3 positionInPlane = Quaternion.Euler((float)-Omega, (float)-i, (float)-omega) * new Vector3((float)position.x, (float)position.y, (float)position.z);
-                nu = Mathf.Atan2(positionInPlane.y, positionInPlane.x) * Mathf.Rad2Deg;
-                if (nu < 0) nu += 360f;
-            }
-            else
-            {
-                nu = Mathd.Acos(Mathd.Clamp(Vector3d.Dot(eVector, position) / ((float)e * (float)r), -1f, 1f)) * Mathf.Rad2Deg;
-                if (Vector3d.Dot(position, velocity) < 0) nu = 360f - nu;
-            }
-            this.orbitParams = new OrbitParams(mu, a, e, i, Omega, omega, nu);
-        }*/
-
+        
         public Vector3 CalculatePositionAtTime(float time)
         {
-            double E; // Эксцентрическая аномалия
-            double nu; // Истинная аномалия
-            double r;  // Радиус-вектор
-            double M;  // Средняя аномалия
+            double E; // Р­РєСЃС†РµРЅС‚СЂРёС‡РµСЃРєР°СЏ Р°РЅРѕРјР°Р»РёСЏ
+            double nu; // РСЃС‚РёРЅРЅР°СЏ Р°РЅРѕРјР°Р»РёСЏ
+            double r;  // Р Р°РґРёСѓСЃ-РІРµРєС‚РѕСЂ
+            double M;  // РЎСЂРµРґРЅСЏСЏ Р°РЅРѕРјР°Р»РёСЏ
 
-            // --- Расчет средней аномалии (M) на момент времени 'time' ---
+            // --- Р Р°СЃС‡РµС‚ СЃСЂРµРґРЅРµР№ Р°РЅРѕРјР°Р»РёРё (M) РЅР° РјРѕРјРµРЅС‚ РІСЂРµРјРµРЅРё 'time' ---
             double meanMotion = Mathd.Sqrt(orbitParams.mu / Mathd.Pow(Mathd.Abs(orbitParams.semiMajorAxis), 3));
-            // Для эллиптической орбиты
+            // Р”Р»СЏ СЌР»Р»РёРїС‚РёС‡РµСЃРєРѕР№ РѕСЂР±РёС‚С‹
             if (orbitParams.eccentricity < 1.0)
             {
-                // Вычисление начальной эксцентрической аномалии из истинной
+                // Р’С‹С‡РёСЃР»РµРЅРёРµ РЅР°С‡Р°Р»СЊРЅРѕР№ СЌРєСЃС†РµРЅС‚СЂРёС‡РµСЃРєРѕР№ Р°РЅРѕРјР°Р»РёРё РёР· РёСЃС‚РёРЅРЅРѕР№
                 double cos_nu_0 = Mathd.Cos(orbitParams.trueAnomaly * Mathd.PI / 180.0);
                 double sin_nu_0 = Mathd.Sin(orbitParams.trueAnomaly * Mathd.PI / 180.0);
                 double E_0 = Mathd.Atan2(sin_nu_0 * Mathd.Sqrt(1.0 - orbitParams.eccentricity * orbitParams.eccentricity),
                                               orbitParams.eccentricity + cos_nu_0);
 
-                // Начальная средняя аномалия
+                // РќР°С‡Р°Р»СЊРЅР°СЏ СЃСЂРµРґРЅСЏСЏ Р°РЅРѕРјР°Р»РёСЏ
                 double M_0 = E_0 - orbitParams.eccentricity * Mathd.Sin(E_0);
 
                 M = M_0 + meanMotion * (time - startTime);
 
-                // --- Итерационное решение уравнения Кеплера для E ---
-                E = M; // Начальное приближение
+                // --- РС‚РµСЂР°С†РёРѕРЅРЅРѕРµ СЂРµС€РµРЅРёРµ СѓСЂР°РІРЅРµРЅРёСЏ РљРµРїР»РµСЂР° РґР»СЏ E ---
+                E = M; // РќР°С‡Р°Р»СЊРЅРѕРµ РїСЂРёР±Р»РёР¶РµРЅРёРµ
                 for (int i = 0; i < 10; i++)
                 {
                     double dE = (M - E + orbitParams.eccentricity * Mathd.Sin(E)) / (1.0 - orbitParams.eccentricity * Mathd.Cos(E));
                     E += dE;
-                    if (Mathd.Abs(dE) < 1e-9) break; // Условие сходимости
+                    if (Mathd.Abs(dE) < 1e-9) break; // РЈСЃР»РѕРІРёРµ СЃС…РѕРґРёРјРѕСЃС‚Рё
                 }
 
                 r = orbitParams.semiMajorAxis * (1.0 - orbitParams.eccentricity * Mathd.Cos(E));
-                nu = Mathd.Atan2(System.Math.Sqrt(1.0 - orbitParams.eccentricity * orbitParams.eccentricity) * Mathd.Sin(E), Mathd.Cos(E) - orbitParams.eccentricity);
+                nu = Mathd.Atan2(Mathd.Sqrt(1.0 - orbitParams.eccentricity * orbitParams.eccentricity) * Mathd.Sin(E), Mathd.Cos(E) - orbitParams.eccentricity);
             }
-            // Для параболической и гиперболической орбит
+            // Р”Р»СЏ РїР°СЂР°Р±РѕР»РёС‡РµСЃРєРѕР№ Рё РіРёРїРµСЂР±РѕР»РёС‡РµСЃРєРѕР№ РѕСЂР±РёС‚
             else
             {
-                // Расчет с использованием гиперболической или параболической аномалии
-                // Этот блок кода требует других формул и логики.
-                // Например, для гиперболической орбиты используются гиперболические функции.
-                // Это выходит за рамки простого исправления, поэтому я оставлю его как заглушку.
-                // Реализация будет зависеть от ваших конкретных потребностей.
-                // Для гиперболической: H - e * sinh(H) = M;
-                // Для параболической: tan(nu/2) + 1/3 * tan(nu/2)^3 = M + c;
+                // Р Р°СЃС‡РµС‚ СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј РіРёРїРµСЂР±РѕР»РёС‡РµСЃРєРѕР№ РёР»Рё РїР°СЂР°Р±РѕР»РёС‡РµСЃРєРѕР№ Р°РЅРѕРјР°Р»РёРё
+                // Р­С‚РѕС‚ Р±Р»РѕРє РєРѕРґР° С‚СЂРµР±СѓРµС‚ РґСЂСѓРіРёС… С„РѕСЂРјСѓР» Рё Р»РѕРіРёРєРё.
+                // РќР°РїСЂРёРјРµСЂ, РґР»СЏ РіРёРїРµСЂР±РѕР»РёС‡РµСЃРєРѕР№ РѕСЂР±РёС‚С‹ РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ РіРёРїРµСЂР±РѕР»РёС‡РµСЃРєРёРµ С„СѓРЅРєС†РёРё.
+                // Р­С‚Рѕ РІС‹С…РѕРґРёС‚ Р·Р° СЂР°РјРєРё РїСЂРѕСЃС‚РѕРіРѕ РёСЃРїСЂР°РІР»РµРЅРёСЏ, РїРѕСЌС‚РѕРјСѓ СЏ РѕСЃС‚Р°РІР»СЋ РµРіРѕ РєР°Рє Р·Р°РіР»СѓС€РєСѓ.
+                // Р РµР°Р»РёР·Р°С†РёСЏ Р±СѓРґРµС‚ Р·Р°РІРёСЃРµС‚СЊ РѕС‚ РІР°С€РёС… РєРѕРЅРєСЂРµС‚РЅС‹С… РїРѕС‚СЂРµР±РЅРѕСЃС‚РµР№.
+                // Р”Р»СЏ РіРёРїРµСЂР±РѕР»РёС‡РµСЃРєРѕР№: H - e * sinh(H) = M;
+                // Р”Р»СЏ РїР°СЂР°Р±РѕР»РёС‡РµСЃРєРѕР№: tan(nu/2) + 1/3 * tan(nu/2)^3 = M + c;
+                Debug.Log("sdsd");
                 return Vector3.zero;
             }
-            // --- Преобразование из орбитальной плоскости в инерциальные координаты ---
-            Vector3d orbitPosition = new Vector3d((r * Mathd.Cos(nu)), (float)(r * Mathd.Sin(nu)), 0);
+            // --- РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёР· РѕСЂР±РёС‚Р°Р»СЊРЅРѕР№ РїР»РѕСЃРєРѕСЃС‚Рё РІ РёРЅРµСЂС†РёР°Р»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹ ---
+            Vector3d orbitPosition = new(r * Mathd.Cos(nu),r * Mathd.Sin(nu), 0);
 
             Quaternion rotation_Omega = Quaternion.Euler(0, 0, (float)orbitParams.longitudeOfAscendingNode);
             Quaternion rotation_i = Quaternion.Euler((float)orbitParams.inclination, 0, 0);
