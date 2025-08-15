@@ -6,6 +6,6 @@ namespace OuterSpace
 {
     public class CelestialBody : MonoBehaviour
     {
-        public double M;
+        public double M, PX, PY, PZ, VX, VY, VZ;
     }
 }

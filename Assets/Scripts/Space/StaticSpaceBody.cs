@@ -1,17 +1,17 @@
 using UnityEngine;
+using OuterSpace.Sim;
+using DoublePrecision;
 
 namespace OuterSpace
 {
     public class StaticSpaceObject
     {
         public double mass;
-        public Vector3d position;
-        public Vector3d relativePosition;
+        public SimTransform simTransform;
 
-        public StaticSpaceObject(double mass, Vector3d position)
+        public StaticSpaceObject(Transform reprezentation, double mass, Vector3d position)
         {
-            this.mass = mass;
-            this.position = position;
+           
         }
     }
 }

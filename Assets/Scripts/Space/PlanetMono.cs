@@ -1,55 +1,61 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
+using OuterSpace.Sim;
+using DoublePrecision;
 using UnityEngine;
+
 
 namespace OuterSpace
 {
     public class PlanetMono : CelestialBody, ICentralBody
     {
-        public DynamicSpaceObject spaceObject;
+        public bool move = false;
+        public SpaceObject spaceObject;
         /// <summary>
         ///  v = Mathd.sqrt(G*M/r)
         /// </summary>
-        public Vector3 velocity;
-        
         protected double _soi;
-        public Vector3d RelativePosition => Position - spaceObject.centralBody.Position;
-
-        public Vector3d Position => spaceObject.position;
         public double Mass => spaceObject.mass;
         public double SOI => _soi;
+        public Vector3d Velocity => spaceObject.velocity;
 
-        public Vector3d Velocity => new(velocity);
-
-
-
+        public SimTransform SimTransform => spaceObject.simTransform;
 
         // Start is called before the first frame update
         void Awake()
         {
-            spaceObject = new(M, new(transform.position), new(velocity), transform.parent.GetComponentInParent<ICentralBody>());
+            spaceObject = new(transform, M * Constanst.simMassMultiplier, new Vector3d(PX, PY, PZ) * Constanst.simDistanceMultiplier, new Vector3d(VX, VY, VZ), transform.parent.GetComponentInParent<ICentralBody>());
         }
         private void Start()
         {
-            spaceObject.UpdateVelocity(RelativePosition, new(velocity));
+            SimTransform.SetLocalPosition(new Vector3d(PX, PY, PZ) * Constanst.simDistanceMultiplier);
+            spaceObject.UpdateVelocity(SimTransform.LocalPosition, Velocity);
             _soi = spaceObject.orbitParams.semiMajorAxis * Mathd.Pow((Mass) / (spaceObject.centralBody.Mass) , 2.0 / 5.0);
         }
         void FixedUpdate()
         {
-            Vector3 pos = spaceObject.CalculatePositionAtTime(Time.time * 1000000) + spaceObject.centralBody.Position.CastToVector3();
-            if(pos != Vector3.zero)
-            {
-                transform.position = pos;
-                spaceObject.position = new(pos);
-            }
             
+            if (move)
+            {
+                Vector3d newPos = spaceObject.CalculatePositionAtTime(Time.time * 1000000) + spaceObject.centralBody.SimTransform.Position;
+                if (newPos != Vector3d.zero)
+                {
+                    SimTransform.SetPosition(newPos);
+                }
+            }
+            else
+            {
+                _soi = spaceObject.orbitParams.semiMajorAxis * System.Math.Pow(Mass / spaceObject.centralBody.Mass, 2.0 / 5.0);
+                spaceObject.UpdateVelocity(SimTransform.LocalPosition, new(VX, VY, VZ));
+            }
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                Log();
+            }
 
         }
         public void Log()
         {
-            Debug.Log($"Object name: {transform.name}" +
-                $"\nOrbit:\n" +
+            Debug.Log($"\tObject name: {transform.name}\n" +
+                $"Orbit:\n" +
                 $"mu: {spaceObject.orbitParams.mu}\n" +
                 $"a: {spaceObject.orbitParams.semiMajorAxis}\n" +
                 $"e: {spaceObject.orbitParams.eccentricity}\n" +
@@ -57,14 +63,22 @@ namespace OuterSpace
                 $"omega: {spaceObject.orbitParams.argumentOfPericenter}\n" +
                 $"Omega: {spaceObject.orbitParams.longitudeOfAscendingNode}\n" +
                 $"SOI: {SOI}\n" +
+                $"sim position: {SimTransform.Position}\n" +
+                $"relative sim position: {SimTransform.LocalPosition}\n" +
+                $"calculated sim position: {SimTransform.LocalPosition + spaceObject.centralBody.SimTransform.Position}\n" +
                 $"position: {transform.position}\n" +
-                $"relative position: {RelativePosition}\n" +
+                $"local position: {transform.localPosition}\n" +
+                $"calculated position: {transform.localPosition + spaceObject.centralBody.SimTransform.transform.position}\n" +
                 $"velocity: {spaceObject.velocity}\n" +
                 $"mass: {Mass}\n" +
-                $"Center body:\n" + 
-                $"SOI: {spaceObject.centralBody.SOI}\n" + 
-                $"position: {spaceObject.centralBody.Position}\n" + 
-                $"mass: {spaceObject.centralBody.Mass}\n");
+                $"expected v: {Mathd.Sqrt((Constanst.realG * spaceObject.centralBody.Mass) / spaceObject.simTransform.LocalPosition.magnitude)}\n" +
+                $"\tCenter body:\n" +
+                $"SOI: {spaceObject.centralBody.SOI}\n" +
+                $"position sim : {spaceObject.centralBody.SimTransform.Position}\n" +
+                $"relative sim position: {spaceObject.centralBody.SimTransform.LocalPosition}\n" +
+                $"position: {spaceObject.centralBody.SimTransform.transform.position}\n" +
+                $"local position: {spaceObject.centralBody.SimTransform.transform.localPosition}\n" +
+                $"mass: {spaceObject.centralBody.Mass}\n") ;
 
 
         }

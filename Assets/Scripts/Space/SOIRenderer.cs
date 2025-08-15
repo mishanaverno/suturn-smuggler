@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace OuterSpace
@@ -11,7 +9,7 @@ namespace OuterSpace
         public PlanetMono spaceObjectMono;
 
         private LineRenderer lineRenderer;
-        public int segments = 64; // Количество сегментов для круга
+        public int segments = 36; // Количество сегментов для круга
 
         void Awake()
         {
@@ -34,7 +32,7 @@ namespace OuterSpace
             lineRenderer.positionCount = segments + 1;
 
             // Получаем радиус SOI из компонента CelestialBody
-            float radius = (float)spaceObjectMono.SOI;
+            float radius = (float)(spaceObjectMono.SOI / Constanst.simDistanceMultiplier);
 
             // Рисуем круг в локальных координатах объекта
             for (int i = 0; i <= segments; i++)

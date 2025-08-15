@@ -1,19 +1,23 @@
 ﻿using UnityEngine;
+using DoublePrecision;
+using OuterSpace.Sim;
 
 namespace OuterSpace
 {
-    public class DynamicSpaceObject : StaticSpaceObject
+    public class SpaceObject
     {
         public Vector3d velocity;
         public OrbitParams orbitParams;
         public ICentralBody centralBody;
-        public float startTime;
+        public double mass;
+        public SimTransform simTransform;
 
-        public DynamicSpaceObject(double mass, Vector3d position, Vector3d velocity, ICentralBody centralBody) : base(mass, position)
+        public SpaceObject(Transform transform, double mass, Vector3d position, Vector3d velocity, ICentralBody centralBody)
         {
-            startTime = Time.time;
             this.centralBody = centralBody;
             this.velocity = velocity;
+            this.mass = mass;
+            this.simTransform = new(transform, position);
         }
 
         public void UpdateVelocity(Vector3d position, Vector3d velocity)
@@ -24,8 +28,7 @@ namespace OuterSpace
         public void CalculateOrbit(Vector3d position)
         {
             // Использование double для всех расчетов
-            double mu = Constanst.G * centralBody.Mass;
-
+            double mu = Constanst.realG * centralBody.Mass;
 
             double r = position.magnitude;
             double v2 = velocity.sqrMagnitude;
@@ -90,10 +93,10 @@ namespace OuterSpace
             }
 
             // Конвертация углов в градусы только при сохранении
-            this.orbitParams = new OrbitParams(mu, a, e, i * Mathd.Rad2Deg, Omega * Mathd.Rad2Deg, omega * Mathd.Rad2Deg, nu * Mathd.Rad2Deg);
+            this.orbitParams = new OrbitParams(mu, a, e, i * Mathd.Rad2Deg, Omega * Mathd.Rad2Deg, omega * Mathd.Rad2Deg, nu * Mathd.Rad2Deg, Time.time);
         }
         
-        public Vector3 CalculatePositionAtTime(float time)
+        public Vector3d CalculatePositionAtTime(float time)
         {
             double E; // Эксцентрическая аномалия
             double nu; // Истинная аномалия
@@ -114,7 +117,7 @@ namespace OuterSpace
                 // Начальная средняя аномалия
                 double M_0 = E_0 - orbitParams.eccentricity * Mathd.Sin(E_0);
 
-                M = M_0 + meanMotion * (time - startTime);
+                M = M_0 + meanMotion * (time - orbitParams.startEpoch);
 
                 // --- Итерационное решение уравнения Кеплера для E ---
                 E = M; // Начальное приближение
@@ -138,18 +141,16 @@ namespace OuterSpace
                 // Реализация будет зависеть от ваших конкретных потребностей.
                 // Для гиперболической: H - e * sinh(H) = M;
                 // Для параболической: tan(nu/2) + 1/3 * tan(nu/2)^3 = M + c;
-                Debug.Log("sdsd");
-                return Vector3.zero;
+                return Vector3d.zero;
             }
             // --- Преобразование из орбитальной плоскости в инерциальные координаты ---
             Vector3d orbitPosition = new(r * Mathd.Cos(nu),r * Mathd.Sin(nu), 0);
 
-            Quaternion rotation_Omega = Quaternion.Euler(0, 0, (float)orbitParams.longitudeOfAscendingNode);
-            Quaternion rotation_i = Quaternion.Euler((float)orbitParams.inclination, 0, 0);
-            Quaternion rotation_omega = Quaternion.Euler(0, 0, (float)orbitParams.argumentOfPericenter);
+            Quaterniond rotation_Omega = Quaterniond.Euler(0, 0, orbitParams.longitudeOfAscendingNode);
+            Quaterniond rotation_i = Quaterniond.Euler(orbitParams.inclination, 0, 0);
+            Quaterniond rotation_omega = Quaterniond.Euler(0, 0, orbitParams.argumentOfPericenter);
 
-            Vector3 finalPosition = rotation_Omega * rotation_i * rotation_omega * orbitPosition.CastToVector3();
-
+            Vector3d finalPosition = rotation_Omega * rotation_i * rotation_omega * orbitPosition;
             return finalPosition;
         }
     }

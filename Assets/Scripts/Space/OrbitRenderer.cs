@@ -1,69 +1,58 @@
 
 using System;
 using UnityEngine;
+using DoublePrecision;
+using static UnityEngine.XR.XRDisplaySubsystem;
+using NUnit.Framework;
+using System.Collections.Generic;
 
 namespace OuterSpace
 {
     public class OrbitRenderer : MonoBehaviour
     {
         public ICentralBody centralBody;
-        public int orbitPoints = 100;
-        public float orbitResolution = 10f; // Шаг истинной аномалии для отрисовки
+        public double stepAngleDegrees = 10;
+        public int maxOrbitPoints = 100;
 
         private LineRenderer lineRenderer;
         private PlanetMono planet;
-        private Boolean needRender = true;
         // Start is called before the first frame update
         void Start()
         {
             lineRenderer = GetComponent<LineRenderer>();
-            lineRenderer.positionCount = orbitPoints;
             lineRenderer.useWorldSpace = true;
             planet = GetComponentInParent<PlanetMono>();
-            Debug.Log(planet.name);
-            Debug.Log(planet.enabled);
-            if (planet == null || !planet.enabled ) { planet = GetComponentInParent<SystemBuilder.SBPlanetMono>(); }
         }
 
         // Update is called once per frame
         void FixedUpdate()
         {
-            if (needRender)
+
+            if (planet.spaceObject.orbitParams != null && planet.spaceObject.orbitParams.eccentricity < 1.0f)
             {
-                if (planet.spaceObject.orbitParams != null && planet.spaceObject.orbitParams.eccentricity < 1.0f)
-                {
-                    if (!lineRenderer.enabled) lineRenderer.enabled = true;
-                    DrawOrbit(planet.spaceObject.centralBody.RelativePosition.CastToVector3(), planet.spaceObject.orbitParams);
-                    
-                }
-                else
-                {
-                    // Скрываем линию, если орбита параболическая или гиперболическая
-                    lineRenderer.enabled = false;
-                }
+                if (!lineRenderer.enabled) lineRenderer.enabled = true;
+                DrawOrbit(planet.spaceObject.orbitParams);
+            }
+            else
+            {
+                // Скрываем линию, если орбита параболическая или гиперболическая
+                lineRenderer.enabled = false;
             }
         }
-        public void DrawOrbit(Vector3 centerPosition, OrbitParams orbitParams)
+        public void DrawOrbit(OrbitParams orbitParams)
         {
-            Vector3[] orbitPositions = new Vector3[orbitPoints + 1];
+            List<Vector3> orbitPositions = new();
 
-            // ПРАВИЛЬНЫЙ ПОРЯДОК: Z(Omega) -> X(i) -> Z(omega)
-            // Quaternion.Euler ожидает углы в ГРАДУСАХ.
-            // 1. Поворот вокруг Z (Аргумент перицентра)
-            // 2. Поворот вокруг X (Наклонение)
-            // 3. Поворот вокруг Z (Долгота узла)
- 
-            Quaternion rotation_Omega = Quaternion.Euler(0, 0, (float)orbitParams.longitudeOfAscendingNode);
-            Quaternion rotation_i = Quaternion.Euler((float)orbitParams.inclination, 0, 0);
-            Quaternion rotation_omega = Quaternion.Euler(0, 0, (float)orbitParams.argumentOfPericenter);
+            Quaterniond rotation_Omega = Quaterniond.Euler(0, 0, orbitParams.longitudeOfAscendingNode);
+            Quaterniond rotation_i = Quaterniond.Euler(orbitParams.inclination, 0, 0);
+            Quaterniond rotation_omega = Quaterniond.Euler(0, 0, orbitParams.argumentOfPericenter);
 
-            Quaternion rotation = rotation_Omega * rotation_i * rotation_omega;
+            Quaterniond rotation = rotation_Omega * rotation_i * rotation_omega;
 
-            for (int j = 0; j <= orbitPoints; j++)
+            for (int j = 0; j <= maxOrbitPoints; j++)
             {
-                double angle = (double)j / orbitPoints * 2.0 * Mathd.PI;
-                double r = (orbitParams.semiMajorAxis * (1.0 - orbitParams.eccentricity * orbitParams.eccentricity)) / (1.0 + orbitParams.eccentricity * Mathd.Cos(angle));
-
+                double angle = (((double)j * stepAngleDegrees) + orbitParams.trueAnomaly) * Mathd.Deg2Rad;
+                double r = (((orbitParams.semiMajorAxis * (1 - orbitParams.eccentricity * orbitParams.eccentricity)) / (1.0 + orbitParams.eccentricity * Mathd.Cos(angle))));
                 // Вычисляем позицию на плоской орбите
                 Vector3d orbitPosition_d = new(
                     r * Mathd.Cos(angle),
@@ -72,14 +61,18 @@ namespace OuterSpace
                 );
 
                 // Применяем вращение к локальной позиции
-                Vector3 rotatedPosition = rotation * (Vector3)orbitPosition_d;
+                Vector3d rotatedPosition = rotation * orbitPosition_d;
+                Debug.Log("r mag" + (rotatedPosition.magnitude / Constanst.simDistanceMultiplier));
 
                 // Преобразуем локальные координаты в мировые, добавляя позицию центрального тела
-                orbitPositions[j] = centerPosition + rotatedPosition;
+                Vector3d vector = (rotatedPosition / Constanst.simDistanceMultiplier) + (planet.spaceObject.centralBody.SimTransform.Position / Constanst.simDistanceMultiplier) ;
+                orbitPositions.Add(new Vector3((float)vector.x, (float)vector.y, (float)vector.z));
+                
             }
 
-            lineRenderer.positionCount = orbitPositions.Length;
-            lineRenderer.SetPositions(orbitPositions);
+            lineRenderer.positionCount = orbitPositions.Count;
+            lineRenderer.SetPositions(orbitPositions.ToArray());
         }
+        
     }
 }

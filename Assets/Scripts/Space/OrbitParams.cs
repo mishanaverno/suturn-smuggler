@@ -13,8 +13,9 @@ namespace OuterSpace
         public readonly double longitudeOfAscendingNode; // Долгота восходящего узла (Omega)
         public readonly double argumentOfPericenter; // Аргумент перицентра (omega)
         public readonly double trueAnomaly; // Истинная аномалия (nu)
+        public readonly double startEpoch; // Начальная эпоха (t0)
 
-        public OrbitParams(double mu, double semiMajorAxis, double eccentricity, double inclination, double longitudeOfAscendingNode, double argumentOfPericenter, double trueAnomaly)
+        public OrbitParams(double mu, double semiMajorAxis, double eccentricity, double inclination, double longitudeOfAscendingNode, double argumentOfPericenter, double trueAnomaly, double startEpoch)
         {
             this.mu = mu;
             this.semiMajorAxis = semiMajorAxis;
@@ -23,6 +24,7 @@ namespace OuterSpace
             this.longitudeOfAscendingNode = longitudeOfAscendingNode;
             this.argumentOfPericenter = argumentOfPericenter;
             this.trueAnomaly = trueAnomaly;
+            this.startEpoch = startEpoch;
         }
     }
 }

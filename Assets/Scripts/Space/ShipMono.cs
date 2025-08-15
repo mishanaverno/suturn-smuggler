@@ -1,13 +1,16 @@
-using System.Collections;
-using System.Collections.Generic;
+using OuterSpace.Sim;
 using UnityEngine;
 
 namespace OuterSpace
 {
-    public class ShipMono: MonoBehaviour
+    public class ShipMono: CelestialBody
     {
+        SimTransform simTransform;
+       
         void Start ()
         {
+            Debug.Log(SpaceMono.instance.transform.position);
+            Debug.Log(SimMono.instance.transform.position);
         }
         void Update ()
         {

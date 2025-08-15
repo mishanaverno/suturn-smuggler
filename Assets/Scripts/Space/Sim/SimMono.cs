@@ -1,15 +1,14 @@
 using UnityEngine;
 
-namespace OuterSpace
+namespace OuterSpace.Sim
 {
-    public class SpaceMono : MonoBehaviour
+    public class SimMono : MonoBehaviour
     {
-        public static SpaceMono instance;
+        public static SimMono instance;
 
         private void Awake()
         {
             instance = this;
         }
-
     }
 }
