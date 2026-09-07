@@ -72,6 +72,7 @@ namespace OuterSpace
             this.orbitParams = AstroDynamic.CalculateOrbitElements(simTransform.RELATIVE_R, velocity, centralBody.MU, GameMono.instance.Epoch);
         }
         
+        public virtual void OnCentralBodyChanged(SpaceObject previous) { }
         public virtual void Update() { }
         public virtual void FixedUpdate() {
             if (IsStar) return;

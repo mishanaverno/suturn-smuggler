@@ -23,6 +23,10 @@ namespace OuterSpace.Sim.Objects
         {
             maneuver = new(this, GameMono.instance.Epoch + afterEpoch);
         }
+        public override void OnCentralBodyChanged(SpaceObject previous)
+        {
+            if (maneuver != null) maneuver.Reframe(previous);
+        }
         public void DeleteManeuver()
         {
             UnityEngine.GameObject.Destroy(maneuver.GameObject);

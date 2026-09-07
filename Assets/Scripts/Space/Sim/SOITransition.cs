@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using System.Collections.Generic;
 
 namespace OuterSpace.Sim
@@ -60,6 +60,7 @@ namespace OuterSpace.Sim
         /// </summary>
         public static void ChangeCentralBody(SpaceObject obj, SpaceObject newCentral, double epoch)
         {
+            SpaceObject previous = obj.centralBody;
             obj.SetCentralBody(newCentral);
             obj.orbitParams = AstroDynamic.CalculateOrbitElements(
                 obj.simTransform.RELATIVE_R,
@@ -68,6 +69,7 @@ namespace OuterSpace.Sim
                 epoch
             );
             obj.CalculateSOI();
+            obj.OnCentralBodyChanged(previous);
         }
     }
 }

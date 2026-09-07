@@ -17,7 +17,7 @@ namespace OuterSpace.Sim
         }
         void LateUpdate()
         {
-            Object.UpdateState();
+            Object.FollowCentralBody();
         }
         [ContextMenu("Maneuver info")]
         public void Log()
