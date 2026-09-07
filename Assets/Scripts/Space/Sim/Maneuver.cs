@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using UnityEngine;
 using Utilities;
 
@@ -17,13 +17,20 @@ namespace OuterSpace.Sim
             InstatiateGameObject(ResourcesLoader.LoadPrefab($"Sim/Maneuver"));
             GameObject.transform.parent = SimMono.instance.transform;
             this.startEpoch = startEpoch;
-            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, startEpoch);
-            simTransform = new(
-                CoordinateConverter.RelativeToGlobal(r, spaceObject.centralBody.simTransform.GLOBAL_R),
-                CoordinateConverter.RelativeToGlobal(v, spaceObject.centralBody.simTransform.GLOBAL_V),
-                GameObject.transform
-            );
+            simTransform = new(Vector3d.zero, Vector3d.zero, GameObject.transform);
+            UpdateState();
+        }
+        /// <summary>
+        /// Точка манёвра лежит на текущей орбите корабля вокруг текущего центрального тела,
+        /// поэтому её и систему отсчёта нужно пересобирать после каждого изменения орбиты.
+        /// </summary>
+        public void UpdateState()
+        {
             simTransform.RelativeTo = spaceObject.centralBody.simTransform;
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, startEpoch);
+            simTransform.SetRELATIVE_R(r);
+            simTransform.SetRELATIVE_V(v);
+            CalcAndDraw();
         }
         [ContextMenu("Update velocity")]
         public void CalcAndDraw()

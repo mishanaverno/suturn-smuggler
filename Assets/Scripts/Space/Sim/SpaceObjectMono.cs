@@ -1,4 +1,4 @@
-using OuterSpace.Sim;
+﻿using OuterSpace.Sim;
 using DoublePrecision;
 using UnityEngine;
 using Utilities;
@@ -44,10 +44,6 @@ namespace OuterSpace
                 Log();
             }
         }
-        void FixedUpdate()
-        {
-            Object.FixedUpdate();
-        }
         [ContextMenu("Body info")]
         public void Log()
         {
@@ -65,7 +61,7 @@ namespace OuterSpace
                 $"relative sim position: {spaceObject.simTransform.RELATIVE_R}\n" +
                 $"calculated sim position: {ECI_POS}\n" +
                 $"position: {transform.position}\n" +
-                $"initial velocity: {spaceObject.velocity}\n" +
+                $"relative velocity: {spaceObject.velocity}\n" +
                 $"eci velocity: {ECI_VEL}\n" +
                 $"lvlh velocity: {LVLH_VEL}\n" +
                 $"mass: {spaceObject.mass}\n" +

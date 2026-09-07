@@ -11,6 +11,7 @@ namespace OuterSpace.Sim.Objects
         Maneuver maneuver;
         double F = 0;
         Vector3d dir = Vector3d.right;
+        public override bool TracksSOITransitions => true;
         public Ship(Vector3d position, double mass, GameObject prefab) : base(position, Vector3d.zero, mass, prefab, new() { SpaceObjectParts.ORBIT })
         {
         }

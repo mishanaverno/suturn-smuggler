@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using UnityEngine;
 using Utilities;
 
@@ -15,10 +15,9 @@ namespace OuterSpace.Sim
             base.OnInstatiated();
             Instantiate(ResourcesLoader.LoadPrefab($"Sim/Orbit"), transform);
         }
-        void FixedUpdate()
+        void LateUpdate()
         {
-            (Vector3d R, _) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(Object.spaceObject.orbitParams, Object.startEpoch);
-            Object.simTransform.SetRELATIVE_R(R);
+            Object.UpdateState();
         }
         [ContextMenu("Maneuver info")]
         public void Log()
