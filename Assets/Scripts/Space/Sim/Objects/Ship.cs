@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using Game;
 using UnityEngine;
 
@@ -35,29 +35,32 @@ namespace OuterSpace.Sim.Objects
                 Debug.Log(maneuver);
             }
 
-            if (Input.GetKeyUp(KeyCode.R))
+            if (Input.GetKeyUp(KeyCode.R) && maneuver != null)
             {
                 DeleteManeuver();
             }
-            if (Input.GetKeyUp(KeyCode.UpArrow))
+
+            if (maneuver == null) return;
+
+            if (Input.GetKeyUp(KeyCode.W))
             {
                 GetManeuver().deltaLVLHVelocity.x += DVSPAN;
                 Debug.Log(maneuver.deltaLVLHVelocity);
                 GetManeuver().CalcAndDraw();
             }
-            if (Input.GetKeyUp(KeyCode.DownArrow))
+            if (Input.GetKeyUp(KeyCode.S))
             {
                 GetManeuver().deltaLVLHVelocity.x -= DVSPAN;
                 Debug.Log(maneuver.deltaLVLHVelocity);
                 GetManeuver().CalcAndDraw();
             }
-            if (Input.GetKeyUp(KeyCode.RightArrow))
+            if (Input.GetKeyUp(KeyCode.D))
             {
                 GetManeuver().deltaLVLHVelocity.z += DVSPAN;
                 Debug.Log(maneuver.deltaLVLHVelocity);
                 GetManeuver().CalcAndDraw();
             }
-            if (Input.GetKeyUp(KeyCode.LeftArrow))
+            if (Input.GetKeyUp(KeyCode.A))
             {
                 GetManeuver().deltaLVLHVelocity.z -= DVSPAN;
                 Debug.Log(maneuver.deltaLVLHVelocity);

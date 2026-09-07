@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -46,11 +46,11 @@ namespace Game
         }
         void Update()
         {
-            if (Input.GetKeyUp(KeyCode.KeypadPlus))
+            if (Input.GetKeyUp(KeyCode.UpArrow))
             {
                 Faster();
             }
-            if (Input.GetKeyUp(KeyCode.KeypadMinus))
+            if (Input.GetKeyUp(KeyCode.DownArrow))
             {
                 Slower();
             }

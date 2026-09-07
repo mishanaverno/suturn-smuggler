@@ -35,7 +35,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!120 &1236661682273791620
 LineRenderer:
-  serializedVersion: 2
+  serializedVersion: 3
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -59,7 +59,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 49791c4f6ec807a4abb1d73758e8bec2, type: 2}
+  - {fileID: 2100000, guid: 8dafa26b447364d8d9658581396aab26, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -81,6 +81,7 @@ LineRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: -100
+  m_MaskInteraction: 0
   m_Positions:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 0, z: 1}
@@ -139,7 +140,6 @@ LineRenderer:
     textureScale: {x: 1, y: 1}
     shadowBias: 0.5
     generateLightingData: 0
-  m_MaskInteraction: 0
   m_UseWorldSpace: 0
   m_Loop: 0
   m_ApplyActiveColorSpace: 1
@@ -152,8 +152,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 2107552687247835756}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 247a8939c0b18624da162cf401fe9e31, type: 3}
+  m_Script: {fileID: 11500000, guid: f7c7919bd41e84e16a11520e26de9a28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   stepAngleDegrees: 10
-  maxOrbitPoints: 100
+  rendered: 0
