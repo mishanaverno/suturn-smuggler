@@ -30,7 +30,7 @@ namespace OuterSpace.Sim
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, startEpoch);
             simTransform.SetRELATIVE_R(r);
             simTransform.SetRELATIVE_V(v);
-            CalcAndDraw();
+            //CalcAndDraw();
         }
         [ContextMenu("Update velocity")]
         public void CalcAndDraw()
