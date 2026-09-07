@@ -1,37 +1,56 @@
 
 using UnityEngine;
 using DoublePrecision;
-using System;
 
 namespace OuterSpace.Sim {
     public class SimTransform
     {
-        private Vector3d position;
-        public Transform transform;
+        public Vector3d GLOBAL_R { get; private set; } // 
+        public Vector3d RELATIVE_R => RelativeTo == null ? GLOBAL_R : CoordinateConverter.GlobalToRelative(GLOBAL_R, RelativeTo.GLOBAL_R); //
+        public Vector3d LOCAL_R => RelativeTo == null ? GLOBAL_R : CoordinateConverter.RelativeToLocal(RELATIVE_R, RELATIVE_R, RELATIVE_V);
 
-        public Vector3d Position => position;
-        public Vector3d LocalPosition => Position - ParentPosition;
-        private Vector3d ParentPosition => Parent == null ? Vector3d.zero : Parent.SimTransform.Position;
-        private ICentralBody Parent => transform.parent.GetComponentInParent<ICentralBody>();
-        public SimTransform(Transform reprezentation, Vector3d vector)
+        public Vector3d GLOBAL_V { get; private set; } // 
+        public Vector3d RELATIVE_V => RelativeTo == null ? GLOBAL_V : CoordinateConverter.GlobalToRelative(GLOBAL_V, RelativeTo.GLOBAL_V);
+        public Vector3d LOCAL_V => RelativeTo == null ? GLOBAL_V : CoordinateConverter.RelativeToLocal(RELATIVE_V, RELATIVE_R, RELATIVE_V);
+
+        /*public Vector3d GLOBAL_A; 
+        public Vector3d RELATIVE_A; //
+        public Vector3d LOCAL_A;*/
+
+        public Transform SimReprezentation { get; private set; }
+
+        public SimTransform(Vector3d gLOBAL_R, Vector3d gLOBAL_V, Transform simReprezentation)
         {
-            this.transform = reprezentation;
-            SetPosition(vector);
+            GLOBAL_R = gLOBAL_R;
+            GLOBAL_V = gLOBAL_V;
+            SimReprezentation = simReprezentation;
+            UpdateReprezentation();
         }
 
-        public void SetPosition(Vector3d position)
+        public SimTransform RelativeTo { get; set; }
+        public void SetGLOBAL_R(Vector3d GLOBAL)
         {
-            this.position = position;
-            Vector3d vector = Position / Constanst.simDistanceMultiplier;
-            transform.position = new Vector3((float)vector.x, (float)vector.y, (float)vector.z);
+            GLOBAL_R = GLOBAL;
+            UpdateReprezentation();
         }
-        public void SetLocalPosition(Vector3d localPosition)
+        public void SetGLOBAL_V(Vector3d GLOBAL)
         {
-            this.position = ParentPosition + localPosition;
-            Vector3d vector = Position / Constanst.simDistanceMultiplier;
-            transform.position = new Vector3((float)vector.x, (float)vector.y, (float)vector.z);
+            GLOBAL_V = GLOBAL;
+        }
+        public void SetRELATIVE_R(Vector3d RELATIVE)
+        {
+            GLOBAL_R = CoordinateConverter.RelativeToGlobal(RELATIVE, RelativeTo.GLOBAL_R);
+            UpdateReprezentation();
+        }
+        public void SetRELATIVE_V(Vector3d RELATIVE)
+        {
+            GLOBAL_V = CoordinateConverter.RelativeToGlobal(RELATIVE, RelativeTo.GLOBAL_V);
+        }
+        private void UpdateReprezentation()
+        {
+            Vector3d vector = GLOBAL_R / Constants.simDistanceMultiplier;
+            SimReprezentation.position = new Vector3((float)vector.x, (float)vector.y, (float)vector.z);
         }
 
-        
     }
 }

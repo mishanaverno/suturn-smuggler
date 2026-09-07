@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace OuterSpace
 {
-    public class ShipMono: CelestialBody
+    public class ShipMono
     {
         SimTransform simTransform;
        
