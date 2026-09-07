@@ -28,8 +28,9 @@ namespace OuterSpace.Sim
             lineRenderer.enabled = false;
             lineRenderer.useWorldSpace = true;
         }
-        // Update is called once per frame
-        void FixedUpdate()
+        // LateUpdate, а не FixedUpdate: порядок с SimMono.FixedUpdate не определён,
+        // и после смены центрального тела линия отрисовалась бы вокруг старого центра.
+        void LateUpdate()
         {
             
             if (parent != null && parent.OrbitParams != null)

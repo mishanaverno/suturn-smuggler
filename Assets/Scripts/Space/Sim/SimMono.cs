@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using Game;
 using OuterSpace.Sim.Objects;
 using System.Collections.Generic;
@@ -13,6 +13,10 @@ namespace OuterSpace.Sim
         public static SpaceObject star { get; private set; }
         public static List<SpaceObject> bodies { get; private set; } = new();
         public static SpaceObject playerShip { get; private set; }
+        // Порядок обновления по глубине иерархии: SetRELATIVE_* переводит относительные
+        // величины в глобальные через текущее состояние родителя, поэтому родитель
+        // обязан обновиться раньше ребёнка в том же тике.
+        public static List<SpaceObject> updateOrder { get; private set; } = new();
 
         void Awake()
         {
@@ -24,7 +28,10 @@ namespace OuterSpace.Sim
         }
         private void CreateSim(GameData data)
         {
-            
+            // Списки статические и переживают выгрузку сцены.
+            bodies.Clear();
+            updateOrder.Clear();
+
             star = new Star(data.system.star.position, data.system.star.mass, ResourcesLoader.LoadPrefab($"Bodies/{data.system.star.simPrefab}"));
             star.GameObject.name = data.system.star.name;
             star.GameObject.transform.parent = transform;
@@ -70,6 +77,44 @@ namespace OuterSpace.Sim
                 playerShip.SetCentralBody(star);
             }
             playerShip.SetVelocity(data.system.playerShip.velocity);
+
+            RebuildUpdateOrder();
+        }
+
+        public static void RebuildUpdateOrder()
+        {
+            List<SpaceObject> all = new() { star };
+            all.AddRange(bodies);
+            all.Add(playerShip);
+            updateOrder = all.OrderBy(Depth).ToList();
+        }
+
+        private static int Depth(SpaceObject obj)
+        {
+            int depth = 0;
+            for (SpaceObject central = obj.centralBody; central != null; central = central.centralBody)
+            {
+                depth++;
+            }
+            return depth;
+        }
+
+        private void FixedUpdate()
+        {
+            bool orderChanged = false;
+            for (int i = 0; i < updateOrder.Count; i++)
+            {
+                SpaceObject obj = updateOrder[i];
+                obj.FixedUpdate();
+                if (!obj.TracksSOITransitions) continue;
+
+                SpaceObject central = SOITransition.ResolveCentralBody(obj, obj.centralBody, bodies, SOITransition.Hysteresis);
+                if (central == obj.centralBody) continue;
+
+                SOITransition.ChangeCentralBody(obj, central, GameMono.instance.Epoch);
+                orderChanged = true;
+            }
+            if (orderChanged) RebuildUpdateOrder();
         }
     }
 }

@@ -12,7 +12,6 @@ namespace OuterSpace
     {
         public enum SpaceObjectParts { SOI, ORBIT };
         public List<SpaceObjectParts> parts = new();
-        public Vector3d velocity;
         public OrbitElements orbitParams;
         public SpaceObject centralBody;
         public double mass;
@@ -20,6 +19,9 @@ namespace OuterSpace
         public double SOI;
         public double MU;
         public bool IsStar => centralBody == null;
+        public Vector3d velocity => simTransform.RELATIVE_V;
+        // Планеты и луны своих сфер влияния не покидают, проверять их каждый тик незачем.
+        public virtual bool TracksSOITransitions => false;
         public SpaceObject Instance => this;
 
         public SpaceObject(Vector3d position, Vector3d velocity, double mass, GameObject prefab, List<SpaceObjectParts> parts)
@@ -44,16 +46,15 @@ namespace OuterSpace
 
         public SpaceObject SetVelocity(Vector3d velocity)
         {
-            this.velocity = velocity;
-            if (!IsStar)
+            if (IsStar)
             {
-                CalculateOrbit(velocity);
-                CalculateSOI();
-            }
-            else
-            {
+                simTransform.SetGLOBAL_V(velocity);
                 SOI = double.PositiveInfinity;
+                return this;
             }
+            simTransform.SetRELATIVE_V(velocity);
+            CalculateOrbit(velocity);
+            CalculateSOI();
             return this;
         }
         private SpaceObject Render(GameObject prefab)
@@ -73,14 +74,10 @@ namespace OuterSpace
         
         public virtual void Update() { }
         public virtual void FixedUpdate() {
-            if (!IsStar)
-            {
-                (Vector3d ECI_POS, _) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, GameMono.instance.Epoch);
-                if (ECI_POS != Vector3d.zero)
-                {
-                    simTransform.SetRELATIVE_R(ECI_POS);
-                }
-            }
+            if (IsStar) return;
+            (Vector3d relPos, Vector3d relVel) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, GameMono.instance.Epoch);
+            simTransform.SetRELATIVE_R(relPos);
+            simTransform.SetRELATIVE_V(relVel);
         }
 
     }
