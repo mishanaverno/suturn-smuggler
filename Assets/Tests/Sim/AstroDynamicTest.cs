@@ -42,16 +42,16 @@ public class AstroDynamicTest
     public void RVEquatorial0()
     {
         OrbitElements o = GetTestOrbitEquatorial();
-        Vector3d er = new(7999995.023425903, 8932.884993630298, 0.0);
-        Vector3d ev = new(-6.228129640397754, 8928.6071, 0.0);
+        Vector3d er = new(7999996.8859346155, 8928.609503848034, 0.0);
+        Vector3d ev = new(-6.2281296403977535, 8928.607186825651, 0.0);
         new VectorsTestCase(o, 1, er, ev).Run();
     }
     [Test]
     public void RVHyperbolic()
     {
         OrbitElements o = GetTestOrbitHiperbolic();
-        Vector3d er = new(5999994.5, 13142.5, 0);
-        Vector3d ev = new(-20.2, 13142.3, 0);
+        Vector3d er = new(5999994.463887692, 13142.554997603806, 0);
+        Vector3d ev = new(-11.072214743176769, 13142.546913321476, 0);
         new VectorsTestCase(o, 1, er, ev).Run();
     }
 }

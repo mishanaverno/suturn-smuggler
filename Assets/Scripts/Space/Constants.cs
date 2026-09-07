@@ -6,9 +6,9 @@ namespace OuterSpace
     public static class Constants
     {
         public static double realG = 6.674e-11;
-        public static double simDistanceMultiplier = 1e+9; // Множитель расстояний в симуляции
-        public static double simMassMultiplier = 1e+20; // Множитель массы в симуляции
-        public static double Tolerance = 0.000000000000000000000000000000001; // Допуск для сравнения с нулем
+        public static double simDistanceMultiplier = 1e+9; // РњРЅРѕР¶РёС‚РµР»СЊ СЂР°СЃСЃС‚РѕСЏРЅРёР№ РІ СЃРёРјСѓР»СЏС†РёРё
+        public static double simMassMultiplier = 1e+20; // РњРЅРѕР¶РёС‚РµР»СЊ РјР°СЃСЃС‹ РІ СЃРёРјСѓР»СЏС†РёРё
+        public static double Tolerance = 1e-11; // Р”РѕРїСѓСЃРє РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ СЃ РЅСѓР»РµРј
         public static double G = Constants.realG * (Constants.simMassMultiplier / Math.Pow(Constants.simDistanceMultiplier, 3));
     }
 }

@@ -18,6 +18,8 @@ namespace OuterSpace.Sim
         public static OrbitElements CalculateOrbitElements(Vector3d position, Vector3d velocity, double mu, double epoch)
         {
             const double SMALL = 1e-15;
+            const double CIRCULAR = 1e-9;
+            const double EQUATORIAL_DEG = 1e-9;
 
             OrbitElements elements = new OrbitElements();
             elements.startEpoch = epoch;
@@ -40,7 +42,7 @@ namespace OuterSpace.Sim
             // Эксцентриситет
             Vector3d eVector = (Vector3d.Cross(v, h) / mu) - (r / rMag);
             double eccentricity = eVector.magnitude;
-            if (eccentricity == 0 || eccentricity == 1) { eccentricity += SMALL; }
+            if (eccentricity == 1.0) { eccentricity += SMALL; } // парабола не поддерживается решателем Кеплера
             elements.eccentricity = eccentricity;
 
             // Энергия и полуось
@@ -78,8 +80,10 @@ namespace OuterSpace.Sim
             // Наклонение
             elements.inclination = (Math.Acos(Mathd.Clamp(h.z / hMag, -1.0, 1.0))) * Mathd.Rad2Deg;
 
+            bool isEquatorial = elements.inclination < EQUATORIAL_DEG || Math.Abs(elements.inclination - 180.0) < EQUATORIAL_DEG;
+
             // Долгота восходящего узла (Omega)
-            if (nMag < SMALL)
+            if (isEquatorial)
             {
                 elements.longitudeOfAscendingNode = 0.0; // орбита экваториальная
             }
@@ -93,29 +97,25 @@ namespace OuterSpace.Sim
 
             // Аргумент перицентра (omega)
             double argPeriapsis;
-            bool isCircular = eccentricity < SMALL;
-            bool isEquatorial = elements.inclination < SMALL || Math.Abs(elements.inclination - Math.PI) < SMALL;
+            bool isCircular = eccentricity < CIRCULAR;
 
             if (isCircular)
             {
                 argPeriapsis = 0.0;
             }
-            else if (!isEquatorial && nMag > SMALL)
+            else if (!isEquatorial)
             {
                 argPeriapsis = Math.Acos(Mathd.Clamp(Vector3d.Dot(n, eVector) / (nMag * eccentricity), -1.0, 1.0));
-                Vector3d cross = Vector3d.Cross(n, eVector);
-                if (cross.z < 0)
-                    argPeriapsis = 2.0 * Math.PI - argPeriapsis;
-            }
-            else if (isEquatorial)
-            {
-                argPeriapsis = Math.Acos(Mathd.Clamp(eVector.x / eccentricity, -1.0, 1.0));
-                if (eVector.y < 0)
+                if (eVector.z < 0)
                     argPeriapsis = 2.0 * Math.PI - argPeriapsis;
             }
             else
             {
-                argPeriapsis = 0.0;
+                // Для ретроградной экваториальной орбиты (i = 180) перифокальная ось Y смотрит
+                // против инерциальной, поэтому признак второй полуплоскости инвертируется.
+                argPeriapsis = Math.Acos(Mathd.Clamp(eVector.x / eccentricity, -1.0, 1.0));
+                if ((eVector.y < 0) != (h.z < 0))
+                    argPeriapsis = 2.0 * Math.PI - argPeriapsis;
             }
             elements.argumentOfPeriapsis = argPeriapsis * Mathd.Rad2Deg;
 
@@ -124,18 +124,17 @@ namespace OuterSpace.Sim
             if (isCircular)
             {
                 // Для круговой орбиты истинная аномалия определяется по углу между n и r
-                if (nMag < SMALL)
+                if (isEquatorial)
                 {
-                    // Если n мал, то орбита экваториальная и круглая, считаем trueAnomaly от оси X
+                    // Орбита экваториальная и круглая, считаем trueAnomaly от оси X
                     trueAnomaly = Math.Acos(Mathd.Clamp(r.x / rMag, -1.0, 1.0));
-                    if (r.y < 0)
+                    if ((r.y < 0) != (h.z < 0))
                         trueAnomaly = 2.0 * Math.PI - trueAnomaly;
                 }
                 else
                 {
                     trueAnomaly = Math.Acos(Mathd.Clamp(Vector3d.Dot(n, r) / (nMag * rMag), -1.0, 1.0));
-                    Vector3d cross = Vector3d.Cross(n, r);
-                    if (cross.z < 0)
+                    if (r.z < 0)
                         trueAnomaly = 2.0 * Math.PI - trueAnomaly;
                 }
             }
@@ -167,8 +166,7 @@ namespace OuterSpace.Sim
             }
             else
             {
-                // Гиперболическая или параболическая — можно добавить позже
-                eccentricAnomaly = 0.0;
+                eccentricAnomaly = HyperbolicAnomaly(eccentricity, trueAnomaly);
             }
 
             // Средняя аномалия (M)
@@ -184,11 +182,23 @@ namespace OuterSpace.Sim
             }
             else
             {
-                meanAnomaly = 0.0;
+                meanAnomaly = eccentricity * Math.Sinh(eccentricAnomaly) - eccentricAnomaly;
             }
             elements.meanAnomalyAtEpoch = meanAnomaly;
             return elements;
         }
+        /// <summary>
+        /// Гиперболическая аномалия H по истинной аномалии.
+        /// </summary>
+        private static double HyperbolicAnomaly(double e, double nu)
+        {
+            double tanTerm = Math.Sqrt((e - 1.0) / (e + 1.0)) * Math.Tan(nu / 2.0);
+            if (Math.Abs(tanTerm) >= 1.0)
+                throw new ArgumentOutOfRangeException(nameof(nu), $"Истинная аномалия {nu} за асимптотой гиперболы e = {e}");
+            // Math.Atanh отсутствует в .NET Standard 2.0, на который собирается Unity
+            return Math.Log((1.0 + tanTerm) / (1.0 - tanTerm));
+        }
+
         public static (Vector3d r, Vector3d v) CalcRelativePositionAndVelocityAtEpoch(OrbitElements elements, double epoch, bool debug = false)
         {
             double dt = epoch - elements.startEpoch;
@@ -260,8 +270,8 @@ namespace OuterSpace.Sim
                     0.0
                 );
 
-                double v_r = (mu / h) * e * Math.Sinh(H);
-                double v_theta = (mu / h) * (1 + e * Math.Cosh(H));
+                double v_r = (mu / h) * e * Math.Sin(nu);
+                double v_theta = (mu / h) * (1 + e * Math.Cos(nu));
 
                 velocity = new Vector3d(
                     v_r * Math.Cos(nu) - v_theta * Math.Sin(nu), 
@@ -349,10 +359,12 @@ namespace OuterSpace.Sim
                 M = M % (2 * Math.PI);
                 if (M < 0) M += 2 * Math.PI;
 
-                // Решаем уравнение Кеплера: M = E - e * sin(E)
-                E = M + e * Mathd.Sin(M) / (1 - Mathd.Sin(M + e) * e);
+                // Решаем уравнение Кеплера: M = E - e * sin(E).
+                // Переводим M в (-pi, pi] — иначе Ньютон стартует далеко от корня и при большом e расходится.
+                if (M > Math.PI) M -= 2.0 * Math.PI;
+                E = e < 0.8 ? M : Math.PI * Math.Sign(M == 0.0 ? 1.0 : M);
                 Log.Debug($"Initial E = {E}", debug);
-                for (int i = 0; i < 10; i++)
+                for (int i = 0; i < 60; i++)
                 {
                     double f = E - e * Math.Sin(E) - M;
                     double df = 1 - e * Math.Cos(E);
