@@ -2,6 +2,7 @@
     "name": "Game.Tests",
     "rootNamespace": "",
     "references": [
+        "GUID:59ffc7a65f18248a4aa5424396bf9ead",
         "GUID:8c331b76ec77ed94b8b5538ec22f4484",
         "GUID:27619889b8ba8c24980f49ee34dbb44a",
         "GUID:0acc523941302664db1f4e527237feb3"
