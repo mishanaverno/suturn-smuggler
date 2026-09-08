@@ -1,4 +1,6 @@
-﻿using OuterSpace.Sim;
+﻿using System.Collections.Generic;
+using OuterSpace.Sim;
+using OuterSpace.Sim.Objects;
 using DoublePrecision;
 using UnityEngine;
 using Utilities;
@@ -6,7 +8,7 @@ using Game;
 
 namespace OuterSpace
 {
-    public class SpaceObjectMono : MonoWithObject<SpaceObject>, IHasOrbit, IHasSOI
+    public class SpaceObjectMono : MonoWithObject<SpaceObject>, IHasOrbit, IHasSOI, IHasTrajectory
     {
         public bool move = false;
         private bool prevMove = false;
@@ -16,6 +18,10 @@ namespace OuterSpace
         public double CentralSOI => Object.IsRoot ? double.PositiveInfinity : Object.centralBody.SOI;
         public Vector3d GlobalPosition => Object.simTransform.GLOBAL_R;
         public double SOI => Object.SOI;
+        // Прогноз есть только у корабля: остальные тела своих сфер влияния не покидают.
+        public IReadOnlyList<TrajectoryPatch> Patches => (Object as Ship)?.trajectory.patches;
+        public IReadOnlyList<CloseApproach> Approaches => null;
+        public SpaceObject Target => null;
 
         [Header("Vectors")]
         public Vector3d I_V;
@@ -35,7 +41,13 @@ namespace OuterSpace
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.SOI))
             {
                 Instantiate(ResourcesLoader.LoadPrefab($"Sim/SOI"), transform);
-            }   
+            }
+            // Траектория вместо одной орбиты: она обрывается там, где корабль сменит
+            // центральное тело, и помечает это событие.
+            if (Object.parts.Contains(SpaceObject.SpaceObjectParts.TRAJECTORY))
+            {
+                gameObject.AddComponent<TrajectoryRenderer>();
+            }
         }
         // Start is called before the first frame update
         private void Update()

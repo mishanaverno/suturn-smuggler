@@ -27,7 +27,13 @@ namespace OuterSpace.Sim
         // по кривизне дуги.
         public const int MaxPointsPerPatch = 1024;
         const string DefaultFontPath = "Fonts & Materials/LiberationSans SDF";
+        const int RingSegments = 24;
         static readonly Color ApproachColor = new(1f, 0.85f, 0.3f);
+
+        // Задаются тем, кто вешает компонент: у манёвра свой цвет и звёздочка в начале дуги,
+        // у корабля — только цепочка от его нынешнего положения.
+        public Color color = new(0.4f, 1f, 0.9f);
+        public bool markStart = false;
 
         IHasTrajectory source;
         Material material;
@@ -58,15 +64,21 @@ namespace OuterSpace.Sim
             }
 
             int used = 0;
-            ShowLabel(maneuverLabel, $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}",
-                PointOnArc(patches[0], patches[0].StartEpoch), display);
+            if (markStart)
+            {
+                Vector3d start = PointOnArc(patches[0], patches[0].StartEpoch);
+                used = DrawStar(used, start, PatchColor(0), display);
+                ShowLabel(maneuverLabel, $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}", start, display);
+            }
+            else
+            {
+                maneuverLabel.enabled = false;
+            }
             for (int i = 0; i < patches.Count; i++)
             {
                 TrajectoryPatch patch = patches[i];
                 DrawArc(Line(used++), patch, PatchColor(i), display);
-
-                if (patch.EndReason != PatchEndReason.EnteredSOI && patch.EndReason != PatchEndReason.Impact) continue;
-                DrawMarker(Line(used++), PointOnArc(patch, patch.EndEpoch), PatchColor(i), display);
+                used = DrawEndMarker(used, patch, PatchColor(i), display);
             }
 
             IReadOnlyList<CloseApproach> approaches = source.Approaches;
@@ -79,8 +91,8 @@ namespace OuterSpace.Sim
                 Vector3d ship = PointOnArc(PatchAt(patches, approach.Epoch), approach.Epoch);
                 Vector3d target = PointOnOrbit(source.Target, approach.Epoch);
                 DrawLink(Line(used++), ship, target, display);
-                DrawMarker(Line(used++), ship, ApproachColor, display);
-                DrawMarker(Line(used++), target, ApproachColor, display);
+                DrawRing(Line(used++), ship, ApproachColor, display);
+                DrawRing(Line(used++), target, ApproachColor, display);
                 ShowLabel(approachLabel, ApproachText(approach), target, display);
             }
             else
@@ -90,14 +102,13 @@ namespace OuterSpace.Sim
             Hide(used);
         }
 
-        // Дуги различаются яркостью: игрок видит, где траектория переходит к следующему телу.
-        static Color PatchColor(int index) => Color.Lerp(new Color(0.4f, 1f, 0.9f), new Color(0.2f, 0.35f, 0.4f), index * 0.3f);
+        // Дуги различаются яркостью: видно, где траектория переходит к следующему телу.
+        Color PatchColor(int index) => Color.Lerp(color, color * 0.45f, index * 0.3f);
 
         void DrawArc(LineRenderer line, TrajectoryPatch patch, Color color, NavDisplayMono display)
         {
             AstroDynamic.SampleArc(patch.Orbit, patch.StartEpoch, patch.EndEpoch, MaxPointsPerPatch, points);
-            line.widthMultiplier = display.LineSceneWidth;
-            line.startColor = line.endColor = color;
+            Prepare(line, color, display);
             line.positionCount = points.Count;
             Vector3d center = patch.Central.simTransform.GLOBAL_R;
             for (int i = 0; i < points.Count; i++)
@@ -122,28 +133,87 @@ namespace OuterSpace.Sim
             return patches[patches.Count - 1];
         }
 
-        // Метка развёрнута к камере и фиксированного экранного размера: точка события —
-        // это момент, а не тело, и собственного размера у неё нет.
-        void DrawMarker(LineRenderer line, Vector3d position, Color color, NavDisplayMono display)
+        /// <summary>Точка самого манёвра — звёздочка: ни начало дуги, ни событие на ней.</summary>
+        int DrawStar(int index, Vector3d position, Color color, NavDisplayMono display)
+        {
+            Vector3 center = SimView.ToScene(position);
+            float radius = (float)display.MarkerSceneDiameter * 0.5f;
+            for (int i = 0; i < 3; i++)
+            {
+                float angle = Mathf.PI * i / 3f;
+                Vector3 arm = (display.cam.transform.right * Mathf.Cos(angle)
+                    + display.cam.transform.up * Mathf.Sin(angle)) * radius;
+                LineRenderer line = Line(index++);
+                Prepare(line, color, display);
+                line.positionCount = 2;
+                line.SetPosition(0, center - arm);
+                line.SetPosition(1, center + arm);
+            }
+            return index;
+        }
+
+        /// <summary>Вход в сферу влияния — кружок, выход и столкновение — крестик.</summary>
+        int DrawEndMarker(int index, TrajectoryPatch patch, Color color, NavDisplayMono display)
+        {
+            Vector3d point = PointOnArc(patch, patch.EndEpoch);
+            switch (patch.EndReason)
+            {
+                case PatchEndReason.EnteredSOI:
+                    DrawRing(Line(index++), point, color, display);
+                    break;
+                case PatchEndReason.EscapedSOI:
+                case PatchEndReason.Impact:
+                    LineRenderer first = Line(index++);
+                    LineRenderer second = Line(index++);
+                    DrawCross(first, second, point, color, display);
+                    break;
+            }
+            return index;
+        }
+
+        // Метки развёрнуты к камере и фиксированного экранного размера: точка события — это
+        // момент, а не тело, и собственного размера у неё нет.
+        void DrawRing(LineRenderer line, Vector3d position, Color color, NavDisplayMono display)
+        {
+            Prepare(line, color, display);
+            line.positionCount = RingSegments + 1;
+            Vector3 center = SimView.ToScene(position);
+            Vector3 right = display.cam.transform.right * (float)display.MarkerSceneDiameter * 0.5f;
+            Vector3 up = display.cam.transform.up * (float)display.MarkerSceneDiameter * 0.5f;
+            for (int i = 0; i <= RingSegments; i++)
+            {
+                float angle = 2f * Mathf.PI * i / RingSegments;
+                line.SetPosition(i, center + right * Mathf.Cos(angle) + up * Mathf.Sin(angle));
+            }
+        }
+
+        // Одной ломаной крестик не нарисовать: диагонали не соединены.
+        void DrawCross(LineRenderer first, LineRenderer second, Vector3d position, Color color, NavDisplayMono display)
+        {
+            Vector3 center = SimView.ToScene(position);
+            Vector3 right = display.cam.transform.right * (float)display.MarkerSceneDiameter * 0.5f;
+            Vector3 up = display.cam.transform.up * (float)display.MarkerSceneDiameter * 0.5f;
+
+            Prepare(first, color, display);
+            first.positionCount = 2;
+            first.SetPosition(0, center - right - up);
+            first.SetPosition(1, center + right + up);
+
+            Prepare(second, color, display);
+            second.positionCount = 2;
+            second.SetPosition(0, center - right + up);
+            second.SetPosition(1, center + right - up);
+        }
+
+        static void Prepare(LineRenderer line, Color color, NavDisplayMono display)
         {
             line.widthMultiplier = display.LineSceneWidth;
             line.startColor = line.endColor = color;
-            line.positionCount = 5;
-            float radius = (float)display.MarkerSceneDiameter * 0.5f;
-            Vector3 center = SimView.ToScene(position);
-            Vector3 right = display.cam.transform.right * radius;
-            Vector3 up = display.cam.transform.up * radius;
-            line.SetPosition(0, center + up);
-            line.SetPosition(1, center + right);
-            line.SetPosition(2, center - up);
-            line.SetPosition(3, center - right);
-            line.SetPosition(4, center + up);
         }
 
         void DrawLink(LineRenderer line, Vector3d ship, Vector3d target, NavDisplayMono display)
         {
-            line.widthMultiplier = display.LineSceneWidth;
-            line.startColor = line.endColor = ApproachColor;
+            Prepare(line, ApproachColor, display);
             line.positionCount = 2;
             line.SetPosition(0, SimView.ToScene(ship));
             line.SetPosition(1, SimView.ToScene(target));

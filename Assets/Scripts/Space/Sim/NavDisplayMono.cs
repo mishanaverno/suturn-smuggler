@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using OuterSpace.Sim.Objects;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -37,8 +39,11 @@ namespace OuterSpace.Sim
 
         public RenderTexture texture { get; private set; }
         public Camera cam { get; private set; }
-        /// <summary>Объект, на котором стоит начало сцены: вокруг него вращается вид.</summary>
-        public SpaceObject focus;
+        /// <summary>
+        /// Точка, на которой стоит начало сцены: вокруг неё вращается вид. Не обязательно тело —
+        /// на точку манёвра смотрят не реже, чем на луны.
+        /// </summary>
+        public SimTransform focus;
 
         float yaw = 0f;
         float pitch = 60f;
@@ -103,8 +108,8 @@ namespace OuterSpace.Sim
             if (SimMono.playerShip == null) return;
             ReadInput();
 
-            focus ??= SimMono.playerShip;
-            SimView.origin = focus.simTransform.GLOBAL_R;
+            focus ??= SimMono.playerShip.simTransform;
+            SimView.origin = focus.GLOBAL_R;
             SimView.metersPerSceneUnit = NavScale.MetersPerSceneUnit(Range);
             foreach (SpaceObject obj in SimMono.updateOrder) obj.simTransform.Reproject();
 
@@ -135,9 +140,19 @@ namespace OuterSpace.Sim
 
         void CycleFocus()
         {
+            List<SimTransform> points = FocusPoints();
             focusIndex++;
-            if (focusIndex >= SimMono.updateOrder.Count) focusIndex = -1;
-            focus = focusIndex < 0 ? SimMono.playerShip : SimMono.updateOrder[focusIndex];
+            if (focusIndex >= points.Count) focusIndex = -1;
+            focus = focusIndex < 0 ? SimMono.playerShip.simTransform : points[focusIndex];
+        }
+
+        static List<SimTransform> FocusPoints()
+        {
+            List<SimTransform> points = new();
+            foreach (SpaceObject obj in SimMono.updateOrder) points.Add(obj.simTransform);
+            Maneuver maneuver = (SimMono.playerShip as Ship)?.GetManeuver();
+            if (maneuver != null) points.Add(maneuver.simTransform);
+            return points;
         }
     }
 }

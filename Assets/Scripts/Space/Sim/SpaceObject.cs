@@ -10,7 +10,7 @@ namespace OuterSpace
 {
     public class SpaceObject : ObjectWithMono<SpaceObjectMono, SpaceObject>
     {
-        public enum SpaceObjectParts { SOI, ORBIT };
+        public enum SpaceObjectParts { SOI, ORBIT, TRAJECTORY };
         public List<SpaceObjectParts> parts = new();
         public OrbitElements orbitParams;
         public SpaceObject centralBody;

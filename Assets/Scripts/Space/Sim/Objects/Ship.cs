@@ -8,13 +8,22 @@ namespace OuterSpace.Sim.Objects
     {
         private double DVSPAN = 100;
         private double EPOCHSPAN = 600;
+        // Нажатие двигает манёвр на шаг, удержание — на десять шагов в секунду. Без автоповтора
+        // до нужного момента пришлось бы дощёлкивать сотнями нажатий.
+        const float RepeatDelay = 0.4f;
+        const float RepeatRate = 10f;
+        float holdTime;
         private double dv = 0;
         Maneuver maneuver;
         double F = 0;
         Vector3d dir = Vector3d.right;
         public override bool TracksSOITransitions => true;
         public double mass;
-        public Ship(double mass, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.ORBIT })
+        public readonly TrajectoryCache trajectory = new();
+        // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
+        // центрального тела, а не от хода времени.
+        const int RecalculateEveryFrames = 10;
+        public Ship(double mass, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.TRAJECTORY })
         {
             this.mass = mass;
         }
@@ -28,6 +37,7 @@ namespace OuterSpace.Sim.Objects
         }
         public override void OnCentralBodyChanged(SpaceObject previous)
         {
+            trajectory.Invalidate();
             if (maneuver != null) maneuver.Reframe(previous);
         }
         public void DeleteManeuver()
@@ -37,6 +47,13 @@ namespace OuterSpace.Sim.Objects
         }
         public override void Update()
         {
+            // Цель прицеливания у корабля не показывается: рандеву сводят манёвром, и две пары
+            // меток сближения на экране означали бы одно и то же дважды.
+            if (Time.frameCount % RecalculateEveryFrames == 0)
+            {
+                trajectory.Update(orbitParams, centralBody, GameMono.instance.Epoch, null);
+            }
+
             if (Input.GetKeyUp(KeyCode.M))
             {
                 CreateManeuver(0);
@@ -74,16 +91,11 @@ namespace OuterSpace.Sim.Objects
                 Debug.Log(maneuver.deltaLVLHVelocity);
                 GetManeuver().CalcAndDraw();
             }
-            if (Input.GetKeyUp(KeyCode.E))
+            double shift = ManeuverTimeShift();
+            // Раньше текущего момента манёвра не бывает: точка задана на будущей орбите.
+            if (shift != 0)
             {
-                GetManeuver().SetStartEpoch(GetManeuver().startEpoch + EPOCHSPAN);
-                Debug.Log(maneuver.startEpoch);
-            }
-            if (Input.GetKeyUp(KeyCode.Q))
-            {
-                // Раньше текущего момента манёвра не бывает: точка задана на будущей орбите.
-                GetManeuver().SetStartEpoch(Mathd.Max(GetManeuver().startEpoch - EPOCHSPAN, GameMono.instance.Epoch));
-                Debug.Log(maneuver.startEpoch);
+                maneuver.SetStartEpoch(Mathd.Max(maneuver.startEpoch + shift, GameMono.instance.Epoch));
             }
             if (Input.GetKeyDown(KeyCode.Space))
             {
@@ -98,6 +110,21 @@ namespace OuterSpace.Sim.Objects
             }
 
         }
+        double ManeuverTimeShift()
+        {
+            int direction = (Input.GetKey(KeyCode.E) ? 1 : 0) - (Input.GetKey(KeyCode.Q) ? 1 : 0);
+            if (direction == 0)
+            {
+                holdTime = 0f;
+                return 0.0;
+            }
+            bool pressed = Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Q);
+            holdTime += Time.deltaTime;
+            if (pressed) return direction * EPOCHSPAN;
+            if (holdTime < RepeatDelay) return 0.0;
+            return direction * EPOCHSPAN * RepeatRate * Time.deltaTime;
+        }
+
         public override void FixedUpdate()
         {
             if (F > 0)
@@ -118,6 +145,7 @@ namespace OuterSpace.Sim.Objects
                         $"R = {cr} = {CoordinateConverter.RelativeToLocal(cr, cr, cv)}\n," +
                         $"V = {cv} + {deltaV} = {nv}\n");
                     orbitParams = AstroDynamic.CalculateOrbitElements(cr, nv, centralBody.MU, GameMono.instance.Epoch);
+                    trajectory.Invalidate();
                 }
                 
             }

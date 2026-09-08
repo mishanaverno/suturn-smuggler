@@ -11,16 +11,23 @@ namespace OuterSpace.Sim
         // Прогноз не должен считаться каждый кадр: вход у него меняется от нажатия клавиши,
         // а не от хода времени.
         const int RecalculateEveryFrames = 10;
-        public IReadOnlyList<TrajectoryPatch> Patches => Object.patches;
-        public IReadOnlyList<CloseApproach> Approaches => Object.approaches;
-        public SpaceObject Target => Object.target;
+        // Своим цветом: предсказанная траектория манёвра не должна путаться с орбитой корабля.
+        static readonly Color ManeuverColor = new(0.75f, 0.45f, 1f);
+        public IReadOnlyList<TrajectoryPatch> Patches => Object.trajectory.patches;
+        public IReadOnlyList<CloseApproach> Approaches => Object.trajectory.approaches;
+        public SpaceObject Target => Object.trajectory.target;
 
         public override void OnInstatiated()
         {
             base.OnInstatiated();
             // Одной орбиты вокруг одного центра здесь мало: получившаяся траектория может
             // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
-            gameObject.AddComponent<TrajectoryRenderer>();
+            TrajectoryRenderer renderer = gameObject.AddComponent<TrajectoryRenderer>();
+            renderer.color = ManeuverColor;
+            renderer.markStart = true;
+            // Точку манёвра он же рисует звёздочкой фиксированного экранного размера, а шарик
+            // из префаба на дальних масштабах превращался в пятно без смысла.
+            foreach (MeshRenderer mesh in GetComponentsInChildren<MeshRenderer>()) mesh.enabled = false;
         }
         void LateUpdate()
         {
@@ -35,7 +42,7 @@ namespace OuterSpace.Sim
         [ContextMenu("Trajectory info")]
         public void LogTrajectory()
         {
-            IReadOnlyList<TrajectoryPatch> patches = Object.patches;
+            IReadOnlyList<TrajectoryPatch> patches = Object.trajectory.patches;
             if (patches == null)
             {
                 Debug.Log("TRAJECTORY[] прогноза ещё нет");
