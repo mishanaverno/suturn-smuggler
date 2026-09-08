@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DoublePrecision;
 using Game;
 using UnityEngine;
@@ -22,19 +22,22 @@ namespace OuterSpace.Sim.Objects
         public const double SpeedStepFraction = 0.01;
         public const double CoarseFactor = 10.0;
         public const double FineFactor = 0.1;
-        // Ускорение от тяги, м/с². Конечная тяга через массу — предмет отдельной задачи.
-        const double ThrustAcceleration = 100.0;
         // Нажатие двигает манёвр на шаг, удержание — на десять шагов в секунду. Без автоповтора
         // до нужного момента пришлось бы дощёлкивать сотнями нажатий.
         const float RepeatDelay = 0.4f;
         const float RepeatRate = 10f;
         float holdTime;
-        private double dv = 0;
         Maneuver maneuver;
-        double F = 0;
         Vector3d dir = Vector3d.right;
+        bool thrusting;
+        // Отсечка взводится при включении двигателя и снимается на нуле остатка: иначе
+        // дожечь сверх плана было бы нечем, а решение «продолжать ли» остаётся за игроком.
+        bool cutoffArmed;
+        double burnEpoch;
         public override bool TracksSOITransitions => true;
         public double mass;
+        /// <summary>Тяга двигателя, Н.</summary>
+        public double thrust = 100000.0;
         public readonly TrajectoryCache trajectory = new();
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
         // центрального тела, а не от хода времени.
@@ -43,6 +46,19 @@ namespace OuterSpace.Sim.Objects
         public ShipOrientation orientation = ShipOrientation.Free;
         /// <summary>Направление тяги в инерциальной системе центрального тела.</summary>
         public Vector3d Direction => dir;
+        public bool Thrusting => thrusting;
+        public double Acceleration => thrust / mass;
+        /// <summary>Сожжено с начала прожига по текущему манёвру, м/с.</summary>
+        public double BurnedDeltaV { get; private set; }
+        public double RemainingDeltaV => maneuver == null ? 0.0 : maneuver.PlannedMagnitude - BurnedDeltaV;
+        /// <summary>Сколько осталось жечь при нынешней тяге, с.</summary>
+        public double RemainingBurnDuration => Mathd.Max(RemainingDeltaV, 0.0) / Acceleration;
+        /// <summary>
+        /// Прожиг центрируется на узле: начатый в момент узла, он весь пришёлся бы на время
+        /// после него, и чем длиннее — тем сильнее результат разошёлся бы с планом.
+        /// </summary>
+        public double BurnStartEpoch =>
+            maneuver == null ? 0.0 : maneuver.startEpoch - 0.5 * maneuver.PlannedMagnitude / Acceleration;
         public double CurrentTimeStep => TimeStep(ManeuverTimeSpan(), StepScale());
         public double CurrentSpeedStep => SpeedStep(SpeedAtNode(), StepScale());
 
@@ -57,6 +73,7 @@ namespace OuterSpace.Sim.Objects
         public void CreateManeuver(double afterEpoch)
         {
             maneuver = new(this, GameMono.instance.Epoch + afterEpoch);
+            BurnedDeltaV = 0.0;
         }
         public override void OnCentralBodyChanged(SpaceObject previous)
         {
@@ -67,6 +84,7 @@ namespace OuterSpace.Sim.Objects
         {
             UnityEngine.GameObject.Destroy(maneuver.GameObject);
             maneuver = null;
+            BurnedDeltaV = 0.0;
         }
         public override void Update()
         {
@@ -80,8 +98,8 @@ namespace OuterSpace.Sim.Objects
             ReadOrientation();
             UpdateDirection();
 
-            if (Input.GetKeyDown(KeyCode.Space)) F = ThrustAcceleration;
-            if (Input.GetKeyUp(KeyCode.Space)) F = 0;
+            if (Input.GetKeyDown(KeyCode.Space)) SetThrust(true);
+            if (Input.GetKeyUp(KeyCode.Space)) SetThrust(false);
 
             if (Input.GetKeyUp(KeyCode.M))
             {
@@ -100,6 +118,8 @@ namespace OuterSpace.Sim.Objects
             if (Input.GetKeyUp(KeyCode.S)) AddDeltaV(new Vector3d(-step, 0, 0));
             if (Input.GetKeyUp(KeyCode.D)) AddDeltaV(new Vector3d(0, 0, step));
             if (Input.GetKeyUp(KeyCode.A)) AddDeltaV(new Vector3d(0, 0, -step));
+            if (Input.GetKeyUp(KeyCode.Z)) AddDeltaV(new Vector3d(0, step, 0));
+            if (Input.GetKeyUp(KeyCode.X)) AddDeltaV(new Vector3d(0, -step, 0));
 
             double shift = ManeuverTimeShift();
             // Раньше текущего момента манёвра не бывает: точка задана на будущей орбите.
@@ -107,6 +127,18 @@ namespace OuterSpace.Sim.Objects
             {
                 maneuver.SetStartEpoch(Mathd.Max(maneuver.startEpoch + shift, GameMono.instance.Epoch));
             }
+        }
+
+        public void SetThrust(bool on)
+        {
+            if (thrusting == on) return;
+            thrusting = on;
+            if (on)
+            {
+                burnEpoch = GameMono.instance.Epoch;
+                cutoffArmed = RemainingDeltaV > 0.0;
+            }
+            if (GameMono.instance.TimeToggler != null) GameMono.instance.TimeToggler.SetLocked(on);
         }
 
         void AddDeltaV(Vector3d delta)
@@ -213,8 +245,7 @@ namespace OuterSpace.Sim.Objects
             if (maneuver != null)
             {
                 // Прожиг центрируется на узле, поэтому событие — его начало, а не сам узел.
-                double burnStart = maneuver.startEpoch - 0.5 * maneuver.PlannedDeltaV.magnitude / ThrustAcceleration;
-                if (burnStart > epoch) nearest = Nearer(nearest, burnStart, "BURN START");
+                if (BurnStartEpoch > epoch) nearest = Nearer(nearest, BurnStartEpoch, "BURN START");
             }
             return nearest;
         }
@@ -250,20 +281,34 @@ namespace OuterSpace.Sim.Objects
 
         public override void FixedUpdate()
         {
-            if (F > 0)
-            {
-                dv += F * Time.deltaTime;
-                if (GameMono.instance.Epoch - orbitParams.startEpoch > 1)
-                {
-                    // dir задан в инерциальной системе центрального тела, разворачивать его
-                    // через LVLH не нужно: базис LVLH едет вместе с орбитой.
-                    (Vector3d cr, Vector3d cv) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, GameMono.instance.Epoch);
-                    orbitParams = AstroDynamic.CalculateOrbitElements(cr, cv + dir * dv, centralBody.MU, GameMono.instance.Epoch);
-                    dv = 0;
-                    trajectory.Invalidate();
-                }
-            }
+            if (thrusting) ApplyThrust();
             base.FixedUpdate();
+        }
+
+        /// <summary>
+        /// Прирост скорости вдоль фиксированного инерциального направления суммируется точно:
+        /// сумма импульсов равна интегралу ускорения. Приближением остаётся положение — между
+        /// шагами корабль идёт по кеплеровой дуге, а не по траектории с работающим двигателем.
+        /// Погрешность первого порядка по шагу, и гасится она коррекцией, как в реальном
+        /// полёте. Расхождение плановой и фактической траектории здесь — не баг.
+        ///
+        /// Время берётся симуляционное: реальное расходилось бы с эпохой на всякой перемотке,
+        /// кроме единичной.
+        /// </summary>
+        void ApplyThrust()
+        {
+            double epoch = GameMono.instance.Epoch;
+            double dt = epoch - burnEpoch;
+            burnEpoch = epoch;
+            if (dt <= 0.0) return;
+
+            double dv = Acceleration * dt;
+            BurnedDeltaV += dv;
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + dir * dv, centralBody.MU, epoch);
+            trajectory.Invalidate();
+
+            if (cutoffArmed && RemainingDeltaV <= 0.0) SetThrust(false);
         }
     }
 }

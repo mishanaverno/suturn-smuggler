@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Game;
 using OuterSpace.Sim.Objects;
 using TMPro;
@@ -112,7 +112,7 @@ namespace OuterSpace.Sim
             textRect.anchorMax = new Vector2(0f, 1f);
             textRect.pivot = new Vector2(0f, 1f);
             textRect.anchoredPosition = new Vector2(12f, -12f);
-            textRect.sizeDelta = new Vector2(600f, 120f);
+            textRect.sizeDelta = new Vector2(600f, 220f);
         }
 
         /// <summary>
@@ -130,7 +130,27 @@ namespace OuterSpace.Sim
             readout.text =
                 $"ORIENT {ship.orientation.ToString().ToUpperInvariant()}   TARGET {target}\n" +
                 $"STEP {ship.CurrentTimeStep:F0} s   {ship.CurrentSpeedStep:F2} m/s\n" +
-                warp;
+                warp + ManeuverReadout(ship, game.Epoch);
+        }
+
+        /// <summary>
+        /// По этим числам игрок и решает, когда включать двигатель и когда выключать: остаток
+        /// характеристической скорости, сколько его ещё жечь, отсчёты до начала прожига и до
+        /// узла, и расхождение фактической орбиты с плановой, которое стремится к нулю.
+        /// </summary>
+        static string ManeuverReadout(Ship ship, double epoch)
+        {
+            Maneuver maneuver = ship.GetManeuver();
+            if (maneuver == null) return "";
+            (double periapsis, double apoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(ship.orbitParams);
+            (double plannedPeriapsis, double plannedApoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(maneuver.newOrbitParams);
+            return
+                $"\nDV {ship.RemainingDeltaV:F1} / {maneuver.PlannedMagnitude:F1} m/s   " +
+                $"BURN {TrajectoryRenderer.Clock(ship.RemainingBurnDuration)}\n" +
+                $"IGNITION T-{TrajectoryRenderer.Clock(ship.BurnStartEpoch - epoch)}   " +
+                $"NODE MT+{TrajectoryRenderer.Clock(maneuver.startEpoch - epoch)}\n" +
+                $"DPE {(periapsis - plannedPeriapsis) / 1000.0:F1} km   " +
+                $"DAP {(apoapsis - plannedApoapsis) / 1000.0:F1} km";
         }
 
         // Update, а не LateUpdate: SimMono двигает тела в FixedUpdate, то есть до Update

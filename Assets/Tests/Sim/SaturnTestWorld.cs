@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using DoublePrecision;
@@ -30,6 +30,10 @@ public class SaturnTestWorld : IDisposable
         created.Add(host);
         gameMono = host.AddComponent<GameMono>();
         gameMono.enabled = false;
+        // Awake в edit-mode не вызывается, поэтому ссылка проставляется вручную: двигатель
+        // при включении сбрасывает перемотку через неё.
+        gameMono.TimeToggler = host.AddComponent<TimeToggler>();
+        gameMono.TimeToggler.enabled = false;
         GameMono.instance = gameMono;
         gameMono._epoch = 0;
 

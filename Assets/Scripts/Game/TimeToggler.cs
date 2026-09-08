@@ -13,18 +13,33 @@ namespace Game
         const float RepeatDelay = 0.4f;
         const float RepeatRate = 8f;
 
+        // Ступень, выше которой не пустит работающий двигатель.
+        const int RealTimeIndex = 1;
+
         private int _index = 1;
         float holdTime;
         int repeats;
+        bool locked;
 
         public static System.Collections.Generic.IReadOnlyList<uint> Ladder => Speeds;
         public uint Current => Speeds[_index];
         public TimeToggler Faster() => Shift(1);
         public TimeToggler Slower() => Shift(-1);
 
+        /// <summary>
+        /// Прожиг считается по симуляционному времени, и на перемотке шаг интегрирования
+        /// становится длиннее самого прожига. Поэтому на время работы двигателя перемотка
+        /// сбрасывается в 1× и выше не поднимается — пауза и 1× остаются доступны.
+        /// </summary>
+        public void SetLocked(bool locked)
+        {
+            this.locked = locked;
+            if (locked && _index > RealTimeIndex) Shift(RealTimeIndex - _index);
+        }
+
         public TimeToggler Shift(int steps)
         {
-            _index = Mathf.Clamp(_index + steps, 0, Speeds.Length - 1);
+            _index = Mathf.Clamp(_index + steps, 0, locked ? RealTimeIndex : Speeds.Length - 1);
             OnTimeChange();
             return this;
         }
