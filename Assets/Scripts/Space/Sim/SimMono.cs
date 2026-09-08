@@ -10,7 +10,7 @@ namespace OuterSpace.Sim
     public class SimMono : MonoBehaviour
     {
         public static SimMono instance;
-        public static SpaceObject star { get; private set; }
+        public static SpaceObject root { get; private set; }
         public static List<SpaceObject> bodies { get; private set; } = new();
         public static SpaceObject playerShip { get; private set; }
         // Порядок обновления по глубине иерархии: SetRELATIVE_* переводит относительные
@@ -32,58 +32,58 @@ namespace OuterSpace.Sim
             bodies.Clear();
             updateOrder.Clear();
 
-            star = new Star(data.system.star.position, data.system.star.mass, ResourcesLoader.LoadPrefab($"Bodies/{data.system.star.simPrefab}"));
-            star.GameObject.name = data.system.star.name;
-            star.GameObject.transform.parent = transform;
-            star.SetVelocity(data.system.star.velocity);
-
-            foreach (ObjectData objData in data.system.objects.OrderByDescending(o => o.mass))
+            // Порядок в data.system.objects задан загрузчиком: родитель всегда раньше ребёнка.
+            Dictionary<string, SpaceObject> byId = new();
+            foreach (ObjectData objData in data.system.objects)
             {
-                CelestialBody obj = new(objData.position, objData.mass, ResourcesLoader.LoadPrefab($"Bodies/{objData.simPrefab}"));
-                obj.GameObject.name = objData.name;
-                obj.GameObject.transform.parent = transform;
-                foreach (SpaceObject body in bodies)
+                if (objData.orbit == null)
                 {
-                    if (Vector3d.Distance(body.simTransform.GLOBAL_R, obj.simTransform.GLOBAL_R) < body.SOI)
-                    {
-                        obj.SetCentralBody(body);
-                        break;
-                    }
+                    root = Place(new RootBody(objData.gm, Prefab(objData)), objData);
+                    root.SetVelocity(Vector3d.zero);
+                    byId.Add(objData.id, root);
+                    continue;
                 }
-                if (obj.centralBody == null)
-                {
-                    obj.SetCentralBody(star);
-                }
-                obj.SetVelocity(objData.velocity);
-                bodies.Add(obj);
-
+                CelestialBody body = Place(new CelestialBody(objData.gm, Prefab(objData)), objData);
+                body.SetCentralBody(byId[objData.parent]);
+                body.SetOrbit(ToElements(objData.orbit, body.centralBody.MU));
+                byId.Add(objData.id, body);
+                bodies.Add(body);
             }
 
-            playerShip = new Ship(data.system.playerShip.position, data.system.playerShip.mass,ResourcesLoader.LoadPrefab($"Bodies/{data.system.playerShip.simPrefab}"));
-            playerShip.GameObject.name = data.system.playerShip.name;
-            playerShip.GameObject.transform.parent = transform;
-            List<SpaceObject> reversed = new (bodies);
-            reversed.Reverse();
-            foreach (SpaceObject body in reversed)
-            {
-                if (Vector3d.Distance(body.simTransform.GLOBAL_R, playerShip.simTransform.GLOBAL_R) < body.SOI)
-                {
-                    playerShip.SetCentralBody(body);
-                    break;
-                }
-            }
-            if (playerShip.centralBody == null)
-            {
-                playerShip.SetCentralBody(star);
-            }
-            playerShip.SetVelocity(data.system.playerShip.velocity);
+            PlayerShip shipData = data.system.playerShip;
+            playerShip = Place(new Ship(shipData.mass, Prefab(shipData)), shipData);
+            playerShip.SetCentralBody(byId[shipData.parent]);
+            playerShip.SetOrbit(ToElements(shipData.orbit, playerShip.centralBody.MU));
 
             RebuildUpdateOrder();
         }
 
+        private static GameObject Prefab(ObjectData data) => ResourcesLoader.LoadPrefab($"Bodies/{data.simPrefab}");
+
+        private T Place<T>(T obj, ObjectData data) where T : SpaceObject
+        {
+            obj.GameObject.name = data.name;
+            obj.GameObject.transform.parent = transform;
+            obj.radius = data.radius;
+            obj.knowledge = data.knowledge;
+            return obj;
+        }
+
+        public static OrbitElements ToElements(OrbitData orbit, double mu) => new()
+        {
+            semiMajorAxis = orbit.semiMajorAxis,
+            eccentricity = orbit.eccentricity,
+            inclination = orbit.inclination,
+            longitudeOfAscendingNode = orbit.longitudeOfAscendingNode,
+            argumentOfPeriapsis = orbit.argumentOfPeriapsis,
+            meanAnomalyAtEpoch = orbit.meanAnomalyAtEpoch,
+            startEpoch = orbit.epoch,
+            mu = mu
+        };
+
         public static void RebuildUpdateOrder()
         {
-            List<SpaceObject> all = new() { star };
+            List<SpaceObject> all = new() { root };
             all.AddRange(bodies);
             all.Add(playerShip);
             updateOrder = all.OrderBy(Depth).ToList();

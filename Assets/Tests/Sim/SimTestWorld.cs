@@ -12,9 +12,9 @@ using UnityEngine;
 /// </summary>
 public class SimTestWorld : IDisposable
 {
-    public const double StarMass = 1.989e30;
-    public const double PlanetMass = 5.97e24;
-    public const double MoonMass = 7.35e22;
+    public const double StarMU = 1.989e30 * Constants.realG;
+    public const double PlanetMU = 5.97e24 * Constants.realG;
+    public const double MoonMU = 7.35e22 * Constants.realG;
     public const double PlanetOrbit = 1.5e11;
     public const double MoonOrbit = 3.844e8;
 
@@ -40,16 +40,16 @@ public class SimTestWorld : IDisposable
         prefab = new GameObject("Prefab");
         created.Add(prefab);
 
-        star = Create(Vector3d.zero, StarMass);
+        star = Create(Vector3d.zero, StarMU);
         star.GameObject.name = "Star";
         star.SetVelocity(Vector3d.zero);
 
-        planet = Create(new Vector3d(PlanetOrbit, 0, 0), PlanetMass);
+        planet = Create(new Vector3d(PlanetOrbit, 0, 0), PlanetMU);
         planet.GameObject.name = "Planet";
         planet.SetCentralBody(star);
         planet.SetVelocity(new Vector3d(0, CircularSpeed(star.MU, PlanetOrbit), 0));
 
-        moon = Create(new Vector3d(PlanetOrbit + MoonOrbit, 0, 0), MoonMass);
+        moon = Create(new Vector3d(PlanetOrbit + MoonOrbit, 0, 0), MoonMU);
         moon.GameObject.name = "Moon";
         moon.SetCentralBody(planet);
         moon.SetVelocity(new Vector3d(0, CircularSpeed(planet.MU, MoonOrbit), 0));
@@ -66,17 +66,17 @@ public class SimTestWorld : IDisposable
 
     public static double CircularSpeed(double mu, double radius) => Math.Sqrt(mu / radius);
 
-    public SpaceObject Create(Vector3d globalPosition, double mass)
+    public SpaceObject Create(Vector3d globalPosition, double mu)
     {
-        SpaceObject obj = new(globalPosition, Vector3d.zero, mass, prefab, new List<SpaceObject.SpaceObjectParts>());
+        SpaceObject obj = new(globalPosition, Vector3d.zero, mu, prefab, new List<SpaceObject.SpaceObjectParts>());
         created.Add(obj.GameObject);
         return obj;
     }
 
     /// <summary>Объект на заданной глобальной позиции с заданной скоростью относительно центрального тела.</summary>
-    public SpaceObject CreateOrbiting(SpaceObject central, Vector3d relativePosition, Vector3d relativeVelocity, double mass = 1000.0)
+    public SpaceObject CreateOrbiting(SpaceObject central, Vector3d relativePosition, Vector3d relativeVelocity, double mu = 1000.0 * Constants.realG)
     {
-        SpaceObject obj = Create(central.simTransform.GLOBAL_R + relativePosition, mass);
+        SpaceObject obj = Create(central.simTransform.GLOBAL_R + relativePosition, mu);
         obj.SetCentralBody(central);
         obj.SetVelocity(relativeVelocity);
         return obj;

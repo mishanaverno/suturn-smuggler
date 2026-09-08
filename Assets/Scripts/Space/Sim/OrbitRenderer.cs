@@ -1,19 +1,11 @@
-﻿
-using System;
-using UnityEngine;
+﻿using UnityEngine;
 using DoublePrecision;
-using static UnityEngine.XR.XRDisplaySubsystem;
-using NUnit.Framework;
-using System.Collections.Generic;
-using OuterSpace.Sim;
-using System.Runtime.CompilerServices;
 
 namespace OuterSpace.Sim
 {
     [RequireComponent(typeof(LineRenderer))]
     public class OrbitRenderer : MonoBehaviour
     {
-        public double stepAngleDegrees = 10;
         const int NumPointsEllipse = 360;
         const int NumPointsHyperbola = 100;
         public IHasOrbit parent = null;
@@ -27,19 +19,22 @@ namespace OuterSpace.Sim
             lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
             lineRenderer.useWorldSpace = true;
+            // Толщина линии - в долях высоты экрана прибора: иначе на разных дальностях
+            // одна и та же орбита была бы то нитью, то бревном.
+            lineRenderer.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
         }
         // LateUpdate, а не FixedUpdate: порядок с SimMono.FixedUpdate не определён,
         // и после смены центрального тела линия отрисовалась бы вокруг старого центра.
         void LateUpdate()
         {
             
-            if (parent != null && parent.OrbitParams != null)
+            if (parent != null && parent.OrbitParams != null && NavDisplayMono.instance != null)
             {
                 if (!lineRenderer.enabled) lineRenderer.enabled = true;
+                lineRenderer.widthMultiplier = NavDisplayMono.instance.LineSceneWidth;
                 Vector3[] positions = GetOrbitPoints(parent.OrbitParams);
                 lineRenderer.positionCount = positions.Length;
                 lineRenderer.SetPositions(positions);
-                //DrawOrbit(parent.OrbitParams, parent.CenterPosition);
             } else
             {
                 lineRenderer.enabled = false;
@@ -100,11 +95,7 @@ namespace OuterSpace.Sim
                            (-sinw * sinOmega + cosw * cosOmega * cosi) * yOrb;
                 double z = (sinw * sini) * xOrb + (cosw * sini) * yOrb;
 
-                return new Vector3(
-                    (float)((x + parent.CenterPosition.x) / Constants.simDistanceMultiplier),
-                    (float)((y + parent.CenterPosition.y) / Constants.simDistanceMultiplier),
-                    (float)((z + parent.CenterPosition.z) / Constants.simDistanceMultiplier)
-                 ); // Y-Z swap, чтобы Z была "вверх"
+                return SimView.ToScene(new Vector3d(x, y, z) + parent.CenterPosition);
             };
 
             if (isEllipse)
@@ -148,42 +139,5 @@ namespace OuterSpace.Sim
 
             return points;
         }
-        public void DrawOrbit(OrbitElements orbitParams, Vector3d centerPosition)
-        {
-            lineRenderer.enabled = true;
-            double points = 360 / stepAngleDegrees;
-            List<Vector3> orbitPositions = new();
-
-            Quaterniond rotation_Omega = Quaterniond.Euler(0, 0, orbitParams.longitudeOfAscendingNode);
-            Quaterniond rotation_i = Quaterniond.Euler(orbitParams.inclination, 0, 0);
-            Quaterniond rotation_omega = Quaterniond.Euler(0, 0, orbitParams.argumentOfPeriapsis);
-
-            Quaterniond rotation = rotation_Omega * rotation_i * rotation_omega;
-
-            for (int j = 0; j <= points; j++)
-            {
-                double angle = ((j * stepAngleDegrees) + orbitParams.meanAnomalyAtEpoch) * Mathd.Deg2Rad;
-                double r = (((orbitParams.semiMajorAxis * (1 - orbitParams.eccentricity * orbitParams.eccentricity)) / (1.0 + orbitParams.eccentricity * Mathd.Cos(angle))));
-                // Вычисляем позицию на плоской орбите
-                Vector3d orbitPosition_d = new(
-                    r * Mathd.Cos(angle),
-                    r * Mathd.Sin(angle),
-                    0
-                );
-
-                // Применяем вращение к локальной позиции
-                Vector3d rotatedPosition = rotation * orbitPosition_d;
-
-                // Преобразуем локальные координаты в мировые, добавляя позицию центрального тела
-                Vector3d vector = (rotatedPosition / Constants.simDistanceMultiplier) + (centerPosition / Constants.simDistanceMultiplier);
-                orbitPositions.Add(new Vector3((float)vector.x, (float)vector.y, (float)vector.z));
-
-            }
-
-            lineRenderer.positionCount = orbitPositions.Count;
-            lineRenderer.SetPositions(orbitPositions.ToArray());
-            rendered = true;
-        }
-
     }
 }

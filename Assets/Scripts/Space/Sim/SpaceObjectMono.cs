@@ -26,6 +26,7 @@ namespace OuterSpace
         public override void OnInstatiated()
         {
             base.OnInstatiated();
+            gameObject.AddComponent<BodyGlyphMono>();
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.ORBIT))
             {
                 Instantiate(ResourcesLoader.LoadPrefab($"Sim/Orbit"), transform);
@@ -64,14 +65,13 @@ namespace OuterSpace
                 $"relative velocity: {spaceObject.velocity}\n" +
                 $"eci velocity: {ECI_VEL}\n" +
                 $"lvlh velocity: {LVLH_VEL}\n" +
-                $"mass: {spaceObject.mass}\n" +
-                $"expected v for circle orbit: {Mathd.Sqrt((Constants.realG * spaceObject.centralBody.mass) / spaceObject.simTransform.RELATIVE_R.magnitude)}\n" +
+                $"expected v for circle orbit: {Mathd.Sqrt(spaceObject.centralBody.MU / spaceObject.simTransform.RELATIVE_R.magnitude)}\n" +
                 $"\tCenter body: {spaceObject.centralBody.GameObject.name}\n" +
                 $"SOI: {spaceObject.centralBody.SOI}\n" +
                 $"position sim : {spaceObject.centralBody.simTransform.GLOBAL_R}\n" +
                 $"relative sim position: {spaceObject.centralBody.simTransform.RELATIVE_R}\n" +
                 $"position: {spaceObject.centralBody.simTransform.SimReprezentation.position}\n" +
-                $"mass: {spaceObject.centralBody.mass}\n") ;
+                $"mu: {spaceObject.centralBody.MU}\n") ;
 
 
         }

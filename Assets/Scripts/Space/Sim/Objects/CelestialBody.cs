@@ -7,7 +7,7 @@ namespace OuterSpace.Sim.Objects
 {
     public class CelestialBody : SpaceObject
     {
-        public CelestialBody(Vector3d position, double mass, GameObject prefab) : base(position, Vector3d.zero, mass, prefab, new() { SpaceObjectParts.SOI, SpaceObjectParts.ORBIT })
+        public CelestialBody(double mu, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, mu, prefab, new() { SpaceObjectParts.SOI, SpaceObjectParts.ORBIT })
         {
 
         }

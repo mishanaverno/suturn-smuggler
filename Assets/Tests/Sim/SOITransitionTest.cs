@@ -50,7 +50,7 @@ public class SOITransitionTest
     public void Descend_OrbitIsClosedBelowEscapeSpeedAndOpenAbove()
     {
         const double radius = 1.0e7;
-        double escape = System.Math.Sqrt(2.0 * SimTestWorld.MoonMass * Constants.realG / radius);
+        double escape = System.Math.Sqrt(2.0 * SimTestWorld.MoonMU / radius);
 
         foreach (double factor in new[] { 0.7, 1.3 })
         {

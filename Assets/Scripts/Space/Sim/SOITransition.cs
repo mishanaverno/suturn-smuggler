@@ -44,7 +44,7 @@ namespace OuterSpace.Sim
 
         static SpaceObject Ascend(SpaceObject obj, SpaceObject central, double hysteresis)
         {
-            if (central.IsStar) return null;
+            if (central.IsRoot) return null;
             return Distance(obj, central) > central.SOI * (1.0 + hysteresis) ? central.centralBody : null;
         }
 

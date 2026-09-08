@@ -56,7 +56,7 @@ public class SpaceObjectMotionTest
         world.Step(3.0e5, ship);
 
         Vector3d sum = world.star.simTransform.GLOBAL_V;
-        for (SpaceObject obj = ship; obj != null && !obj.IsStar; obj = obj.centralBody)
+        for (SpaceObject obj = ship; obj != null && !obj.IsRoot; obj = obj.centralBody)
         {
             sum += obj.simTransform.RELATIVE_V;
         }

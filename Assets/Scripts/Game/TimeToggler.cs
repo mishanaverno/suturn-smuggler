@@ -46,11 +46,11 @@ namespace Game
         }
         void Update()
         {
-            if (Input.GetKeyUp(KeyCode.UpArrow))
+            if (Input.GetKeyUp(KeyCode.Period))
             {
                 Faster();
             }
-            if (Input.GetKeyUp(KeyCode.DownArrow))
+            if (Input.GetKeyUp(KeyCode.Comma))
             {
                 Slower();
             }

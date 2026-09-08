@@ -155,5 +155,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7c7919bd41e84e16a11520e26de9a28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stepAngleDegrees: 10
   rendered: 0

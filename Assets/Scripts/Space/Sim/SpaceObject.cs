@@ -14,21 +14,21 @@ namespace OuterSpace
         public List<SpaceObjectParts> parts = new();
         public OrbitElements orbitParams;
         public SpaceObject centralBody;
-        public double mass;
         public SimTransform simTransform;
+        public double radius;
+        public KnowledgeSource knowledge = KnowledgeSource.Database;
         public double SOI;
         public double MU;
-        public bool IsStar => centralBody == null;
+        public bool IsRoot => centralBody == null;
         public Vector3d velocity => simTransform.RELATIVE_V;
         // Планеты и луны своих сфер влияния не покидают, проверять их каждый тик незачем.
         public virtual bool TracksSOITransitions => false;
         public SpaceObject Instance => this;
 
-        public SpaceObject(Vector3d position, Vector3d velocity, double mass, GameObject prefab, List<SpaceObjectParts> parts)
+        public SpaceObject(Vector3d position, Vector3d velocity, double mu, GameObject prefab, List<SpaceObjectParts> parts)
         {
             this.parts = parts;
-            this.mass = mass;
-            this.MU = Constants.realG * mass;
+            this.MU = mu;
             Render(prefab);
             SetSimTransform(position, velocity);
         }
@@ -46,7 +46,7 @@ namespace OuterSpace
 
         public SpaceObject SetVelocity(Vector3d velocity)
         {
-            if (IsStar)
+            if (IsRoot)
             {
                 simTransform.SetGLOBAL_V(velocity);
                 SOI = double.PositiveInfinity;
@@ -57,6 +57,16 @@ namespace OuterSpace
             CalculateSOI();
             return this;
         }
+        /// <summary>Ставит объект на орбиту, заданную элементами: положение и скорость выводятся из них.</summary>
+        public SpaceObject SetOrbit(OrbitElements elements)
+        {
+            orbitParams = elements;
+            (Vector3d position, Vector3d velocity) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(elements, GameMono.instance.Epoch);
+            simTransform.SetRELATIVE_R(position);
+            simTransform.SetRELATIVE_V(velocity);
+            CalculateSOI();
+            return this;
+        }
         private SpaceObject Render(GameObject prefab)
         {
             InstatiateGameObject(prefab);
@@ -64,7 +74,8 @@ namespace OuterSpace
         }
         public void CalculateSOI()
         {
-            SOI = orbitParams.semiMajorAxis * Mathd.Pow((mass) / (centralBody.mass), 2.0 / 5.0);
+            // Отношение масс равно отношению GM, поэтому масса тел нигде не нужна.
+            SOI = orbitParams.semiMajorAxis * Mathd.Pow(MU / centralBody.MU, 2.0 / 5.0);
         }
         public void CalculateOrbit(Vector3d velocity)
         {
@@ -75,7 +86,7 @@ namespace OuterSpace
         public virtual void OnCentralBodyChanged(SpaceObject previous) { }
         public virtual void Update() { }
         public virtual void FixedUpdate() {
-            if (IsStar) return;
+            if (IsRoot) return;
             (Vector3d relPos, Vector3d relVel) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, GameMono.instance.Epoch);
             simTransform.SetRELATIVE_R(relPos);
             simTransform.SetRELATIVE_V(relVel);

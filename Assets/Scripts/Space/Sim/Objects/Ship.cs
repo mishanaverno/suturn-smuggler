@@ -12,8 +12,10 @@ namespace OuterSpace.Sim.Objects
         double F = 0;
         Vector3d dir = Vector3d.right;
         public override bool TracksSOITransitions => true;
-        public Ship(Vector3d position, double mass, GameObject prefab) : base(position, Vector3d.zero, mass, prefab, new() { SpaceObjectParts.ORBIT })
+        public double mass;
+        public Ship(double mass, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.ORBIT })
         {
+            this.mass = mass;
         }
         public Maneuver GetManeuver()
         {
