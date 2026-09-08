@@ -7,6 +7,7 @@ namespace OuterSpace.Sim.Objects
     public class Ship : SpaceObject
     {
         private double DVSPAN = 100;
+        private double EPOCHSPAN = 600;
         private double dv = 0;
         Maneuver maneuver;
         double F = 0;
@@ -38,7 +39,7 @@ namespace OuterSpace.Sim.Objects
         {
             if (Input.GetKeyUp(KeyCode.M))
             {
-                CreateManeuver(100000);
+                CreateManeuver(0);
                 Debug.Log(maneuver);
             }
 
@@ -72,6 +73,17 @@ namespace OuterSpace.Sim.Objects
                 GetManeuver().deltaLVLHVelocity.z -= DVSPAN;
                 Debug.Log(maneuver.deltaLVLHVelocity);
                 GetManeuver().CalcAndDraw();
+            }
+            if (Input.GetKeyUp(KeyCode.E))
+            {
+                GetManeuver().SetStartEpoch(GetManeuver().startEpoch + EPOCHSPAN);
+                Debug.Log(maneuver.startEpoch);
+            }
+            if (Input.GetKeyUp(KeyCode.Q))
+            {
+                // Раньше текущего момента манёвра не бывает: точка задана на будущей орбите.
+                GetManeuver().SetStartEpoch(Mathd.Max(GetManeuver().startEpoch - EPOCHSPAN, GameMono.instance.Epoch));
+                Debug.Log(maneuver.startEpoch);
             }
             if (Input.GetKeyDown(KeyCode.Space))
             {

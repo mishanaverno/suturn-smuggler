@@ -13,6 +13,7 @@ namespace OuterSpace
         public SpaceObject spaceObject => Object;
         public OrbitElements OrbitParams => Object.orbitParams;
         public Vector3d CenterPosition => Object.centralBody.simTransform.GLOBAL_R;
+        public double CentralSOI => Object.IsRoot ? double.PositiveInfinity : Object.centralBody.SOI;
         public Vector3d GlobalPosition => Object.simTransform.GLOBAL_R;
         public double SOI => Object.SOI;
 

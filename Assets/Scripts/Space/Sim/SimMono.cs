@@ -13,6 +13,9 @@ namespace OuterSpace.Sim
         public static SpaceObject root { get; private set; }
         public static List<SpaceObject> bodies { get; private set; } = new();
         public static SpaceObject playerShip { get; private set; }
+        // Цель прицеливания: объект, к которому игрок сводит траекторию. Своей сферы влияния
+        // у неё может и не быть — это точка встречи, а не будущее центральное тело.
+        public static SpaceObject target;
         // Порядок обновления по глубине иерархии: SetRELATIVE_* переводит относительные
         // величины в глобальные через текущее состояние родителя, поэтому родитель
         // обязан обновиться раньше ребёнка в том же тике.
@@ -31,6 +34,7 @@ namespace OuterSpace.Sim
             // Списки статические и переживают выгрузку сцены.
             bodies.Clear();
             updateOrder.Clear();
+            target = null;
 
             // Порядок в data.system.objects задан загрузчиком: родитель всегда раньше ребёнка.
             Dictionary<string, SpaceObject> byId = new();

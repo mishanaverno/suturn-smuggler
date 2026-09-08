@@ -1,30 +1,19 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Game
 {
     public class TimeToggler : MonoBehaviour
     {
-        public enum TimeSpeed
-        {
-            pause,
-            normal,
-            fast,
-            extrafast
-        }
-        private KeyValuePair<TimeSpeed, uint>[] _dict =  new Dictionary<TimeSpeed, uint>() {
-            { TimeSpeed.pause, 0 },
-            { TimeSpeed.normal, 1 },
-            { TimeSpeed.fast, 6000 },
-            { TimeSpeed.extrafast, 66000 } 
-        }.ToArray();
-        private uint _index = 0;
+        // Ровная лестница: каждая ступень — сотня или десятка к предыдущей, и игрок знает,
+        // во сколько раз ускорился, не глядя на число. 1e5 — это виток корабля вокруг Титана
+        // за три секунды и оборот Титана за 14 секунд.
+        static readonly uint[] Speeds = { 0, 1, 100, 1000, 10000, 100000 };
+        private int _index = 1;
 
-        public KeyValuePair<TimeSpeed, uint> Current => _dict[_index];
+        public uint Current => Speeds[_index];
         public TimeToggler Faster()
         {
-            if (_index + 1 < _dict.Length)
+            if (_index + 1 < Speeds.Length)
             {
                 _index++;
             }
@@ -33,7 +22,7 @@ namespace Game
         }
         public TimeToggler Slower()
         {
-            if ( _index > 0)
+            if (_index > 0)
             {
                 _index--;
             }
@@ -42,7 +31,7 @@ namespace Game
         }
         private void OnTimeChange()
         {
-            Debug.Log($"Time speed changed to {Current.Key} = {Current.Value}");
+            Debug.Log($"Time speed changed to x{Current}");
         }
         void Update()
         {

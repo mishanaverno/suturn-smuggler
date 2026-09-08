@@ -1,24 +1,74 @@
-﻿using DoublePrecision;
+﻿using System.Collections.Generic;
+using System.Text;
+using DoublePrecision;
 using UnityEngine;
 using Utilities;
 
 namespace OuterSpace.Sim
 {
-    public class ManeuverMono : MonoWithObject<Maneuver>, IHasOrbit
+    public class ManeuverMono : MonoWithObject<Maneuver>, IHasTrajectory
     {
-        public OrbitElements OrbitParams => Object.newOrbitParams;
-
-        public Vector3d CenterPosition => Object.spaceObject.centralBody.simTransform.GLOBAL_R;
+        // Прогноз не должен считаться каждый кадр: вход у него меняется от нажатия клавиши,
+        // а не от хода времени.
+        const int RecalculateEveryFrames = 10;
+        public IReadOnlyList<TrajectoryPatch> Patches => Object.patches;
+        public IReadOnlyList<CloseApproach> Approaches => Object.approaches;
+        public SpaceObject Target => Object.target;
 
         public override void OnInstatiated()
         {
             base.OnInstatiated();
-            Instantiate(ResourcesLoader.LoadPrefab($"Sim/Orbit"), transform);
+            // Одной орбиты вокруг одного центра здесь мало: получившаяся траектория может
+            // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
+            gameObject.AddComponent<TrajectoryRenderer>();
         }
         void LateUpdate()
         {
             Object.FollowCentralBody();
+            if (Time.frameCount % RecalculateEveryFrames == 0) Object.UpdateTrajectory(SimMono.target);
         }
+        /// <summary>
+        /// Разбирать артефакты отрисовки по скриншоту дорого: последнее число здесь —
+        /// максимальный угол между соседними точками дуги, видимый из фокуса, — сразу
+        /// отвечает на вопрос «кривая или ломаная».
+        /// </summary>
+        [ContextMenu("Trajectory info")]
+        public void LogTrajectory()
+        {
+            IReadOnlyList<TrajectoryPatch> patches = Object.patches;
+            if (patches == null)
+            {
+                Debug.Log("TRAJECTORY[] прогноза ещё нет");
+                return;
+            }
+            List<Vector3d> points = new();
+            StringBuilder report = new("TRAJECTORY[]\n");
+            for (int i = 0; i < patches.Count; i++)
+            {
+                TrajectoryPatch patch = patches[i];
+                AstroDynamic.SampleArc(patch.Orbit, patch.StartEpoch, patch.EndEpoch,
+                    TrajectoryRenderer.MaxPointsPerPatch, points);
+                double period = patch.Orbit.eccentricity < 1.0
+                    ? 2.0 * Mathd.PI * Mathd.Sqrt(Mathd.Pow(patch.Orbit.semiMajorAxis, 3) / patch.Orbit.mu)
+                    : double.PositiveInfinity;
+                report.AppendLine(
+                    $"{i}: {patch.Central.GameObject.name} e={patch.Orbit.eccentricity:F4} a={patch.Orbit.semiMajorAxis:E3} " +
+                    $"period={period:F0} span={patch.EndEpoch - patch.StartEpoch:F0} {patch.EndReason} " +
+                    $"points={points.Count} maxAngle={MaxAngle(points):F1}");
+            }
+            Debug.Log(report.ToString());
+        }
+
+        static double MaxAngle(List<Vector3d> points)
+        {
+            double worst = 0.0;
+            for (int i = 1; i < points.Count; i++)
+            {
+                worst = Mathd.Max(worst, Vector3d.Angle(points[i - 1], points[i]));
+            }
+            return worst;
+        }
+
         [ContextMenu("Maneuver info")]
         public void Log()
         {

@@ -43,6 +43,7 @@ namespace OuterSpace.Sim
         float yaw = 0f;
         float pitch = 60f;
         int focusIndex = -1;
+        int targetIndex = -1;
 
         public double Range => Ranges[rangeIndex];
         public double MetersPerPixel => NavScale.MetersPerPixel(NavScale.OrthographicSize, SimView.metersPerSceneUnit, textureHeight);
@@ -122,6 +123,14 @@ namespace OuterSpace.Sim
             if (Input.GetKey(KeyCode.DownArrow)) pitch = Mathf.Max(pitch - 60f * Time.deltaTime, -89f);
 
             if (Input.GetKeyDown(KeyCode.Tab)) CycleFocus();
+            if (Input.GetKeyDown(KeyCode.T)) CycleTarget();
+        }
+
+        void CycleTarget()
+        {
+            targetIndex++;
+            if (targetIndex >= SimMono.bodies.Count) targetIndex = -1;
+            SimMono.target = targetIndex < 0 ? null : SimMono.bodies[targetIndex];
         }
 
         void CycleFocus()

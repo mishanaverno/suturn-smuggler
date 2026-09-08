@@ -62,14 +62,30 @@ namespace OuterSpace.Sim
         {
             SpaceObject previous = obj.centralBody;
             obj.SetCentralBody(newCentral);
-            obj.orbitParams = AstroDynamic.CalculateOrbitElements(
-                obj.simTransform.RELATIVE_R,
-                obj.simTransform.RELATIVE_V,
+            obj.orbitParams = ElementsForCentral(
+                obj.simTransform.GLOBAL_R,
+                obj.simTransform.GLOBAL_V,
+                newCentral.simTransform.GLOBAL_R,
+                newCentral.simTransform.GLOBAL_V,
                 newCentral.MU,
                 epoch
             );
             obj.CalculateSOI();
             obj.OnCentralBodyChanged(previous);
+        }
+
+        /// <summary>
+        /// Элементы орбиты вокруг нового центрального тела по абсолютным состояниям обоих.
+        /// Общее место рантайма и прогноза: если считать переход по-разному, предсказанная
+        /// траектория разойдётся с той, по которой корабль полетит на самом деле.
+        /// </summary>
+        public static OrbitElements ElementsForCentral(
+            Vector3d globalPosition, Vector3d globalVelocity,
+            Vector3d centralPosition, Vector3d centralVelocity,
+            double mu, double epoch)
+        {
+            return AstroDynamic.CalculateOrbitElements(
+                globalPosition - centralPosition, globalVelocity - centralVelocity, mu, epoch);
         }
     }
 }

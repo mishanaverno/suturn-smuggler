@@ -1,4 +1,5 @@
-﻿using DoublePrecision;
+﻿using System.Collections.Generic;
+using DoublePrecision;
 using UnityEngine;
 using Utilities;
 
@@ -11,6 +12,14 @@ namespace OuterSpace.Sim
         public Vector3d deltaLVLHVelocity = Vector3d.zero;
         public SpaceObject spaceObject;
         public double startEpoch;
+        public readonly PredictSettings predictSettings = new();
+        public IReadOnlyList<TrajectoryPatch> patches { get; private set; }
+        public IReadOnlyList<CloseApproach> approaches { get; private set; }
+
+        public SpaceObject target => predictedTarget;
+
+        bool trajectoryOutdated = true;
+        SpaceObject predictedTarget;
 
         // Точка манёвра относительно центрального тела, снятая при планировании. Манёвр — цель,
         // к которой игрок ведёт корабль: пока идёт прожиг, орбита корабля меняется, а точка стоит.
@@ -23,10 +32,16 @@ namespace OuterSpace.Sim
             this.spaceObject = spaceObject;
             InstatiateGameObject(ResourcesLoader.LoadPrefab($"Sim/Maneuver"));
             GameObject.transform.parent = SimMono.instance.transform;
-            this.startEpoch = startEpoch;
             simTransform = new(Vector3d.zero, Vector3d.zero, GameObject.transform);
             simTransform.RelativeTo = spaceObject.centralBody.simTransform;
-            (relativePosition, relativeVelocity) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, startEpoch);
+            SetStartEpoch(startEpoch);
+        }
+
+        /// <summary>Перенос манёвра по времени: точка съезжает по текущей орбите корабля.</summary>
+        public void SetStartEpoch(double epoch)
+        {
+            startEpoch = epoch;
+            (relativePosition, relativeVelocity) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, epoch);
             CalcAndDraw();
         }
 
@@ -52,6 +67,22 @@ namespace OuterSpace.Sim
         {
             Vector3d relDeltaV = CoordinateConverter.LocalDeltaVtoRelative(deltaLVLHVelocity, relativePosition, relativeVelocity);
             newOrbitParams = AstroDynamic.CalculateOrbitElements(relativePosition, relativeVelocity + relDeltaV, spaceObject.centralBody.MU, startEpoch);
+            trajectoryOutdated = true;
+        }
+
+        /// <summary>
+        /// Прогноз считается от гипотетической орбиты манёвра, а не от текущего состояния корабля:
+        /// игрок крутит deltaLVLHVelocity и должен видеть, куда приведёт получившаяся траектория.
+        /// Вход у прогноза меняется редко, а стоит он сотен вычислений положения, поэтому
+        /// пересчёт идёт по флагу, а не каждый кадр.
+        /// </summary>
+        public void UpdateTrajectory(SpaceObject target)
+        {
+            if (!trajectoryOutdated && target == predictedTarget) return;
+            trajectoryOutdated = false;
+            predictedTarget = target;
+            patches = TrajectoryPredictor.Predict(newOrbitParams, spaceObject.centralBody, startEpoch, SimMono.bodies, predictSettings);
+            approaches = target == null ? null : TrajectoryPredictor.FindCloseApproaches(patches, target, predictSettings);
         }
     }
 }

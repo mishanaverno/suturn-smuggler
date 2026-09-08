@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -12,7 +11,7 @@ namespace Game
         public TimeToggler TimeToggler;
         public static GameMono instance;
         public GameData gameData { get; private set; }
-        public KeyValuePair<TimeToggler.TimeSpeed, uint> TimeSpeed => TimeToggler.Current;
+        public uint TimeSpeed => TimeToggler.Current;
         void Awake()
         {
             TimeToggler = GetComponent<TimeToggler>();
@@ -26,7 +25,7 @@ namespace Game
         }
         private void Tick()
         {
-            _epoch += Time.deltaTime * TimeToggler.Current.Value;
+            _epoch += Time.deltaTime * TimeToggler.Current;
         }
         public GameData LoadGame()
         {

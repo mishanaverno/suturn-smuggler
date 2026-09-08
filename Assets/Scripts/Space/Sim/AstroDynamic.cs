@@ -2,6 +2,7 @@
 using DoublePrecision;
 using Utilities;
 using System;
+using System.Collections.Generic;
 
 namespace OuterSpace.Sim
 {
@@ -423,6 +424,149 @@ namespace OuterSpace.Sim
             }
             return (nu, E, H); // в радианах
         }
+        // Целевой угол между соседними точками дуги, видимый из фокуса. Три градуса — это
+        // заведомо кривая, а не ломаная, при любом эксцентриситете и любом масштабе.
+        const double SampleAngle = 3.0 * Mathd.Deg2Rad;
+        // Гипербола рисуется не до самой асимптоты: там радиус уходит в бесконечность.
+        const double AsymptoteMargin = 0.05;
+        // Парабола не поддерживается решателем Кеплера. Рисовать её не надо, но и падать
+        // из LateUpdate нельзя.
+        const double ParabolicTolerance = 1e-9;
+
+        /// <summary>
+        /// Точки дуги в системе отсчёта центрального тела за отрезок времени. Замкнутая орбита
+        /// рисуется не дольше витка: дальше кривая просто повторяется.
+        /// </summary>
+        public static void SampleArc(OrbitElements orbit, double fromEpoch, double toEpoch, int maxPoints, List<Vector3d> into)
+        {
+            into.Clear();
+            if (Math.Abs(orbit.eccentricity - 1.0) < ParabolicTolerance) return;
+
+            double span = toEpoch - fromEpoch;
+            if (span <= 0.0) return;
+
+            double sweep;
+            double nuFrom = GetAnomalyesAtTime(orbit, fromEpoch - orbit.startEpoch).nu;
+            if (orbit.eccentricity < 1.0)
+            {
+                double period = 2.0 * Math.PI * Math.Sqrt(Math.Pow(orbit.semiMajorAxis, 3) / orbit.mu);
+                if (span >= period)
+                {
+                    sweep = 2.0 * Math.PI;
+                }
+                else
+                {
+                    double nuTo = GetAnomalyesAtTime(orbit, fromEpoch + span - orbit.startEpoch).nu;
+                    sweep = Wrap(nuTo - nuFrom);
+                }
+            }
+            else
+            {
+                double nuTo = GetAnomalyesAtTime(orbit, toEpoch - orbit.startEpoch).nu;
+                sweep = Signed(nuTo) - Signed(nuFrom);
+            }
+            SampleConic(orbit, nuFrom, nuFrom + sweep, maxPoints, into);
+        }
+
+        /// <summary>
+        /// Точки дуги коники в системе отсчёта центрального тела, от nuFrom до nuTo по истинной
+        /// аномалии. Число точек выбирается так, чтобы соседние были видны из фокуса под углом
+        /// не больше SampleAngle, но не больше maxPoints.
+        /// </summary>
+        public static void SampleConic(OrbitElements orbit, double nuFrom, double nuTo, int maxPoints, List<Vector3d> into)
+        {
+            into.Clear();
+            if (Math.Abs(orbit.eccentricity - 1.0) < ParabolicTolerance) return;
+            if (nuTo <= nuFrom) return;
+
+            if (orbit.eccentricity < 1.0) SampleEllipse(orbit, nuFrom, nuTo - nuFrom, maxPoints, into);
+            else SampleHyperbola(orbit, nuFrom, nuTo - nuFrom, maxPoints, into);
+        }
+
+        static void SampleEllipse(OrbitElements orbit, double nuFrom, double nuSpan, int maxPoints, List<Vector3d> into)
+        {
+            double e = orbit.eccentricity;
+            double a = orbit.semiMajorAxis;
+            double b = a * Math.Sqrt(1.0 - e * e);
+
+            double from = EccentricFromTrue(e, nuFrom);
+            double span = nuSpan >= 2.0 * Math.PI ? 2.0 * Math.PI : Wrap(EccentricFromTrue(e, nuFrom + nuSpan) - from);
+
+            // Шаг равномерен по эксцентрической аномалии: так отрезки почти равны по длине дуги
+            // при любом эксцентриситете. Угол же, видимый из фокуса, у перицентра растёт по
+            // сравнению с шагом по E в sqrt((1 + e) / (1 - e)) раз — по нему и считаются точки.
+            double crowding = Math.Sqrt((1.0 + e) / (1.0 - e));
+            int count = PointCount(span * crowding, maxPoints);
+            for (int i = 0; i < count; i++)
+            {
+                double anomaly = from + span * i / (count - 1.0);
+                Vector3d perifocal = new(a * (Math.Cos(anomaly) - e), b * Math.Sin(anomaly), 0.0);
+                into.Add(RotatePerifocalToInertial(perifocal, orbit));
+            }
+        }
+
+        static void SampleHyperbola(OrbitElements orbit, double nuFrom, double nuSpan, int maxPoints, List<Vector3d> into)
+        {
+            double e = orbit.eccentricity;
+            double limit = Math.Acos(-1.0 / e) - AsymptoteMargin;
+            double from = Mathd.Clamp(Signed(nuFrom), -limit, limit);
+            double to = Mathd.Clamp(Signed(nuFrom) + nuSpan, -limit, limit);
+            if (to <= from) return;
+
+            double p = Math.Abs(orbit.semiMajorAxis) * (e * e - 1.0);
+            // По истинной аномалии: у гиперболы это и есть угол, видимый из фокуса.
+            int count = PointCount(to - from, maxPoints);
+            for (int i = 0; i < count; i++)
+            {
+                double nu = from + (to - from) * i / (count - 1.0);
+                double r = p / (1.0 + e * Math.Cos(nu));
+                into.Add(RotatePerifocalToInertial(new Vector3d(r * Math.Cos(nu), r * Math.Sin(nu), 0.0), orbit));
+            }
+        }
+
+        /// <summary>
+        /// Истинная аномалия, на которой коника пересекает заданный радиус: дуга внутри — это
+        /// [-nu, +nu]. Возвращает pi, если коника целиком внутри радиуса, и 0, если целиком
+        /// снаружи. Нужна отрисовке: за сферой влияния коника перестаёт быть траекторией.
+        /// </summary>
+        public static double TrueAnomalyAtRadius(OrbitElements orbit, double radius)
+        {
+            if (double.IsPositiveInfinity(radius)) return Math.PI;
+
+            double e = orbit.eccentricity;
+            // Круговая орбита либо целиком внутри, либо целиком снаружи: делить не на что.
+            if (e < 1e-12) return orbit.semiMajorAxis <= radius ? Math.PI : 0.0;
+
+            double p = orbit.semiMajorAxis * (1.0 - e * e);
+            double cosine = (p / radius - 1.0) / e;
+            if (cosine <= -1.0) return Math.PI;
+            if (cosine >= 1.0) return 0.0;
+            return Math.Acos(cosine);
+        }
+
+        static int PointCount(double angleSpan, int maxPoints) =>
+            Math.Min(Math.Max((int)Math.Ceiling(angleSpan / SampleAngle) + 1, 2), Math.Max(maxPoints, 2));
+
+        static double EccentricFromTrue(double e, double nu) =>
+            2.0 * Math.Atan2(Math.Sqrt(1.0 - e) * Math.Sin(nu / 2.0), Math.Sqrt(1.0 + e) * Math.Cos(nu / 2.0));
+
+        /// <summary>Угол в [0, 2pi).</summary>
+        static double Wrap(double angle)
+        {
+            double wrapped = angle % (2.0 * Math.PI);
+            return wrapped < 0.0 ? wrapped + 2.0 * Math.PI : wrapped;
+        }
+
+        /// <summary>
+        /// Угол в [-pi, pi): у гиперболы истинная аномалия знаковая. Ровно -pi должен остаться
+        /// отрицательным, иначе «вся дуга от асимптоты до асимптоты» вырождается в точку.
+        /// </summary>
+        static double Signed(double angle)
+        {
+            double wrapped = Wrap(angle);
+            return wrapped >= Math.PI ? wrapped - 2.0 * Math.PI : wrapped;
+        }
+
         public static (double periapsis, double apoapsis) GetPeriapsisAndApoapsis(OrbitElements elements)
         {
             return (elements.semiMajorAxis * (1 - elements.eccentricity), elements.semiMajorAxis * (1 + elements.eccentricity));
