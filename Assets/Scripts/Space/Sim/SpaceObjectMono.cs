@@ -10,6 +10,9 @@ namespace OuterSpace
 {
     public class SpaceObjectMono : MonoWithObject<SpaceObject>, IHasOrbit, IHasSOI, IHasTrajectory
     {
+        // Синий у корабля, сиреневый у манёвра: две цепочки дуг на экране одновременно,
+        // и путать, какая из них уже посчитанное будущее, а какая — гипотеза, нельзя.
+        static readonly Color ShipColor = new(0.3f, 0.55f, 1f);
         public bool move = false;
         private bool prevMove = false;
         public SpaceObject spaceObject => Object;
@@ -33,7 +36,7 @@ namespace OuterSpace
         public override void OnInstatiated()
         {
             base.OnInstatiated();
-            gameObject.AddComponent<BodyGlyphMono>();
+            BodyGlyphMono glyph = gameObject.AddComponent<BodyGlyphMono>();
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.ORBIT))
             {
                 Instantiate(ResourcesLoader.LoadPrefab($"Sim/Orbit"), transform);
@@ -46,7 +49,9 @@ namespace OuterSpace
             // центральное тело, и помечает это событие.
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.TRAJECTORY))
             {
-                gameObject.AddComponent<TrajectoryRenderer>();
+                gameObject.AddComponent<TrajectoryRenderer>().color = ShipColor;
+                glyph.ringSegments = 3;
+                glyph.ringColor = ShipColor;
             }
         }
         // Start is called before the first frame update

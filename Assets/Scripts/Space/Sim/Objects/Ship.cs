@@ -23,6 +23,7 @@ namespace OuterSpace.Sim.Objects
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
         // центрального тела, а не от хода времени.
         const int RecalculateEveryFrames = 10;
+        const double DefaultHorizon = 30.0 * 86400.0;
         public Ship(double mass, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.TRAJECTORY })
         {
             this.mass = mass;
@@ -51,6 +52,7 @@ namespace OuterSpace.Sim.Objects
             // меток сближения на экране означали бы одно и то же дважды.
             if (Time.frameCount % RecalculateEveryFrames == 0)
             {
+                trajectory.settings.horizon = HorizonAhead();
                 trajectory.Update(orbitParams, centralBody, GameMono.instance.Epoch, null);
             }
 
@@ -110,6 +112,18 @@ namespace OuterSpace.Sim.Objects
             }
 
         }
+        /// <summary>
+        /// Три витка вперёд: события ищутся не на абстрактные тридцать суток, а на ближайшие
+        /// обороты, и окно едет вместе с кораблём. На разомкнутой траектории витка нет —
+        /// там остаётся горизонт по умолчанию.
+        /// </summary>
+        double HorizonAhead()
+        {
+            if (orbitParams.eccentricity >= 1.0) return DefaultHorizon;
+            double period = 2.0 * Mathd.PI * Mathd.Sqrt(Mathd.Pow(orbitParams.semiMajorAxis, 3) / orbitParams.mu);
+            return 3.0 * period;
+        }
+
         double ManeuverTimeShift()
         {
             int direction = (Input.GetKey(KeyCode.E) ? 1 : 0) - (Input.GetKey(KeyCode.Q) ? 1 : 0);

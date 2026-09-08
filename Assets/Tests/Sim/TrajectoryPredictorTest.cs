@@ -262,6 +262,24 @@ public class TrajectoryPredictorTest
     }
 
     [Test]
+    public void Cache_RecomputesWhenHorizonRunsOut()
+    {
+        TrajectoryCache cache = new();
+        cache.settings.horizon = 1000.0;
+        OrbitElements orbit = Circular(world.saturn.MU, 8.0e8, 0.0, 0.0);
+
+        cache.Update(orbit, world.saturn, 0.0, null);
+        System.Collections.Generic.IReadOnlyList<TrajectoryPatch> first = cache.patches;
+
+        cache.Update(orbit, world.saturn, 100.0, null);
+        Assert.AreSame(first, cache.patches, "десятая часть горизонта — пересчитывать нечего");
+
+        cache.Update(orbit, world.saturn, 500.0, null);
+        Assert.AreNotSame(first, cache.patches, "прогноз протух, а окно не поехало");
+        Assert.AreEqual(500.0, cache.patches[0].StartEpoch, 1e-9);
+    }
+
+    [Test]
     public void Prefilter_LosesNothing()
     {
         System.Random random = new(20260908);

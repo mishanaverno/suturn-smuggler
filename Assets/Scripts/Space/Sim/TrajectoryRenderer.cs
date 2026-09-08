@@ -39,16 +39,16 @@ namespace OuterSpace.Sim
         Material material;
         readonly List<LineRenderer> lines = new();
         readonly List<Vector3d> points = new();
-        TextMeshPro maneuverLabel;
-        TextMeshPro approachLabel;
+        readonly List<TextMeshPro> labels = new();
         float labelLineHeight;
 
         void Start()
         {
             source = GetComponentInParent<IHasTrajectory>();
-            material = ResourcesLoader.LoadPrefab("Sim/Orbit").GetComponent<LineRenderer>().sharedMaterial;
-            maneuverLabel = CreateLabel("ManeuverLabel");
-            approachLabel = CreateLabel("ApproachLabel");
+            // Материал линий — unlit с вершинным цветом. У Standard-шейдера вершинного цвета
+            // нет вовсе: startColor у LineRenderer уходит в никуда, и все линии на приборе
+            // получаются одного цвета, что бы им ни назначили.
+            material = SimLine.Material;
         }
 
         void LateUpdate()
@@ -58,27 +58,27 @@ namespace OuterSpace.Sim
             if (display == null || patches == null || patches.Count == 0)
             {
                 Hide(0);
-                maneuverLabel.enabled = false;
-                approachLabel.enabled = false;
+                HideLabels(0);
                 return;
             }
 
             int used = 0;
+            int labelled = 0;
             if (markStart)
             {
                 Vector3d start = PointOnArc(patches[0], patches[0].StartEpoch);
                 used = DrawStar(used, start, PatchColor(0), display);
-                ShowLabel(maneuverLabel, $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}", start, display);
-            }
-            else
-            {
-                maneuverLabel.enabled = false;
+                ShowLabel(Label(labelled++), $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}", start, display);
             }
             for (int i = 0; i < patches.Count; i++)
             {
                 TrajectoryPatch patch = patches[i];
                 DrawArc(Line(used++), patch, PatchColor(i), display);
+                int before = used;
                 used = DrawEndMarker(used, patch, PatchColor(i), display);
+                // Подпись только у нарисованной метки: у дуги, кончающейся горизонтом, события нет.
+                if (used == before) continue;
+                ShowLabel(Label(labelled++), EventText(patch), PointOnArc(patch, patch.EndEpoch), display);
             }
 
             IReadOnlyList<CloseApproach> approaches = source.Approaches;
@@ -93,13 +93,19 @@ namespace OuterSpace.Sim
                 DrawLink(Line(used++), ship, target, display);
                 DrawRing(Line(used++), ship, ApproachColor, display);
                 DrawRing(Line(used++), target, ApproachColor, display);
-                ShowLabel(approachLabel, ApproachText(approach), target, display);
-            }
-            else
-            {
-                approachLabel.enabled = false;
+                ShowLabel(Label(labelled++), ApproachText(approach), target, display);
             }
             Hide(used);
+            HideLabels(labelled);
+        }
+
+        // Событие подписывается тем, чем оно важно: через сколько и под кого корабль перейдёт.
+        static string EventText(TrajectoryPatch patch)
+        {
+            string countdown = $"T+{Clock(patch.EndEpoch - GameMono.instance.Epoch)}";
+            return patch.EndReason == PatchEndReason.Impact
+                ? $"IMPACT {countdown}"
+                : $"{patch.NextCentral.GameObject.name} {countdown}";
         }
 
         // Дуги различаются яркостью: видно, где траектория переходит к следующему телу.
@@ -266,6 +272,17 @@ namespace OuterSpace.Sim
             line.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return line;
+        }
+
+        TextMeshPro Label(int index)
+        {
+            while (labels.Count <= index) labels.Add(CreateLabel($"Label{labels.Count}"));
+            return labels[index];
+        }
+
+        void HideLabels(int from)
+        {
+            for (int i = from; i < labels.Count; i++) labels[i].enabled = false;
         }
 
         TextMeshPro CreateLabel(string name)

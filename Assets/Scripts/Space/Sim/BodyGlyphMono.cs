@@ -13,8 +13,12 @@ namespace OuterSpace.Sim
     /// </summary>
     public class BodyGlyphMono : MonoBehaviour
     {
-        const int RingSegments = 48;
         const string DefaultFontPath = "Fonts & Materials/LiberationSans SDF";
+
+        // Форма и цвет метки задаются тем, кто вешает компонент: корабль — синий треугольник,
+        // тела — белые кольца. Треугольник это то же кольцо в три сегмента.
+        public int ringSegments = 48;
+        public Color ringColor = Color.white;
 
         Transform body;
         LineRenderer ring;
@@ -36,9 +40,10 @@ namespace OuterSpace.Sim
             LineRenderer line = ringObject.AddComponent<LineRenderer>();
             line.useWorldSpace = false;
             line.loop = true;
-            line.positionCount = RingSegments;
+            line.positionCount = ringSegments;
+            line.startColor = line.endColor = ringColor;
             line.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
-            line.sharedMaterial = body.GetComponent<MeshRenderer>().sharedMaterial;
+            line.sharedMaterial = SimLine.Material;
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return line;
         }
@@ -97,9 +102,10 @@ namespace OuterSpace.Sim
             ring.widthMultiplier = width;
             Vector3 right = transform.InverseTransformDirection(cam.transform.right) * radius;
             Vector3 up = transform.InverseTransformDirection(cam.transform.up) * radius;
-            for (int i = 0; i < RingSegments; i++)
+            for (int i = 0; i < ringSegments; i++)
             {
-                float angle = 2f * Mathf.PI * i / RingSegments;
+                // Отсчёт от вертикали: у треугольника это вершина вверх, у кольца незаметно.
+                float angle = Mathf.PI / 2f + 2f * Mathf.PI * i / ringSegments;
                 ring.SetPosition(i, right * Mathf.Cos(angle) + up * Mathf.Sin(angle));
             }
         }
