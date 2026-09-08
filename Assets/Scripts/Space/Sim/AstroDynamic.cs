@@ -567,6 +567,10 @@ namespace OuterSpace.Sim
             return wrapped >= Math.PI ? wrapped - 2.0 * Math.PI : wrapped;
         }
 
+        /// <summary>Период обращения по замкнутой орбите.</summary>
+        public static double Period(OrbitElements orbit) =>
+            2.0 * Math.PI * Math.Sqrt(Math.Pow(orbit.semiMajorAxis, 3) / orbit.mu);
+
         public static (double periapsis, double apoapsis) GetPeriapsisAndApoapsis(OrbitElements elements)
         {
             return (elements.semiMajorAxis * (1 - elements.eccentricity), elements.semiMajorAxis * (1 + elements.eccentricity));

@@ -28,11 +28,13 @@ namespace OuterSpace.Sim
         public const int MaxPointsPerPatch = 1024;
         const string DefaultFontPath = "Fonts & Materials/LiberationSans SDF";
         const int RingSegments = 24;
-        static readonly Color ApproachColor = new(1f, 0.85f, 0.3f);
 
         // Задаются тем, кто вешает компонент: у манёвра свой цвет и звёздочка в начале дуги,
         // у корабля — только цепочка от его нынешнего положения.
         public Color color = new(0.4f, 1f, 0.9f);
+        // Пар меток сближения на экране две — у корабля и у манёвра, — и различать их надо
+        // не по форме, а по яркости: форма уже занята смыслом события.
+        public Color approachColor = new(1f, 0.85f, 0.3f);
         public bool markStart = false;
 
         IHasTrajectory source;
@@ -91,8 +93,8 @@ namespace OuterSpace.Sim
                 Vector3d ship = PointOnArc(PatchAt(patches, approach.Epoch), approach.Epoch);
                 Vector3d target = PointOnOrbit(source.Target, approach.Epoch);
                 DrawLink(Line(used++), ship, target, display);
-                DrawRing(Line(used++), ship, ApproachColor, display);
-                DrawRing(Line(used++), target, ApproachColor, display);
+                DrawRing(Line(used++), ship, approachColor, display);
+                DrawRing(Line(used++), target, approachColor, display);
                 ShowLabel(Label(labelled++), ApproachText(approach), target, display);
             }
             Hide(used);
@@ -219,7 +221,7 @@ namespace OuterSpace.Sim
 
         void DrawLink(LineRenderer line, Vector3d ship, Vector3d target, NavDisplayMono display)
         {
-            Prepare(line, ApproachColor, display);
+            Prepare(line, approachColor, display);
             line.positionCount = 2;
             line.SetPosition(0, SimView.ToScene(ship));
             line.SetPosition(1, SimView.ToScene(target));
@@ -242,7 +244,7 @@ namespace OuterSpace.Sim
             label.transform.localScale = Vector3.one * (float)display.LabelSceneHeight / labelLineHeight;
         }
 
-        static string Clock(double seconds)
+        public static string Clock(double seconds)
         {
             TimeSpan span = TimeSpan.FromSeconds(Math.Max(seconds, 0.0));
             return $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}";

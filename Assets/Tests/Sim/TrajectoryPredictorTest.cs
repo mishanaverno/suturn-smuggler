@@ -265,18 +265,19 @@ public class TrajectoryPredictorTest
     public void Cache_RecomputesWhenHorizonRunsOut()
     {
         TrajectoryCache cache = new();
-        cache.settings.horizon = 1000.0;
         OrbitElements orbit = Circular(world.saturn.MU, 8.0e8, 0.0, 0.0);
 
         cache.Update(orbit, world.saturn, 0.0, null);
         System.Collections.Generic.IReadOnlyList<TrajectoryPatch> first = cache.patches;
+        // Горизонт задаётся орбитой, а не вызывающим, поэтому эпохи меряются в его долях.
+        double horizon = cache.settings.horizon;
 
-        cache.Update(orbit, world.saturn, 100.0, null);
+        cache.Update(orbit, world.saturn, 0.1 * horizon, null);
         Assert.AreSame(first, cache.patches, "десятая часть горизонта — пересчитывать нечего");
 
-        cache.Update(orbit, world.saturn, 500.0, null);
+        cache.Update(orbit, world.saturn, 0.5 * horizon, null);
         Assert.AreNotSame(first, cache.patches, "прогноз протух, а окно не поехало");
-        Assert.AreEqual(500.0, cache.patches[0].StartEpoch, 1e-9);
+        Assert.AreEqual(0.5 * horizon, cache.patches[0].StartEpoch, 1e-9);
     }
 
     [Test]

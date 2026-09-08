@@ -4,28 +4,27 @@ namespace Game
 {
     public class TimeToggler : MonoBehaviour
     {
-        // Ровная лестница: каждая ступень — сотня или десятка к предыдущей, и игрок знает,
-        // во сколько раз ускорился, не глядя на число. 1e5 — это виток корабля вокруг Титана
-        // за три секунды и оборот Титана за 14 секунд.
-        static readonly uint[] Speeds = { 0, 1, 100, 1000, 10000, 100000 };
-        private int _index = 1;
+        // Шаг «1-2-5» на декаду: числа остаются круглыми, игрок знает, во сколько раз ускорился,
+        // и провала между 1× и 100× больше нет — при 1× на трёхчасовой орбите не происходит
+        // ничего, при 100× виток пролетает за 108 секунд.
+        static readonly uint[] Speeds = { 0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000 };
+        // Шестнадцать ступеней перещёлкивать долго, поэтому прыжок на декаду — модификатором.
+        public const int StepsPerDecade = 3;
+        const float RepeatDelay = 0.4f;
+        const float RepeatRate = 8f;
 
+        private int _index = 1;
+        float holdTime;
+        int repeats;
+
+        public static System.Collections.Generic.IReadOnlyList<uint> Ladder => Speeds;
         public uint Current => Speeds[_index];
-        public TimeToggler Faster()
+        public TimeToggler Faster() => Shift(1);
+        public TimeToggler Slower() => Shift(-1);
+
+        public TimeToggler Shift(int steps)
         {
-            if (_index + 1 < Speeds.Length)
-            {
-                _index++;
-            }
-            OnTimeChange();
-            return this;
-        }
-        public TimeToggler Slower()
-        {
-            if (_index > 0)
-            {
-                _index--;
-            }
+            _index = Mathf.Clamp(_index + steps, 0, Speeds.Length - 1);
             OnTimeChange();
             return this;
         }
@@ -35,14 +34,23 @@ namespace Game
         }
         void Update()
         {
-            if (Input.GetKeyUp(KeyCode.Period))
+            int direction = (Input.GetKey(KeyCode.Period) ? 1 : 0) - (Input.GetKey(KeyCode.Comma) ? 1 : 0);
+            if (direction == 0)
             {
-                Faster();
+                holdTime = 0f;
+                repeats = 0;
+                return;
             }
-            if (Input.GetKeyUp(KeyCode.Comma))
+            int steps = direction * (Input.GetKey(KeyCode.LeftShift) ? StepsPerDecade : 1);
+            if (Input.GetKeyDown(KeyCode.Period) || Input.GetKeyDown(KeyCode.Comma))
             {
-                Slower();
+                Shift(steps);
+                return;
             }
+            holdTime += Time.deltaTime;
+            if (holdTime < RepeatDelay || (holdTime - RepeatDelay) * RepeatRate < repeats) return;
+            repeats++;
+            Shift(steps);
         }
     }
 }

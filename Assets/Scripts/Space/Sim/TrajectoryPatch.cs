@@ -28,6 +28,12 @@ namespace OuterSpace.Sim
     public sealed class PredictSettings
     {
         public double horizon = 30.0 * 86400.0;
+        // Горизонт считается от орбиты, а не задаётся снаружи: иначе корабль и манёвр смотрят
+        // вперёд на разную глубину и прибор предупреждает об одном событии в разное время.
+        public double horizonPeriods = 5.0;
+        // У незамкнутой орбиты периода нет. Суток хватает с запасом: гиперболический уход
+        // от Титана до границы его сферы влияния занимает около семи часов.
+        public double openOrbitHorizon = 86400.0;
         public int maxPatches = 5;
         // Шаг адаптивный, эти два — только границы: minStep задаёт точность у самой границы
         // сферы, maxStep не даёт пропустить событие на участке, где сближения нет вовсе.
@@ -40,5 +46,9 @@ namespace OuterSpace.Sim
         public bool prefilter = true;
         // Соорбитальная цель: расстояние почти не меняется, минимум размазан и смысла не имеет.
         public double coorbitalVariation = 0.01;
+
+        public double HorizonFor(OrbitElements orbit) => orbit.eccentricity >= 1.0
+            ? openOrbitHorizon
+            : horizonPeriods * AstroDynamic.Period(orbit);
     }
 }

@@ -5,6 +5,7 @@ using DoublePrecision;
 using Game;
 using OuterSpace;
 using OuterSpace.Sim;
+using OuterSpace.Sim.Objects;
 using UnityEngine;
 
 /// <summary>
@@ -55,6 +56,16 @@ public class SaturnTestWorld : IDisposable
             byId.Add(objData.id, obj);
             ordered.Add(obj);
         }
+
+        // Прогноз корабля и точка манёвра читают мир из статики SimMono: список тел,
+        // цель и объект сцены, к которому подшивается метка манёвра.
+        SimMono.bodies.Clear();
+        SimMono.bodies.AddRange(bodies);
+        SimMono.target = null;
+        GameObject simHost = new("SimMono");
+        created.Add(simHost);
+        // Awake в edit-mode не вызывается, синглтон выставляется вручную — как у GameMono.
+        SimMono.instance = simHost.AddComponent<SimMono>();
     }
 
     public double Epoch
@@ -83,6 +94,18 @@ public class SaturnTestWorld : IDisposable
         return obj;
     }
 
+    /// <summary>Корабль на заданной орбите: со своим прогнозом, манёвром и ориентацией.</summary>
+    public Ship PutShip(SpaceObject central, OrbitElements orbit, double epoch)
+    {
+        Epoch = epoch;
+        foreach (SpaceObject body in ordered) body.FixedUpdate();
+        Ship ship = new(1000.0, prefab);
+        created.Add(ship.GameObject);
+        ship.SetCentralBody(central);
+        ship.SetOrbit(orbit);
+        return ship;
+    }
+
     /// <summary>Тик симуляции с переподчинением по сферам влияния — как SimMono.FixedUpdate.</summary>
     public bool Step(double epoch, SpaceObject ship, SpaceObject other = null)
     {
@@ -105,6 +128,9 @@ public class SaturnTestWorld : IDisposable
             if (go != null) UnityEngine.Object.DestroyImmediate(go);
         }
         created.Clear();
+        SimMono.bodies.Clear();
+        SimMono.target = null;
+        SimMono.instance = null;
         GameMono.instance = null;
     }
 }

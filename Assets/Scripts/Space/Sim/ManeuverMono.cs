@@ -24,6 +24,9 @@ namespace OuterSpace.Sim
             // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
             TrajectoryRenderer renderer = gameObject.AddComponent<TrajectoryRenderer>();
             renderer.color = ManeuverColor;
+            // Метки сближения манёвра тусклее корабельных: одна пара — план, вторая — то, что
+            // произойдёт на самом деле, и разница между ними и есть информация.
+            renderer.approachColor = new(0.6f, 0.5f, 0.2f);
             renderer.markStart = true;
             // Точку манёвра он же рисует звёздочкой фиксированного экранного размера, а шарик
             // из префаба на дальних масштабах превращался в пятно без смысла.

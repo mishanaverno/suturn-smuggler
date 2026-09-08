@@ -27,6 +27,7 @@ namespace OuterSpace.Sim
 
         public void Update(OrbitElements orbit, SpaceObject central, double startEpoch, SpaceObject target)
         {
+            settings.horizon = settings.HorizonFor(orbit);
             bool stale = startEpoch - computedEpoch >= settings.horizon * RefreshFraction;
             if (!outdated && !stale && target == this.target) return;
             outdated = false;

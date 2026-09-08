@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using Game;
 using OuterSpace.Sim.Objects;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -38,6 +40,7 @@ namespace OuterSpace.Sim
         public int rangeIndex = 2;
 
         public RenderTexture texture { get; private set; }
+        public TextMeshProUGUI readout { get; private set; }
         public Camera cam { get; private set; }
         /// <summary>
         /// Точка, на которой стоит начало сцены: вокруг неё вращается вид. Не обязательно тело —
@@ -98,6 +101,36 @@ namespace OuterSpace.Sim
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
+
+            GameObject textObject = new("Readout");
+            textObject.transform.SetParent(canvasObject.transform, false);
+            readout = textObject.AddComponent<TextMeshProUGUI>();
+            readout.fontSize = 18f;
+            readout.raycastTarget = false;
+            RectTransform textRect = readout.rectTransform;
+            textRect.anchorMin = new Vector2(0f, 1f);
+            textRect.anchorMax = new Vector2(0f, 1f);
+            textRect.pivot = new Vector2(0f, 1f);
+            textRect.anchoredPosition = new Vector2(12f, -12f);
+            textRect.sizeDelta = new Vector2(600f, 120f);
+        }
+
+        /// <summary>
+        /// Числа, без которых управление читается как случайное: в каком режиме стоит корабль,
+        /// насколько двигает орбиту одно нажатие и почему перемотка идёт медленнее запрошенной.
+        /// </summary>
+        void UpdateReadout()
+        {
+            Ship ship = SimMono.playerShip as Ship;
+            if (ship == null) return;
+            GameMono game = GameMono.instance;
+            string target = SimMono.target == null ? "NONE" : SimMono.target.GameObject.name;
+            string warp = $"WARP x{game.WarpSpeed:0.##} / x{game.TimeSpeed}";
+            if (game.WarpLimitReason != null) warp += $"\nSLOWDOWN: {game.WarpLimitReason}";
+            readout.text =
+                $"ORIENT {ship.orientation.ToString().ToUpperInvariant()}   TARGET {target}\n" +
+                $"STEP {ship.CurrentTimeStep:F0} s   {ship.CurrentSpeedStep:F2} m/s\n" +
+                warp;
         }
 
         // Update, а не LateUpdate: SimMono двигает тела в FixedUpdate, то есть до Update
@@ -115,6 +148,7 @@ namespace OuterSpace.Sim
 
             cam.transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
             cam.transform.position = cam.transform.rotation * Vector3.back * 100f;
+            UpdateReadout();
         }
 
         void ReadInput()

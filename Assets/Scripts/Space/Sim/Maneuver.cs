@@ -19,6 +19,12 @@ namespace OuterSpace.Sim
         Vector3d relativePosition;
         Vector3d relativeVelocity;
 
+        /// <summary>Плановый импульс в инерциальной системе центрального тела, снятый при планировании.</summary>
+        public Vector3d PlannedDeltaV { get; private set; }
+
+        /// <summary>Орбитальная скорость в точке манёвра: от неё меряется шаг настройки Δv.</summary>
+        public double SpeedAtNode => relativeVelocity.magnitude;
+
         public Maneuver(SpaceObject spaceObject, double startEpoch)
         {
             this.spaceObject = spaceObject;
@@ -57,8 +63,8 @@ namespace OuterSpace.Sim
         [ContextMenu("Update velocity")]
         public void CalcAndDraw()
         {
-            Vector3d relDeltaV = CoordinateConverter.LocalDeltaVtoRelative(deltaLVLHVelocity, relativePosition, relativeVelocity);
-            newOrbitParams = AstroDynamic.CalculateOrbitElements(relativePosition, relativeVelocity + relDeltaV, spaceObject.centralBody.MU, startEpoch);
+            PlannedDeltaV = CoordinateConverter.LocalDeltaVtoRelative(deltaLVLHVelocity, relativePosition, relativeVelocity);
+            newOrbitParams = AstroDynamic.CalculateOrbitElements(relativePosition, relativeVelocity + PlannedDeltaV, spaceObject.centralBody.MU, startEpoch);
             trajectory.Invalidate();
         }
 
