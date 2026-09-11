@@ -1,5 +1,4 @@
-using TMPro;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace OuterSpace.Sim
 {
@@ -10,11 +9,13 @@ namespace OuterSpace.Sim
     /// при приближении диск вырастает изнутри кольца и перерастает его. Размера,
     /// который не является ни истинным, ни явно символическим, не бывает ни на одной
     /// дальности - именно он и заставил бы поднимать орбиту корабля.
+    ///
+    /// Имени тело больше не носит: подписи выстраивает NavLabelRail по краям экрана. Пока
+    /// каждое тело подписывало себя само, уступить место было некому — знать про соседей
+    /// может только тот, кто видит всех.
     /// </summary>
     public class BodyGlyphMono : MonoBehaviour
     {
-        const string DefaultFontPath = "Fonts & Materials/LiberationSans SDF";
-
         // Форма и цвет метки задаются тем, кто вешает компонент: корабль — синий треугольник,
         // тела — белые кольца. Треугольник это то же кольцо в три сегмента.
         public int ringSegments = 48;
@@ -22,14 +23,11 @@ namespace OuterSpace.Sim
 
         Transform body;
         LineRenderer ring;
-        TextMeshPro label;
-        float labelLineHeight;
 
         void Start()
         {
             body = transform.Find("Body");
             ring = CreateRing();
-            label = CreateLabel();
         }
 
         LineRenderer CreateRing()
@@ -48,32 +46,6 @@ namespace OuterSpace.Sim
             return line;
         }
 
-        TextMeshPro CreateLabel()
-        {
-            GameObject labelObject = new("Label");
-            labelObject.layer = gameObject.layer;
-            labelObject.transform.SetParent(transform, false);
-            TextMeshPro text = labelObject.AddComponent<TextMeshPro>();
-            // Умолчание TMP берёт из TMP Settings по guid, а тот в этом проекте уезжал при
-            // переимпорте TMP Essentials: текст оставался без шрифта и не рисовался, молча.
-            // Загрузка по пути от guid не зависит.
-            TMP_FontAsset font = TMP_Settings.defaultFontAsset;
-            if (font == null) font = Resources.Load<TMP_FontAsset>(DefaultFontPath);
-            text.font = font;
-            text.text = transform.name;
-            text.fontSize = 1f;
-            text.alignment = TextAlignmentOptions.Left;
-            text.rectTransform.sizeDelta = new Vector2(20f, 2f);
-            text.rectTransform.pivot = new Vector2(0f, 0.5f);
-            // fontSize у TextMeshPro - не высота строки в мировых единицах: для не-
-            // ортографического текста TMP домножает её ещё и на 0.1. Чтобы подпись
-            // занимала ровно заданную долю высоты экрана, высота строки измеряется,
-            // а не выводится из константы.
-            text.ForceMeshUpdate();
-            labelLineHeight = text.preferredHeight;
-            return text;
-        }
-
         void LateUpdate()
         {
             NavDisplayMono display = NavDisplayMono.instance;
@@ -89,10 +61,6 @@ namespace OuterSpace.Sim
             ring.enabled = NavScale.GlyphSceneDiameter(bodyDiameter, markerDiameter) == markerDiameter;
             float markerRadius = (float)markerDiameter * 0.5f;
             if (ring.enabled) DrawRing(display.cam, markerRadius, display.LineSceneWidth);
-
-            label.transform.rotation = display.cam.transform.rotation;
-            label.transform.localPosition = display.cam.transform.rotation * new Vector3(markerRadius, markerRadius, 0f);
-            label.transform.localScale = Vector3.one * (float)display.LabelSceneHeight / labelLineHeight;
         }
 
         // Метка развёрнута к камере: круг в фиксированной плоскости при повороте вида

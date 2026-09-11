@@ -58,7 +58,8 @@ namespace OuterSpace
         private void Update()
         {
             Object.Update();
-            if (Input.GetKeyDown(KeyCode.I) && spaceObject.centralBody != null)
+            if (Controls.GameInput.ObjectInfo != null && Controls.GameInput.ObjectInfo.WasPressedThisFrame()
+                && spaceObject.centralBody != null)
             {
                 Log();
             }

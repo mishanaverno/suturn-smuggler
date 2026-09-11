@@ -10,15 +10,11 @@ namespace Game
         static readonly uint[] Speeds = { 0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000 };
         // Шестнадцать ступеней перещёлкивать долго, поэтому прыжок на декаду — модификатором.
         public const int StepsPerDecade = 3;
-        const float RepeatDelay = 0.4f;
-        const float RepeatRate = 8f;
 
         // Ступень, выше которой не пустит работающий двигатель.
         const int RealTimeIndex = 1;
 
         private int _index = 1;
-        float holdTime;
-        int repeats;
         bool locked;
 
         public static System.Collections.Generic.IReadOnlyList<uint> Ladder => Speeds;
@@ -46,26 +42,6 @@ namespace Game
         private void OnTimeChange()
         {
             Debug.Log($"Time speed changed to x{Current}");
-        }
-        void Update()
-        {
-            int direction = (Input.GetKey(KeyCode.Period) ? 1 : 0) - (Input.GetKey(KeyCode.Comma) ? 1 : 0);
-            if (direction == 0)
-            {
-                holdTime = 0f;
-                repeats = 0;
-                return;
-            }
-            int steps = direction * (Input.GetKey(KeyCode.LeftShift) ? StepsPerDecade : 1);
-            if (Input.GetKeyDown(KeyCode.Period) || Input.GetKeyDown(KeyCode.Comma))
-            {
-                Shift(steps);
-                return;
-            }
-            holdTime += Time.deltaTime;
-            if (holdTime < RepeatDelay || (holdTime - RepeatDelay) * RepeatRate < repeats) return;
-            repeats++;
-            Shift(steps);
         }
     }
 }

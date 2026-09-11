@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace OuterSpace.Sim
 {
@@ -25,11 +25,23 @@ namespace OuterSpace.Sim
 
         public void Invalidate() => outdated = true;
 
+        /// <summary>
+        /// Все посчитанные сближения пройдены. Именно все посчитанные, а не «сближений нет»:
+        /// если в горизонте их не нашлось вовсе, пересчитывать нечего, и пустой список не
+        /// должен превращаться в пересчёт каждые десять кадров.
+        /// </summary>
+        bool ApproachesSpent(double epoch) =>
+            approaches != null && approaches.Count > 0 && approaches[approaches.Count - 1].Epoch <= epoch;
+
         public void Update(OrbitElements orbit, SpaceObject central, double startEpoch, SpaceObject target)
         {
             settings.horizon = settings.HorizonFor(orbit);
             bool stale = startEpoch - computedEpoch >= settings.horizon * RefreshFraction;
-            if (!outdated && !stale && target == this.target) return;
+            // На стабильной орбите прогноз не протухает сам по себе, но сближения в нём
+            // кончаются: корабль проходит их одно за другим. Когда пройдено последнее,
+            // прибору нечего показывать, пока не досчитаны следующие.
+            bool approachesSpent = target != null && target == this.target && ApproachesSpent(startEpoch);
+            if (!outdated && !stale && !approachesSpent && target == this.target) return;
             outdated = false;
             computedEpoch = startEpoch;
             this.target = target;

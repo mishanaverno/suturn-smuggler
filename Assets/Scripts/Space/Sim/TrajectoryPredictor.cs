@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using DoublePrecision;
 
@@ -22,7 +22,12 @@ namespace OuterSpace.Sim
             PredictSettings settings)
         {
             List<TrajectoryPatch> patches = new();
-            double endEpoch = startEpoch + settings.horizon;
+            // Горизонт первой дуги задаёт вызывающий: он же решает, насколько далеко смотрит
+            // прибор. Дальше каждая дуга получает свой, от собственной орбиты, — иначе после
+            // ухода из сферы влияния луны на эллипс вокруг планеты остаются часы от суток,
+            // и вместо орбиты рисуется короткий огрызок.
+            double cap = startEpoch + settings.maxHorizon;
+            double endEpoch = Mathd.Min(startEpoch + settings.horizon, cap);
             OrbitElements orbit = startOrbit;
             SpaceObject central = startCentral;
             double epoch = startEpoch;
@@ -45,6 +50,8 @@ namespace OuterSpace.Sim
                 orbit = ElementsAfterPatch(patch);
                 central = patch.NextCentral;
                 epoch = patch.EndEpoch;
+                endEpoch = Mathd.Min(epoch + settings.HorizonFor(orbit, settings.chainHorizonPeriods), cap);
+                if (endEpoch <= epoch) break;
             }
             return patches;
         }

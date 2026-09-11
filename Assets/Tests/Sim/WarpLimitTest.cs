@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using Game;
 using NUnit.Framework;
 using OuterSpace;
@@ -8,7 +8,7 @@ using UnityEngine;
 
 public class WarpLimitTest
 {
-    // Кадр при 60 fps: на нём меряется страховочный предел по окну пролёта.
+    // Кадр при 60 fps: на нём считается, не перепрыгнет ли шаг окно перед событием.
     const double FrameSeconds = 1.0 / 60.0;
     const uint Requested = 100000;
     const double EncounterEpoch = 200000.0;
@@ -49,36 +49,42 @@ public class WarpLimitTest
     }
 
     [Test]
-    public void Allowed_StaysWithinLead_AndNeverBelowOne()
+    public void Allowed_IsOne_InsideGuard_AndRequested_FarAway()
     {
-        foreach (double timeToEvent in new[] { 0.0, 1.0, 5.0, 60.0, 3600.0, 1e9 })
+        foreach (double timeToEvent in new[] { 0.0, 1.0, 9.99, WarpLimit.GuardSeconds })
         {
-            double allowed = WarpLimit.Allowed(Requested, timeToEvent);
-            Assert.LessOrEqual(allowed, Mathd.Max(timeToEvent / WarpLimit.LeadSeconds, 1.0) + 1e-9);
-            Assert.GreaterOrEqual(allowed, 1.0);
-            Assert.LessOrEqual(allowed, Requested);
+            Assert.AreEqual(1.0, WarpLimit.Allowed(Requested, timeToEvent, FrameSeconds),
+                $"внутри окна перемотки быть не должно, а до события {timeToEvent} с");
         }
+        Assert.AreEqual(Requested, WarpLimit.Allowed(Requested, 1e9, FrameSeconds));
     }
 
+    /// <summary>
+    /// Главное свойство правила: кадр не перепрыгивает границу окна. Без этого правило
+    /// «за десять секунд до события перемотки нет» не выполняется вовсе — на 100000× один
+    /// кадр продвигает время на четверть часа.
+    /// </summary>
     [Test]
-    public void Allowed_FallsMonotonically_TowardsEvent()
+    public void Step_NeverJumpsOver_TheGuardWindow()
     {
-        double previous = double.PositiveInfinity;
-        for (double timeToEvent = 7200.0; timeToEvent >= 0.0; timeToEvent -= 60.0)
+        for (double timeToEvent = 0.0; timeToEvent < 7200.0; timeToEvent += 0.37)
         {
-            double allowed = WarpLimit.Allowed(Requested, timeToEvent);
-            Assert.LessOrEqual(allowed, previous);
-            previous = allowed;
+            double allowed = WarpLimit.Allowed(Requested, timeToEvent, FrameSeconds);
+            Assert.GreaterOrEqual(allowed, 1.0);
+            Assert.LessOrEqual(allowed, Requested);
+            if (timeToEvent <= WarpLimit.GuardSeconds) continue;
+            double remaining = timeToEvent - allowed * FrameSeconds;
+            Assert.GreaterOrEqual(remaining, WarpLimit.GuardSeconds - 1e-9,
+                $"кадр проскочил окно: до события было {timeToEvent} с, осталось {remaining} с");
         }
-        Assert.AreEqual(1.0, previous);
     }
 
     [Test]
     public void Allowed_ReturnsToRequested_AfterEventIsPassed()
     {
-        Assert.AreEqual(1.0, WarpLimit.Allowed(Requested, 0.0));
+        Assert.AreEqual(1.0, WarpLimit.Allowed(Requested, 0.0, FrameSeconds));
         // Событие пройдено: ближайшее следующее далеко, и ограничение снимается целиком.
-        Assert.AreEqual(Requested, WarpLimit.Allowed(Requested, Requested * WarpLimit.LeadSeconds));
+        Assert.AreEqual(Requested, WarpLimit.Allowed(Requested, 1e6, FrameSeconds));
     }
 
     /// <summary>Главный тест: сквозь сферу влияния Мимаса корабль не проходит ни при какой перемотке.</summary>
@@ -137,8 +143,7 @@ public class WarpLimitTest
     static double AllowedWarp(Ship ship, double epoch)
     {
         Ship.WarpEvent next = ship.NextEvent(epoch);
-        double allowed = next == null ? Requested : WarpLimit.Allowed(Requested, next.Epoch - epoch);
-        return Mathd.Min(allowed, WarpLimit.FrameCap(ship.NarrowestFlybyWindow(), FrameSeconds));
+        return next == null ? Requested : WarpLimit.Allowed(Requested, next.Epoch - epoch, FrameSeconds);
     }
 
     static OrbitElements Parking(SpaceObject central) => new()

@@ -22,11 +22,6 @@ namespace OuterSpace.Sim.Objects
         public const double SpeedStepFraction = 0.01;
         public const double CoarseFactor = 10.0;
         public const double FineFactor = 0.1;
-        // Нажатие двигает манёвр на шаг, удержание — на десять шагов в секунду. Без автоповтора
-        // до нужного момента пришлось бы дощёлкивать сотнями нажатий.
-        const float RepeatDelay = 0.4f;
-        const float RepeatRate = 10f;
-        float holdTime;
         Maneuver maneuver;
         Vector3d dir = Vector3d.right;
         bool thrusting;
@@ -36,14 +31,35 @@ namespace OuterSpace.Sim.Objects
         double burnEpoch;
         public override bool TracksSOITransitions => true;
         public double mass;
-        /// <summary>Тяга двигателя, Н.</summary>
-        public double thrust = 100000.0;
+        /// <summary>
+        /// Расчётное ускорение при полной тяге, м/с². Пять g — много для человека, но пока
+        /// нет ни топлива, ни перегрузок, это просто цена минуты: при 50 м/с² прожиг на
+        /// 7 км/с длится две с половиной минуты, а при одном — два часа, и проверять на таком
+        /// игру невозможно. Число временное и уедет, как только появится формула Циолковского.
+        /// </summary>
+        public const double DesignAcceleration = 50.0;
+        /// <summary>Тяга двигателя, Н. Считается от массы: двигатель подбирают под корабль.</summary>
+        public double thrust;
         public readonly TrajectoryCache trajectory = new();
+        static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
+        static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
         // центрального тела, а не от хода времени.
         const int RecalculateEveryFrames = 10;
+        // На прожиге орбита меняется каждый тик, и полная цепочка патч-коник пересчитывалась
+        // бы шесть раз в секунду — это и были лаги. Но дело не только в цене: прогноз на
+        // недели вперёд во время прожига и не нужен, он всё равно неверен через тик. Поэтому
+        // на время работы двигателя прибор показывает одну дугу на виток вперёд, а полную
+        // цепочку строит заново на отсечке.
+        const int BurnRecalculateEveryFrames = 25;
+        const double BurnHorizonPeriods = 1.0;
 
         public ShipOrientation orientation = ShipOrientation.Free;
+        /// <summary>
+        /// Множитель шага настройки, выставляемый пультом: грубо, точно или как есть. Модель
+        /// его не выводит из клавиш — она вообще не знает, что клавиши существуют.
+        /// </summary>
+        public double stepScale = 1.0;
         /// <summary>Направление тяги в инерциальной системе центрального тела.</summary>
         public Vector3d Direction => dir;
         public bool Thrusting => thrusting;
@@ -59,12 +75,13 @@ namespace OuterSpace.Sim.Objects
         /// </summary>
         public double BurnStartEpoch =>
             maneuver == null ? 0.0 : maneuver.startEpoch - 0.5 * maneuver.PlannedMagnitude / Acceleration;
-        public double CurrentTimeStep => TimeStep(ManeuverTimeSpan(), StepScale());
-        public double CurrentSpeedStep => SpeedStep(SpeedAtNode(), StepScale());
+        public double CurrentTimeStep => TimeStep(ManeuverTimeSpan(), stepScale);
+        public double CurrentSpeedStep => SpeedStep(SpeedAtNode(), stepScale);
 
         public Ship(double mass, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.TRAJECTORY })
         {
             this.mass = mass;
+            thrust = mass * DesignAcceleration;
         }
         public Maneuver GetManeuver()
         {
@@ -90,49 +107,22 @@ namespace OuterSpace.Sim.Objects
         {
             // Цель — состояние корабля, а не манёвра: манёвр после исполнения удаляется, а
             // сближения нужнее всего как раз на финальных коррекциях, когда его уже нет.
-            if (Time.frameCount % RecalculateEveryFrames == 0)
+            int every = thrusting ? BurnRecalculateEveryFrames : RecalculateEveryFrames;
+            if (Time.frameCount % every == 0)
             {
                 trajectory.Update(orbitParams, centralBody, GameMono.instance.Epoch, SimMono.target);
             }
 
-            ReadOrientation();
             UpdateDirection();
-
-            if (Input.GetKeyDown(KeyCode.Space)) SetThrust(true);
-            if (Input.GetKeyUp(KeyCode.Space)) SetThrust(false);
-
-            if (Input.GetKeyUp(KeyCode.M))
-            {
-                CreateManeuver(0);
-            }
-
-            if (Input.GetKeyUp(KeyCode.R) && maneuver != null)
-            {
-                DeleteManeuver();
-            }
-
-            if (maneuver == null) return;
-
-            double step = CurrentSpeedStep;
-            if (Input.GetKeyUp(KeyCode.W)) AddDeltaV(new Vector3d(step, 0, 0));
-            if (Input.GetKeyUp(KeyCode.S)) AddDeltaV(new Vector3d(-step, 0, 0));
-            if (Input.GetKeyUp(KeyCode.D)) AddDeltaV(new Vector3d(0, 0, step));
-            if (Input.GetKeyUp(KeyCode.A)) AddDeltaV(new Vector3d(0, 0, -step));
-            if (Input.GetKeyUp(KeyCode.Z)) AddDeltaV(new Vector3d(0, step, 0));
-            if (Input.GetKeyUp(KeyCode.X)) AddDeltaV(new Vector3d(0, -step, 0));
-
-            double shift = ManeuverTimeShift();
-            // Раньше текущего момента манёвра не бывает: точка задана на будущей орбите.
-            if (shift != 0)
-            {
-                maneuver.SetStartEpoch(Mathd.Max(maneuver.startEpoch + shift, GameMono.instance.Epoch));
-            }
         }
 
         public void SetThrust(bool on)
         {
             if (thrusting == on) return;
             thrusting = on;
+            trajectory.settings.maxPatches = on ? 1 : DefaultMaxPatches;
+            trajectory.settings.horizonPeriods = on ? BurnHorizonPeriods : DefaultHorizonPeriods;
+            trajectory.Invalidate();
             if (on)
             {
                 burnEpoch = GameMono.instance.Epoch;
@@ -141,26 +131,14 @@ namespace OuterSpace.Sim.Objects
             if (GameMono.instance.TimeToggler != null) GameMono.instance.TimeToggler.SetLocked(on);
         }
 
-        void AddDeltaV(Vector3d delta)
+        /// <summary>
+        /// Приращение характеристической скорости в LVLH манёвра. Величину шага считает
+        /// модель (CurrentSpeedStep), направление выбирает пульт.
+        /// </summary>
+        public void AddDeltaV(Vector3d delta)
         {
             maneuver.deltaLVLHVelocity += delta;
             maneuver.CalcAndDraw();
-        }
-
-        // Смены режима — отдельные клавиши, а не перебор по кругу: перебор из десяти режимов
-        // хуже, чем десять клавиш.
-        void ReadOrientation()
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha1)) orientation = ShipOrientation.Prograde;
-            if (Input.GetKeyDown(KeyCode.Alpha2)) orientation = ShipOrientation.Retrograde;
-            if (Input.GetKeyDown(KeyCode.Alpha3)) orientation = ShipOrientation.Normal;
-            if (Input.GetKeyDown(KeyCode.Alpha4)) orientation = ShipOrientation.Antinormal;
-            if (Input.GetKeyDown(KeyCode.Alpha5)) orientation = ShipOrientation.RadialOut;
-            if (Input.GetKeyDown(KeyCode.Alpha6)) orientation = ShipOrientation.RadialIn;
-            if (Input.GetKeyDown(KeyCode.Alpha7)) orientation = ShipOrientation.Target;
-            if (Input.GetKeyDown(KeyCode.Alpha8)) orientation = ShipOrientation.AntiTarget;
-            if (Input.GetKeyDown(KeyCode.Alpha9)) orientation = ShipOrientation.Maneuver;
-            if (Input.GetKeyDown(KeyCode.Alpha0)) orientation = ShipOrientation.Free;
         }
 
         /// <summary>
@@ -182,8 +160,6 @@ namespace OuterSpace.Sim.Objects
         public static double TimeStep(double span, double scale) => TimeStepFraction * span * scale;
         public static double SpeedStep(double orbitalSpeed, double scale) => SpeedStepFraction * orbitalSpeed * scale;
 
-        static double StepScale() => StepScale(Input.GetKey(KeyCode.LeftShift), Input.GetKey(KeyCode.LeftControl));
-
         /// <summary>
         /// Величина, от доли которой меряется сдвиг манёвра по времени: период орбиты, а на
         /// незамкнутой — время до выхода из сферы влияния, потому что периода там нет.
@@ -198,20 +174,14 @@ namespace OuterSpace.Sim.Objects
 
         double SpeedAtNode() => maneuver == null ? velocity.magnitude : maneuver.SpeedAtNode;
 
-        double ManeuverTimeShift()
+        /// <summary>
+        /// Сдвиг узла по времени. Раньше текущего момента манёвра не бывает: точка задана на
+        /// будущей орбите.
+        /// </summary>
+        public void ShiftManeuverTime(double seconds)
         {
-            int direction = (Input.GetKey(KeyCode.E) ? 1 : 0) - (Input.GetKey(KeyCode.Q) ? 1 : 0);
-            if (direction == 0)
-            {
-                holdTime = 0f;
-                return 0.0;
-            }
-            double span = CurrentTimeStep;
-            bool pressed = Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Q);
-            holdTime += Time.deltaTime;
-            if (pressed) return direction * span;
-            if (holdTime < RepeatDelay) return 0.0;
-            return direction * span * RepeatRate * Time.deltaTime;
+            if (maneuver == null || seconds == 0.0) return;
+            maneuver.SetStartEpoch(Mathd.Max(maneuver.startEpoch + seconds, GameMono.instance.Epoch));
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using OuterSpace.Sim;
@@ -13,7 +13,40 @@ public class NavScaleTest
     const int Height = 768;
     const double MarkerFraction = 12.0 / 768.0;
 
-    static readonly double[] Ranges = NavDisplayMono.Ranges;
+    // Все ступени лестницы дальностей, а не пять избранных: проверять инварианты масштаба
+    // дешевле на всех, чем гадать, какие из них крайние.
+    static readonly double[] Ranges = BuildRanges();
+
+    static double[] BuildRanges()
+    {
+        double[] ranges = new double[NavDisplayMono.RangeSteps];
+        for (int i = 0; i < ranges.Length; i++) ranges[i] = NavDisplayMono.RangeAt(i);
+        return ranges;
+    }
+
+    /// <summary>
+    /// Лестница геометрическая: равные шаги ручки дают равные множители. Это и есть то
+    /// свойство, ради которого она заменила пять фиксированных дальностей.
+    /// </summary>
+    [Test]
+    public void RangeLadder_IsGeometric_AndSpansItsBounds()
+    {
+        Assert.AreEqual(NavDisplayMono.MinRange, Ranges[0], NavDisplayMono.MinRange * 1e-9);
+        Assert.AreEqual(NavDisplayMono.MaxRange, Ranges[^1], NavDisplayMono.MaxRange * 1e-9);
+
+        double factor = Ranges[1] / Ranges[0];
+        for (int i = 1; i < Ranges.Length; i++)
+        {
+            Assert.Greater(Ranges[i], Ranges[i - 1]);
+            Assert.AreEqual(factor, Ranges[i] / Ranges[i - 1], factor * 1e-9,
+                $"шаг {i} меняет дальность не во столько же раз, что и остальные");
+        }
+
+        for (int i = 0; i < Ranges.Length; i++)
+        {
+            Assert.AreEqual(i, NavDisplayMono.StepAt(Ranges[i]), $"ступень {i} не находится по своей дальности");
+        }
+    }
 
     static double MetersPerPixel(double range, int textureHeight) =>
         NavScale.MetersPerPixel(NavScale.OrthographicSize, NavScale.MetersPerSceneUnit(range), textureHeight);

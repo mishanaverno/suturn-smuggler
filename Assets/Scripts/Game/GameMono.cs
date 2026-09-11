@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
 using UnityEngine;
@@ -36,8 +36,9 @@ namespace Game
             _epoch += Time.deltaTime * WarpSpeed;
         }
         /// <summary>
-        /// Прибор выдаёт min(желаемая, разрешённая): лестница ступеней задаёт только желаемую
-        /// скорость, а плавность получается из ограничения по ближайшему событию.
+        /// Перемотка выключается за WarpLimit.GuardSeconds до ближайшего события и включается
+        /// обратно, когда событие позади. Никакой лестницы ступеней и никаких страховок сверх
+        /// этого: одно правило, которое игрок может держать в голове.
         /// </summary>
         private double AllowedWarp()
         {
@@ -46,19 +47,17 @@ namespace Game
             if (SimMono.playerShip is not Ship ship || requested <= 1) return requested;
 
             Ship.WarpEvent next = ship.NextEvent(_epoch);
-            double allowed = next == null ? requested : WarpLimit.Allowed(requested, next.Epoch - _epoch);
-            double cap = WarpLimit.FrameCap(ship.NarrowestFlybyWindow(), Time.deltaTime);
-            if (cap < allowed)
+            if (next == null) return requested;
+
+            double toEvent = next.Epoch - _epoch;
+            double allowed = WarpLimit.Allowed(requested, toEvent, Time.deltaTime);
+            if (allowed < requested)
             {
-                WarpLimitReason = "FLYBY WINDOW";
-                return cap;
-            }
-            if (allowed < requested && next != null)
-            {
-                WarpLimitReason = $"{next.Reason} {TrajectoryRenderer.Clock(next.Epoch - _epoch)}";
+                WarpLimitReason = $"{next.Reason} {TrajectoryRenderer.Clock(toEvent)}";
             }
             return allowed;
         }
+
         public GameData LoadGame()
         {
             return SystemLoader.Load(File.ReadAllText(Path.Combine(Application.streamingAssetsPath, SystemFile)));

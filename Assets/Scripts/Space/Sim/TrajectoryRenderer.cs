@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using DoublePrecision;
 using Game;
@@ -35,6 +35,10 @@ namespace OuterSpace.Sim
         // Пар меток сближения на экране две — у корабля и у манёвра, — и различать их надо
         // не по форме, а по яркости: форма уже занята смыслом события.
         public Color approachColor = new(1f, 0.85f, 0.3f);
+        // Сближение после ближайшего рисуется бледнее: оно есть, но решения принимают не по нему.
+        public Color nextApproachColor = new(1f, 0.85f, 0.3f, 0.4f);
+        // Сколько сближений показывать: ближайшее и следующее за ним. Третье уже шум.
+        public const int ShownApproaches = 2;
         public bool markStart = false;
 
         IHasTrajectory source;
@@ -84,18 +88,30 @@ namespace OuterSpace.Sim
             }
 
             IReadOnlyList<CloseApproach> approaches = source.Approaches;
-            if (approaches != null && approaches.Count > 0)
+            if (approaches != null)
             {
-                CloseApproach approach = approaches[0];
-                // Метки сближения кладутся на нарисованные линии, а не в абсолютные точки
-                // из прогноза: иначе они висели бы в стороне от траектории, по которой
-                // игрок их и читает.
-                Vector3d ship = PointOnArc(PatchAt(patches, approach.Epoch), approach.Epoch);
-                Vector3d target = PointOnOrbit(source.Target, approach.Epoch);
-                DrawLink(Line(used++), ship, target, display);
-                DrawRing(Line(used++), ship, approachColor, display);
-                DrawRing(Line(used++), target, approachColor, display);
-                ShowLabel(Label(labelled++), ApproachText(approach), target, display);
+                double now = GameMono.instance.Epoch;
+                int shown = 0;
+                foreach (CloseApproach approach in approaches)
+                {
+                    // Пройденное сближение — не сближение. Прогноз считается раз в несколько
+                    // кадров и живёт дольше витка, поэтому ближайшая точка в нём успевает
+                    // уехать в прошлое, и без этой проверки прибор показывал бы её ещё круг.
+                    if (approach.Epoch <= now) continue;
+                    if (shown >= ShownApproaches) break;
+                    Color color = shown == 0 ? approachColor : nextApproachColor;
+
+                    // Метки сближения кладутся на нарисованные линии, а не в абсолютные точки
+                    // из прогноза: иначе они висели бы в стороне от траектории, по которой
+                    // игрок их и читает.
+                    Vector3d ship = PointOnArc(PatchAt(patches, approach.Epoch), approach.Epoch);
+                    Vector3d target = PointOnOrbit(source.Target, approach.Epoch);
+                    DrawLink(Line(used++), ship, target, color, display);
+                    DrawRing(Line(used++), ship, color, display);
+                    DrawRing(Line(used++), target, color, display);
+                    ShowLabel(Label(labelled++), ApproachText(approach), target, display);
+                    shown++;
+                }
             }
             Hide(used);
             HideLabels(labelled);
@@ -219,9 +235,9 @@ namespace OuterSpace.Sim
             line.startColor = line.endColor = color;
         }
 
-        void DrawLink(LineRenderer line, Vector3d ship, Vector3d target, NavDisplayMono display)
+        void DrawLink(LineRenderer line, Vector3d ship, Vector3d target, Color color, NavDisplayMono display)
         {
-            Prepare(line, approachColor, display);
+            Prepare(line, color, display);
             line.positionCount = 2;
             line.SetPosition(0, SimView.ToScene(ship));
             line.SetPosition(1, SimView.ToScene(target));
