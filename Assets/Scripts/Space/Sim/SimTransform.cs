@@ -46,10 +46,11 @@ namespace OuterSpace.Sim {
         {
             GLOBAL_V = CoordinateConverter.RelativeToGlobal(RELATIVE, RelativeTo.GLOBAL_V);
         }
+        /// <summary>Пересчитать положение в сцене после смены дальности или объекта наблюдения.</summary>
+        public void Reproject() => UpdateReprezentation();
         private void UpdateReprezentation()
         {
-            Vector3d vector = GLOBAL_R / Constants.simDistanceMultiplier;
-            SimReprezentation.position = new Vector3((float)vector.x, (float)vector.y, (float)vector.z);
+            SimReprezentation.position = SimView.ToScene(GLOBAL_R);
         }
 
     }

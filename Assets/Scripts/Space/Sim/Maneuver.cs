@@ -11,33 +11,79 @@ namespace OuterSpace.Sim
         public Vector3d deltaLVLHVelocity = Vector3d.zero;
         public SpaceObject spaceObject;
         public double startEpoch;
+        public readonly TrajectoryCache trajectory = new();
+
+        // Точка манёвра относительно центрального тела, снятая при планировании. Манёвр — цель,
+        // к которой игрок ведёт корабль: пока идёт прожиг, орбита корабля меняется, а точка стоит.
+        // В simTransform её не сложить: там хранятся глобальные координаты, а центральное тело движется.
+        Vector3d relativePosition;
+        Vector3d relativeVelocity;
+
+        /// <summary>Плановый импульс в инерциальной системе центрального тела, снятый при планировании.</summary>
+        public Vector3d PlannedDeltaV { get; private set; }
+
+        /// <summary>Полная характеристическая скорость манёвра, м/с.</summary>
+        public double PlannedMagnitude => PlannedDeltaV.magnitude;
+
+        /// <summary>Орбитальная скорость в точке манёвра: от неё меряется шаг настройки Δv.</summary>
+        public double SpeedAtNode => relativeVelocity.magnitude;
+
         public Maneuver(SpaceObject spaceObject, double startEpoch)
         {
             this.spaceObject = spaceObject;
             InstatiateGameObject(ResourcesLoader.LoadPrefab($"Sim/Maneuver"));
             GameObject.transform.parent = SimMono.instance.transform;
-            this.startEpoch = startEpoch;
             simTransform = new(Vector3d.zero, Vector3d.zero, GameObject.transform);
-            UpdateState();
-        }
-        /// <summary>
-        /// Точка манёвра лежит на текущей орбите корабля вокруг текущего центрального тела,
-        /// поэтому её и систему отсчёта нужно пересобирать после каждого изменения орбиты.
-        /// </summary>
-        public void UpdateState()
-        {
             simTransform.RelativeTo = spaceObject.centralBody.simTransform;
-            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, startEpoch);
-            simTransform.SetRELATIVE_R(r);
-            simTransform.SetRELATIVE_V(v);
+            SetStartEpoch(startEpoch);
+        }
+
+        /// <summary>Перенос манёвра по времени: точка съезжает по текущей орбите корабля.</summary>
+        public void SetStartEpoch(double epoch)
+        {
+            startEpoch = epoch;
+            (relativePosition, relativeVelocity) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(spaceObject.orbitParams, epoch);
             CalcAndDraw();
         }
+
+        /// <summary>Переносит точку манёвра в систему отсчёта нового центрального тела корабля.</summary>
+        public void Reframe(SpaceObject previousCentral)
+        {
+            SimTransform current = spaceObject.centralBody.simTransform;
+            relativePosition += previousCentral.simTransform.GLOBAL_R - current.GLOBAL_R;
+            relativeVelocity += previousCentral.simTransform.GLOBAL_V - current.GLOBAL_V;
+            simTransform.RelativeTo = current;
+            // PlannedDeltaV не пересчитывается: обе системы отсчёта инерциальны и отличаются
+            // только началом координат, так что смена сферы влияния вектор тяги не трогает.
+            // Пересчёт через LVLH развернул бы его: базис привязан к радиус-вектору.
+            Recalculate();
+        }
+
+        /// <summary>Точка манёвра задана относительно центрального тела, а оно движется.</summary>
+        public void FollowCentralBody()
+        {
+            simTransform.SetRELATIVE_R(relativePosition);
+            simTransform.SetRELATIVE_V(relativeVelocity);
+        }
+
         [ContextMenu("Update velocity")]
         public void CalcAndDraw()
         {
-            Vector3d relDeltaV = CoordinateConverter.LocalDeltaVtoRelative(deltaLVLHVelocity, simTransform.RELATIVE_R, simTransform.RELATIVE_V);
-            Vector3d relV = simTransform.RELATIVE_V + relDeltaV;
-            newOrbitParams = AstroDynamic.CalculateOrbitElements(simTransform.RELATIVE_R, relV, spaceObject.centralBody.MU, startEpoch);
+            PlannedDeltaV = CoordinateConverter.LocalDeltaVtoRelative(deltaLVLHVelocity, relativePosition, relativeVelocity);
+            Recalculate();
         }
+
+        void Recalculate()
+        {
+            newOrbitParams = AstroDynamic.CalculateOrbitElements(relativePosition, relativeVelocity + PlannedDeltaV, spaceObject.centralBody.MU, startEpoch);
+            trajectory.Invalidate();
+        }
+
+        /// <summary>
+        /// Прогноз считается от гипотетической орбиты манёвра, а не от текущего состояния корабля:
+        /// игрок крутит deltaLVLHVelocity и должен видеть, куда приведёт получившаяся траектория.
+        /// </summary>
+        public void UpdateTrajectory(SpaceObject target) =>
+            trajectory.Update(newOrbitParams, spaceObject.centralBody, startEpoch, target);
     }
 }

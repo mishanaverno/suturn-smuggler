@@ -16,12 +16,13 @@ namespace OuterSpace.Sim
             parent = GetComponentInParent<IHasSOI>();
             lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
-            lineRenderer.useWorldSpace = true; // Рисуем в локальных координатах объекта
+            lineRenderer.useWorldSpace = true;
+            lineRenderer.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
         }
 
-        void Update()
+        void LateUpdate()
         {
-            if (parent != null)
+            if (parent != null && NavDisplayMono.instance != null)
             {
                 if (parent.SOI > 0 && parent.SOI < double.PositiveInfinity)
                 {
@@ -30,26 +31,22 @@ namespace OuterSpace.Sim
             }
         }
 
+        // Сфера влияния - сфера, а рисуется окружностью. Окружность в фиксированной плоскости
+        // показала бы верный радиус, но неверную форму; развёрнутая к камере, она читается
+        // как «сфера такого радиуса» при любом повороте вида. Радиус - истинный, всегда.
         private void DrawSOI()
         {
             lineRenderer.positionCount = segments + 1;
             lineRenderer.enabled = true;
+            lineRenderer.widthMultiplier = NavDisplayMono.instance.LineSceneWidth;
 
-            // Получаем радиус SOI из компонента CelestialBody
-            float radius = (float)(parent.SOI / Constants.simDistanceMultiplier);
-            Vector3 center = new(
-                (float)(parent.GlobalPosition.x / Constants.simDistanceMultiplier),
-                (float)(parent.GlobalPosition.y / Constants.simDistanceMultiplier),
-                (float)(parent.GlobalPosition.z / Constants.simDistanceMultiplier)
-            );
-            // Рисуем круг в локальных координатах объекта
+            float radius = (float)NavScale.SceneUnits(parent.SOI, SimView.metersPerSceneUnit);
+            Vector3 center = SimView.ToScene(parent.GlobalPosition);
+            Transform view = NavDisplayMono.instance.cam.transform;
             for (int i = 0; i <= segments; i++)
             {
                 float angle = (float)i / (float)segments * 360f * Mathf.Deg2Rad;
-                float x = Mathf.Sin(angle) * radius;
-                float y = Mathf.Cos(angle) * radius;
-                
-                lineRenderer.SetPosition(i, new Vector3(x, 0, y) + center);
+                lineRenderer.SetPosition(i, center + (view.right * Mathf.Cos(angle) + view.up * Mathf.Sin(angle)) * radius);
             }
             rendered = true;
         }

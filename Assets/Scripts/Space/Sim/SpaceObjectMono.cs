@@ -1,4 +1,6 @@
-﻿using OuterSpace.Sim;
+﻿using System.Collections.Generic;
+using OuterSpace.Sim;
+using OuterSpace.Sim.Objects;
 using DoublePrecision;
 using UnityEngine;
 using Utilities;
@@ -6,15 +8,23 @@ using Game;
 
 namespace OuterSpace
 {
-    public class SpaceObjectMono : MonoWithObject<SpaceObject>, IHasOrbit, IHasSOI
+    public class SpaceObjectMono : MonoWithObject<SpaceObject>, IHasOrbit, IHasSOI, IHasTrajectory
     {
+        // Синий у корабля, сиреневый у манёвра: две цепочки дуг на экране одновременно,
+        // и путать, какая из них уже посчитанное будущее, а какая — гипотеза, нельзя.
+        static readonly Color ShipColor = new(0.3f, 0.55f, 1f);
         public bool move = false;
         private bool prevMove = false;
         public SpaceObject spaceObject => Object;
         public OrbitElements OrbitParams => Object.orbitParams;
         public Vector3d CenterPosition => Object.centralBody.simTransform.GLOBAL_R;
+        public double CentralSOI => Object.IsRoot ? double.PositiveInfinity : Object.centralBody.SOI;
         public Vector3d GlobalPosition => Object.simTransform.GLOBAL_R;
         public double SOI => Object.SOI;
+        // Прогноз есть только у корабля: остальные тела своих сфер влияния не покидают.
+        public IReadOnlyList<TrajectoryPatch> Patches => (Object as Ship)?.trajectory.patches;
+        public IReadOnlyList<CloseApproach> Approaches => (Object as Ship)?.trajectory.approaches;
+        public SpaceObject Target => (Object as Ship)?.trajectory.target;
 
         [Header("Vectors")]
         public Vector3d I_V;
@@ -26,6 +36,7 @@ namespace OuterSpace
         public override void OnInstatiated()
         {
             base.OnInstatiated();
+            BodyGlyphMono glyph = gameObject.AddComponent<BodyGlyphMono>();
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.ORBIT))
             {
                 Instantiate(ResourcesLoader.LoadPrefab($"Sim/Orbit"), transform);
@@ -33,13 +44,22 @@ namespace OuterSpace
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.SOI))
             {
                 Instantiate(ResourcesLoader.LoadPrefab($"Sim/SOI"), transform);
-            }   
+            }
+            // Траектория вместо одной орбиты: она обрывается там, где корабль сменит
+            // центральное тело, и помечает это событие.
+            if (Object.parts.Contains(SpaceObject.SpaceObjectParts.TRAJECTORY))
+            {
+                gameObject.AddComponent<TrajectoryRenderer>().color = ShipColor;
+                glyph.ringSegments = 3;
+                glyph.ringColor = ShipColor;
+            }
         }
         // Start is called before the first frame update
         private void Update()
         {
             Object.Update();
-            if (Input.GetKeyDown(KeyCode.I) && spaceObject.centralBody != null)
+            if (Controls.GameInput.ObjectInfo != null && Controls.GameInput.ObjectInfo.WasPressedThisFrame()
+                && spaceObject.centralBody != null)
             {
                 Log();
             }
@@ -64,14 +84,13 @@ namespace OuterSpace
                 $"relative velocity: {spaceObject.velocity}\n" +
                 $"eci velocity: {ECI_VEL}\n" +
                 $"lvlh velocity: {LVLH_VEL}\n" +
-                $"mass: {spaceObject.mass}\n" +
-                $"expected v for circle orbit: {Mathd.Sqrt((Constants.realG * spaceObject.centralBody.mass) / spaceObject.simTransform.RELATIVE_R.magnitude)}\n" +
+                $"expected v for circle orbit: {Mathd.Sqrt(spaceObject.centralBody.MU / spaceObject.simTransform.RELATIVE_R.magnitude)}\n" +
                 $"\tCenter body: {spaceObject.centralBody.GameObject.name}\n" +
                 $"SOI: {spaceObject.centralBody.SOI}\n" +
                 $"position sim : {spaceObject.centralBody.simTransform.GLOBAL_R}\n" +
                 $"relative sim position: {spaceObject.centralBody.simTransform.RELATIVE_R}\n" +
                 $"position: {spaceObject.centralBody.simTransform.SimReprezentation.position}\n" +
-                $"mass: {spaceObject.centralBody.mass}\n") ;
+                $"mu: {spaceObject.centralBody.MU}\n") ;
 
 
         }

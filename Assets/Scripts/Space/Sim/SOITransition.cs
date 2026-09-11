@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using System.Collections.Generic;
 
 namespace OuterSpace.Sim
@@ -8,7 +8,9 @@ namespace OuterSpace.Sim
         // Порог выхода из сферы влияния больше порога входа: без этого объект,
         // идущий ровно по границе, менял бы родителя каждый тик и каждый тик
         // пересчитывал элементы орбиты с новой эпохой, накапливая ошибку.
-        public const double Hysteresis = 0.01;
+        // Доля мала намеренно: у Титана это 43 м, от дребезга хватает с запасом, а на экране
+        // предсказанная точка выхода ложится на нарисованную окружность сферы влияния.
+        public const double Hysteresis = 1e-6;
 
         // Объект может за один тик на большой перемотке пересечь несколько границ,
         // но цепочка вложенных сфер влияния заведомо короче этого предела.
@@ -44,7 +46,7 @@ namespace OuterSpace.Sim
 
         static SpaceObject Ascend(SpaceObject obj, SpaceObject central, double hysteresis)
         {
-            if (central.IsStar) return null;
+            if (central.IsRoot) return null;
             return Distance(obj, central) > central.SOI * (1.0 + hysteresis) ? central.centralBody : null;
         }
 
@@ -60,14 +62,32 @@ namespace OuterSpace.Sim
         /// </summary>
         public static void ChangeCentralBody(SpaceObject obj, SpaceObject newCentral, double epoch)
         {
+            SpaceObject previous = obj.centralBody;
             obj.SetCentralBody(newCentral);
-            obj.orbitParams = AstroDynamic.CalculateOrbitElements(
-                obj.simTransform.RELATIVE_R,
-                obj.simTransform.RELATIVE_V,
+            obj.orbitParams = ElementsForCentral(
+                obj.simTransform.GLOBAL_R,
+                obj.simTransform.GLOBAL_V,
+                newCentral.simTransform.GLOBAL_R,
+                newCentral.simTransform.GLOBAL_V,
                 newCentral.MU,
                 epoch
             );
             obj.CalculateSOI();
+            obj.OnCentralBodyChanged(previous);
+        }
+
+        /// <summary>
+        /// Элементы орбиты вокруг нового центрального тела по абсолютным состояниям обоих.
+        /// Общее место рантайма и прогноза: если считать переход по-разному, предсказанная
+        /// траектория разойдётся с той, по которой корабль полетит на самом деле.
+        /// </summary>
+        public static OrbitElements ElementsForCentral(
+            Vector3d globalPosition, Vector3d globalVelocity,
+            Vector3d centralPosition, Vector3d centralVelocity,
+            double mu, double epoch)
+        {
+            return AstroDynamic.CalculateOrbitElements(
+                globalPosition - centralPosition, globalVelocity - centralVelocity, mu, epoch);
         }
     }
 }

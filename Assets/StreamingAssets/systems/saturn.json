@@ -1,0 +1,207 @@
+// Система Сатурна. Источник: NASA JPL Solar System Dynamics, эфемерида SAT441 (Jacobson, 2022).
+// GM в м3/с2, радиусы и большая полуось в метрах, углы в градусах, эпоха элементов - J2000.
+//
+// ВНИМАНИЕ. JPL публикует средние элементы спутников относительно локальных плоскостей
+// Лапласа, своих для каждого спутника. Здесь все элементы трактуются как заданные
+// в одной экваториальной плоскости Сатурна. Для лун от Мимаса до Реи это практически
+// верно, для Япета и особенно Феба - нет: их Omega и omega заданы в другой системе
+// отсчёта, поэтому ориентация их орбит здесь неверна. Это не эфемерида.
+{
+  "startEpoch": 0,
+  "system": {
+    "sunDirection": { "x": 1, "y": 0, "z": 0 },
+    "sunDistance": 1.4335e12,
+    "objects": [
+      {
+        "id": "saturn",
+        "name": "Saturn",
+        "description": "Газовый гигант, центральное тело системы",
+        "gm": 3.7931206e16,
+        "radius": 5.8232e7,
+        "simPrefab": "Star"
+      },
+      {
+        "id": "mimas",
+        "name": "Mimas",
+        "description": "Ближайшая из крупных лун, кратер Гершель",
+        "parent": "saturn",
+        "gm": 2.50349e9,
+        "radius": 1.9820e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 1.86000e8,
+          "eccentricity": 0.020,
+          "inclination": 1.6,
+          "longitudeOfAscendingNode": 66.2,
+          "argumentOfPeriapsis": 160.4,
+          "meanAnomalyAtEpoch": 275.3,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "enceladus",
+        "name": "Enceladus",
+        "description": "Ледяная луна с криовулканами южного полюса",
+        "parent": "saturn",
+        "gm": 7.21037e9,
+        "radius": 2.5210e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 2.38400e8,
+          "eccentricity": 0.005,
+          "inclination": 0.0,
+          "longitudeOfAscendingNode": 0.0,
+          "argumentOfPeriapsis": 119.5,
+          "meanAnomalyAtEpoch": 57.0,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "tethys",
+        "name": "Tethys",
+        "description": "Ледяная луна с долиной Итака",
+        "parent": "saturn",
+        "gm": 4.121353e10,
+        "radius": 5.3110e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 2.95000e8,
+          "eccentricity": 0.001,
+          "inclination": 1.1,
+          "longitudeOfAscendingNode": 273.0,
+          "argumentOfPeriapsis": 335.3,
+          "meanAnomalyAtEpoch": 0.0,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "dione",
+        "name": "Dione",
+        "description": "Ледяная луна с системой разломов",
+        "parent": "saturn",
+        "gm": 7.311607e10,
+        "radius": 5.6140e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 3.77700e8,
+          "eccentricity": 0.002,
+          "inclination": 0.0,
+          "longitudeOfAscendingNode": 0.0,
+          "argumentOfPeriapsis": 116.0,
+          "meanAnomalyAtEpoch": 212.0,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "rhea",
+        "name": "Rhea",
+        "description": "Вторая по размеру луна Сатурна",
+        "parent": "saturn",
+        "gm": 1.5394175e11,
+        "radius": 7.6350e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 5.27200e8,
+          "eccentricity": 0.001,
+          "inclination": 0.3,
+          "longitudeOfAscendingNode": 133.7,
+          "argumentOfPeriapsis": 44.3,
+          "meanAnomalyAtEpoch": 31.5,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "titan",
+        "name": "Titan",
+        "description": "Крупнейшая луна, плотная азотная атмосфера",
+        "parent": "saturn",
+        "gm": 8.9781371e12,
+        "radius": 2.5747e6,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 1.22190e9,
+          "eccentricity": 0.029,
+          "inclination": 0.3,
+          "longitudeOfAscendingNode": 78.6,
+          "argumentOfPeriapsis": 78.3,
+          "meanAnomalyAtEpoch": 11.7,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "hyperion",
+        "name": "Hyperion",
+        "description": "Пористая луна неправильной формы, хаотическое вращение",
+        "parent": "saturn",
+        "gm": 3.7049e8,
+        "radius": 1.3500e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 1.48150e9,
+          "eccentricity": 0.105,
+          "inclination": 0.6,
+          "longitudeOfAscendingNode": 87.1,
+          "argumentOfPeriapsis": 214.0,
+          "meanAnomalyAtEpoch": 122.9,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "iapetus",
+        "name": "Iapetus",
+        "description": "Двухцветная луна с экваториальным хребтом",
+        "parent": "saturn",
+        "gm": 1.2051511e11,
+        "radius": 7.3430e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 3.56170e9,
+          "eccentricity": 0.028,
+          "inclination": 7.6,
+          "longitudeOfAscendingNode": 86.5,
+          "argumentOfPeriapsis": 254.5,
+          "meanAnomalyAtEpoch": 74.8,
+          "epoch": 0
+        }
+      },
+      {
+        "id": "phoebe",
+        "name": "Phoebe",
+        "description": "Захваченная луна на далёкой ретроградной орбите",
+        "parent": "saturn",
+        "gm": 5.5479e8,
+        "radius": 1.0650e5,
+        "simPrefab": "Planet",
+        "orbit": {
+          "semiMajorAxis": 1.292940e10,
+          "eccentricity": 0.164,
+          "inclination": 175.2,
+          "longitudeOfAscendingNode": 192.7,
+          "argumentOfPeriapsis": 240.3,
+          "meanAnomalyAtEpoch": 308.0,
+          "epoch": 0
+        }
+      }
+    ],
+    "playerShip": {
+      "id": "player",
+      "name": "player",
+      "description": "Корабль игрока",
+      // Круговая орбита на высоте 400 км над Титаном - 6.9 % радиуса его сферы влияния.
+      // Виток за 3 часа задаёт темп всему локальному: подходу, стыковке, работе у станции.
+      "parent": "titan",
+      "mass": 100000,
+      "radius": 50,
+      "simPrefab": "PlayerShip",
+      "orbit": {
+        "semiMajorAxis": 2.975e6,
+        "eccentricity": 0.0,
+        "inclination": 0.0,
+        "longitudeOfAscendingNode": 0.0,
+        "argumentOfPeriapsis": 0.0,
+        "meanAnomalyAtEpoch": 0.0,
+        "epoch": 0
+      }
+    }
+  }
+}
