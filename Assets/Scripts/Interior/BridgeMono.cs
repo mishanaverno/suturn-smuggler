@@ -49,6 +49,11 @@ namespace Interior
         /// что отсек — замкнутый объём.
         /// </summary>
         public bool enclosed = false;
+        /// <summary>
+        /// Начинать игру на месте пилота, а не телом в невесомости. Полёт по кораблю никуда
+        /// не делся — он за люком, — но игра начинается там, где происходит дело.
+        /// </summary>
+        public bool startSeated = true;
 
         public ConsoleStation station;
         public Transform spawn;
@@ -109,7 +114,15 @@ namespace Interior
 
             if (GetComponent<CockpitControls>() == null) gameObject.AddComponent<CockpitControls>();
 
-            if (PlayerMono.instance != null) PlayerMono.instance.SetActive(true);
+            if (startSeated && PilotMono.instance != null)
+            {
+                // TakeOver сам погасит тело и переключит карту ввода на кокпит.
+                PilotMono.instance.TakeOver();
+            }
+            else if (PlayerMono.instance != null)
+            {
+                PlayerMono.instance.SetActive(true);
+            }
         }
 
         [ContextMenu("Собрать кокпит заново")]
