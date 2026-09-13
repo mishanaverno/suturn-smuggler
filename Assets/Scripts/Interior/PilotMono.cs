@@ -22,20 +22,24 @@ namespace Interior
         /// </summary>
         public float turnSpeed = 55f;
         /// <summary>Предел разворота от исходного направления кресла.</summary>
-        public float yawLimit = 80f;
+        public float yawLimit = 120f;
         public float pitchLimit = 55f;
         public float reach = 1.6f;
         /// <summary>Куда встаёт тело, когда игрок уходит с места.</summary>
         public Transform exit;
+        [Tooltip("Начинать игру на месте пилота, а не телом в невесомости.")]
+        public bool takeOverOnStart = true;
 
-        public Camera eye { get; private set; }
+        [Tooltip("Камера на месте пилота: положение её трансформа и есть положение глаз.")]
+        public Camera eye;
+        [Tooltip("Рука пилота. Если пусто — будет взята с объекта камеры.")]
+        public Interactor hand;
         public bool Active { get; private set; }
 
         public Ray Ray => eye.ScreenPointToRay(GameInput.Point.ReadValue<Vector2>());
         public float Reach => reach;
         public Vector2 LabelPosition => GameInput.Point.ReadValue<Vector2>();
 
-        Interactor hand;
         AudioListener ear;
         float yaw;
         float pitch;
@@ -43,17 +47,40 @@ namespace Interior
         void Awake()
         {
             instance = this;
-
-            GameObject eyeObject = new("Eye");
-            eyeObject.transform.SetParent(transform, false);
-            eye = eyeObject.AddComponent<Camera>();
-            eye.nearClipPlane = 0.03f;
-            eye.farClipPlane = 500f;
-            eye.cullingMask = ~(1 << LayerMask.NameToLayer("Simulation"));
-            ear = eyeObject.AddComponent<AudioListener>();
-            hand = eyeObject.AddComponent<Interactor>();
-
+            if (!BindEye()) return;
             SetActive(false);
+        }
+
+        /// <summary>
+        /// Глаз, слух и рука живут в сцене, а не создаются кодом: их надо видеть, двигать
+        /// и настраивать. Компонент только проверяет, что они на месте, и напоминает про
+        /// единственное правило, которое нельзя нарушить, — слой симуляции глазами не виден
+        /// вообще. Что происходит снаружи, человек узнаёт только через приборы; это не
+        /// оптимизация, а правило игры.
+        /// </summary>
+        bool BindEye()
+        {
+            if (eye == null) eye = GetComponentInChildren<Camera>(true);
+            if (eye == null)
+            {
+                Debug.LogError($"{GetType().Name} на «{name}»: не указана камера глаза.", this);
+                enabled = false;
+                return false;
+            }
+            ear = eye.GetComponent<AudioListener>();
+            if (hand == null) hand = eye.GetComponent<Interactor>();
+            int simulation = LayerMask.NameToLayer("Simulation");
+            if (simulation >= 0 && (eye.cullingMask & (1 << simulation)) != 0)
+            {
+                Debug.LogWarning($"Камера «{eye.name}» видит слой Simulation — снаружи корабля " +
+                    "должно быть видно только через приборы. Снимите слой в Culling Mask.", eye);
+            }
+            return true;
+        }
+
+        void Start()
+        {
+            if (takeOverOnStart) TakeOver();
         }
 
         void Update()
@@ -65,10 +92,12 @@ namespace Interior
             pitch = Mathf.Clamp(pitch - turn.y * turnSpeed * Time.deltaTime, -pitchLimit, pitchLimit);
             eye.transform.localRotation = Quaternion.Euler(pitch, yaw, 0f);
 
-            if (GameInput.Click.WasPressedThisFrame()) hand.Activate();
-
-            float wheel = GameInput.Scroll.ReadValue<float>();
-            if (Mathf.Abs(wheel) > 0.01f) hand.Scroll(wheel > 0f ? 1 : -1);
+            if (hand != null)
+            {
+                if (GameInput.Click.WasPressedThisFrame()) hand.Activate();
+                float wheel = GameInput.Scroll.ReadValue<float>();
+                if (Mathf.Abs(wheel) > 0.01f) hand.Scroll(wheel > 0f ? 1 : -1);
+            }
             if (GameInput.Leave.WasPressedThisFrame()) Release();
         }
 
@@ -95,9 +124,17 @@ namespace Interior
         void SetActive(bool active)
         {
             Active = active;
-            eye.enabled = active;
-            ear.enabled = active;
-            hand.enabled = active;
+            // Ни одна из трёх ссылок не обязана быть: камеру проверяет BindEye и ругается,
+            // если её нет, а слух и рука необязательны по смыслу — без AudioListener игра
+            // идёт молча, без Interactor молча же, но руками. Переключение занятий не должно
+            // падать ни в одном из этих случаев: раньше код создавал всё сам и привык, что
+            // всё всегда на месте.
+            if (eye != null) eye.enabled = active;
+            // Слух и рука необязательны: без AudioListener игра идёт молча, без Interactor —
+            // молча же, но руками. Раньше их создавал код и они были всегда; теперь их
+            // ставят в сцене, и отсутствие не должно валить переключение занятий.
+            if (ear != null) ear.enabled = active;
+            if (hand != null) hand.enabled = active;
         }
     }
 }

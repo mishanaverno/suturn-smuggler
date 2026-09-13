@@ -17,10 +17,15 @@ namespace OuterSpace.Sim
     ///
     /// Числа — отсчёты событий и данные сближений — на рельсу не идут: они привязаны к точке
     /// на траектории и в отрыве от неё ничего не значат. Их кладёт TrajectoryRenderer.
+    ///
+    /// Сколько будет подписей, заранее неизвестно — оно меняется каждый кадр, — поэтому их
+    /// приходится плодить в рантайме. Но как они выглядят, компонент не решает: он клонирует
+    /// образцы, которые вы положили в поля. Шрифт, цвет, толщина выноски правятся в сцене
+    /// на этих образцах, а рельса занимается только раскладкой.
     /// </summary>
     public class NavLabelRail : MonoBehaviour
     {
-        const string DefaultFontPath = "Fonts & Materials/LiberationSans SDF";
+
 
         /// <summary>Где стоят колонки, в долях ширины экрана прибора.</summary>
         public float leftRail = 0.04f;
@@ -31,8 +36,10 @@ namespace OuterSpace.Sim
         public float verticalMargin = 0.04f;
         /// <summary>Длина горизонтального хвостика у подписи, в долях ширины.</summary>
         public float stub = 0.015f;
-        public Color labelColor = new(0.75f, 0.8f, 0.85f);
-        public Color leaderColor = new(0.4f, 0.45f, 0.5f, 0.7f);
+        [Tooltip("Образец подписи. Клонируется по одному на каждое видимое имя.")]
+        public TextMeshPro labelPrefab;
+        [Tooltip("Образец выноски.")]
+        public LineRenderer leaderPrefab;
 
         sealed class Entry
         {
@@ -49,33 +56,23 @@ namespace OuterSpace.Sim
         /// <summary>Один раз напечатать в лог всё, от чего зависит видимость подписи.</summary>
         public bool logOnce = false;
 
-        TMP_FontAsset font;
         float lineHeight = 0f;
         bool complained;
         bool logged;
-
-        /// <summary>
-        /// Шрифт берётся при первой подписи, а не в Awake: рельса создаётся из Awake самого
-        /// дисплея, и TMP_Settings в этот момент может быть ещё не поднят. TMP с пустым
-        /// шрифтом не рисует ничего и не жалуется — потому здесь и жалуемся мы.
-        /// </summary>
-        TMP_FontAsset Font()
-        {
-            if (font != null) return font;
-            font = TMP_Settings.defaultFontAsset;
-            if (font == null) font = Resources.Load<TMP_FontAsset>(DefaultFontPath);
-            if (font == null && !complained)
-            {
-                complained = true;
-                Debug.LogError($"NavLabelRail: шрифта нет ни в TMP_Settings, ни по пути {DefaultFontPath} — подписи рисоваться не будут.");
-            }
-            return font;
-        }
 
         void LateUpdate()
         {
             NavDisplayMono display = NavDisplayMono.instance;
             if (display == null || display.cam == null) return;
+            if (labelPrefab == null || leaderPrefab == null)
+            {
+                if (!complained)
+                {
+                    complained = true;
+                    Debug.LogError($"NavLabelRail на «{name}»: не заданы образцы подписи и выноски — имена не появятся.", this);
+                }
+                return;
+            }
 
             Collect(display);
             int used = 0;
@@ -155,7 +152,6 @@ namespace OuterSpace.Sim
                 // выравнивании вправо это десять локальных единиц, то есть заметно дальше
                 // края экрана прибора, и подпись честно рисуется там, где её не видно.
                 label.rectTransform.pivot = new Vector2(pivotX, 0.5f);
-                label.color = labelColor;
                 label.transform.rotation = display.cam.transform.rotation;
                 label.transform.position = Point(display, rail, y);
                 float scale = (float)display.LabelSceneHeight / Mathf.Max(lineHeight, 1e-3f);
@@ -170,6 +166,8 @@ namespace OuterSpace.Sim
                 Vector3 anchorPoint = Point(display, anchorX, y);
 
                 LineRenderer leader = Leader(used);
+                // Толщина — общая для всех линий прибора: выноска не должна выглядеть иначе,
+                // чем орбита рядом с ней. Остальной вид выноски (цвет, материал) — в образце.
                 leader.widthMultiplier = display.LineSceneWidth;
                 leader.positionCount = 2;
                 leader.SetPosition(0, anchorPoint);
@@ -213,22 +211,22 @@ namespace OuterSpace.Sim
         {
             while (labels.Count <= index)
             {
-                GameObject labelObject = new("RailLabel");
-                labelObject.layer = gameObject.layer;
-                labelObject.transform.SetParent(transform, false);
-                TextMeshPro text = labelObject.AddComponent<TextMeshPro>();
-                text.font = Font();
-                text.fontSize = 1f;
-                text.color = labelColor;
+                TextMeshPro text = Instantiate(labelPrefab, transform);
+                text.gameObject.name = $"RailLabel {labels.Count}";
+                Adopt(text.gameObject);
+                // Кегль образца рельса нормализует: высоту подписи задаёт прибор долей экрана
+                // (NavDisplayMono.labelPixels), иначе имя тела читалось бы по-разному на
+                // разных приборах. Но прямоугольник образца при этом остаётся прежним, и
+                // крупный кегль начинал переноситься по словам — ручка, которая «ничего не
+                // меняет, только ломает». Переносов у имени быть не может: оно одно слово.
                 text.textWrappingMode = TextWrappingModes.NoWrap;
-                text.rectTransform.sizeDelta = new Vector2(20f, 2f);
-                text.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                text.overflowMode = TextOverflowModes.Overflow;
                 // fontSize у TextMeshPro — не высота строки в мировых единицах: чтобы подпись
                 // занимала заданную долю высоты экрана, высота строки измеряется, а не выводится.
                 text.text = "Xg";
                 text.ForceMeshUpdate();
                 // Ноль здесь означал бы деление на ноль в масштабе и подпись нулевого размера,
-                // то есть ровно тот симптом, который трудно отличить от «не рисуется вовсе».
+                // то есть тот самый симптом, который трудно отличить от «не рисуется вовсе».
                 if (text.preferredHeight > 0f) lineHeight = text.preferredHeight;
                 labels.Add(text);
             }
@@ -240,19 +238,34 @@ namespace OuterSpace.Sim
         {
             while (leaders.Count <= index)
             {
-                GameObject leaderObject = new("RailLeader");
-                leaderObject.layer = gameObject.layer;
-                leaderObject.transform.SetParent(transform, false);
-                LineRenderer line = leaderObject.AddComponent<LineRenderer>();
+                LineRenderer line = Instantiate(leaderPrefab, transform);
+                line.gameObject.name = $"RailLeader {leaders.Count}";
+                Adopt(line.gameObject);
                 line.useWorldSpace = true;
+                // Толщина у LineRenderer — произведение кривой на множитель. В образце вся
+                // толщина записана в кривую (её ключ ≈0.009), и заданный прибором множитель
+                // умножался бы на неё, давая линию в сотню раз тоньше нужной — ту самую
+                // «пиксельную рябь». Кривую выпрямляем в единицу: форму линии по длине
+                // образец пусть задаёт, а толщину задаёт прибор, одну на все свои линии.
                 line.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
-                line.sharedMaterial = SimLine.Material;
-                line.startColor = line.endColor = leaderColor;
-                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 leaders.Add(line);
             }
             leaders[index].enabled = true;
             return leaders[index];
+        }
+
+        /// <summary>
+        /// Клон приходит со слоем своего образца, а не рельсы. Если образец лежит не на слое
+        /// симуляции, камера прибора его не увидит — подписи будут созданы и не показаны,
+        /// и по картинке этого не понять.
+        /// </summary>
+        void Adopt(GameObject clone)
+        {
+            clone.layer = gameObject.layer;
+            foreach (Transform child in clone.GetComponentsInChildren<Transform>(true))
+            {
+                child.gameObject.layer = gameObject.layer;
+            }
         }
 
         void Hide(int used)

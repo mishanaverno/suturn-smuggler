@@ -1,4 +1,4 @@
-using Controls;
+﻿using Controls;
 using UnityEngine;
 
 namespace Interior
@@ -31,10 +31,12 @@ namespace Interior
         /// <summary>Гашение по команде — резкое.</summary>
         public float brakeDamping = 6f;
         public float lookSensitivity = 0.07f;
-        public float eyeHeight = 1.65f;
         public float reach = 1.6f;
 
-        public Camera eye { get; private set; }
+        [Tooltip("Камера глаз. Высота взгляда задаётся положением её трансформа в сцене.")]
+        public Camera eye;
+        [Tooltip("Рука. Если пусто — будет взята с объекта камеры.")]
+        public Interactor hand;
         public bool Active { get; private set; } = true;
 
         public Ray Ray => new(eye.transform.position, eye.transform.forward);
@@ -42,7 +44,6 @@ namespace Interior
         public Vector2 LabelPosition => new(Screen.width * 0.5f, Screen.height * 0.5f);
 
         CharacterController controller;
-        Interactor hand;
         AudioListener ear;
         Vector3 velocity;
         float yaw;
@@ -52,20 +53,46 @@ namespace Interior
         {
             instance = this;
             controller = GetComponent<CharacterController>();
-
-            GameObject eyeObject = new("Eye");
-            eyeObject.transform.SetParent(transform, false);
-            eyeObject.transform.localPosition = new Vector3(0f, eyeHeight, 0f);
-            eye = eyeObject.AddComponent<Camera>();
-            eye.nearClipPlane = 0.03f;
-            eye.farClipPlane = 500f;
-            // Слой симуляции глазами не виден вообще: что происходит снаружи, игрок узнаёт
-            // только через приборы. Это не оптимизация, а правило игры.
-            eye.cullingMask = ~(1 << LayerMask.NameToLayer("Simulation"));
-            ear = eyeObject.AddComponent<AudioListener>();
-            hand = eyeObject.AddComponent<Interactor>();
-
+            if (!BindEye()) return;
             yaw = transform.eulerAngles.y;
+        }
+
+        /// <summary>
+        /// Тело оживает само, если никто не занял место пилота. Решение принимается по
+        /// намерению пилота, а не по его состоянию: порядок Start у разных объектов не
+        /// определён, и проверка «уже сидит?» зависела бы от того, кто проснулся первым.
+        /// </summary>
+        void Start()
+        {
+            bool pilotTakesOver = PilotMono.instance != null && PilotMono.instance.takeOverOnStart;
+            if (!pilotTakesOver) SetActive(true);
+        }
+
+        /// <summary>
+        /// Глаз, слух и рука живут в сцене, а не создаются кодом: их надо видеть, двигать
+        /// и настраивать. Компонент только проверяет, что они на месте, и напоминает про
+        /// единственное правило, которое нельзя нарушить, — слой симуляции глазами не виден
+        /// вообще. Что происходит снаружи, человек узнаёт только через приборы; это не
+        /// оптимизация, а правило игры.
+        /// </summary>
+        bool BindEye()
+        {
+            if (eye == null) eye = GetComponentInChildren<Camera>(true);
+            if (eye == null)
+            {
+                Debug.LogError($"{GetType().Name} на «{name}»: не указана камера глаза.", this);
+                enabled = false;
+                return false;
+            }
+            ear = eye.GetComponent<AudioListener>();
+            if (hand == null) hand = eye.GetComponent<Interactor>();
+            int simulation = LayerMask.NameToLayer("Simulation");
+            if (simulation >= 0 && (eye.cullingMask & (1 << simulation)) != 0)
+            {
+                Debug.LogWarning($"Камера «{eye.name}» видит слой Simulation — снаружи корабля " +
+                    "должно быть видно только через приборы. Снимите слой в Culling Mask.", eye);
+            }
+            return true;
         }
 
         void Update()
@@ -73,7 +100,7 @@ namespace Interior
             if (!Active) return;
             ReadLook();
             ReadThrust();
-            if (GameInput.Interact.WasPressedThisFrame()) hand.Activate();
+            if (hand != null && GameInput.Interact.WasPressedThisFrame()) hand.Activate();
         }
 
         void ReadLook()
@@ -121,9 +148,17 @@ namespace Interior
             }
             velocity = Vector3.zero;
             controller.enabled = active;
-            eye.enabled = active;
-            ear.enabled = active;
-            hand.enabled = active;
+            // Ни одна из трёх ссылок не обязана быть: камеру проверяет BindEye и ругается,
+            // если её нет, а слух и рука необязательны по смыслу — без AudioListener игра
+            // идёт молча, без Interactor молча же, но руками. Переключение занятий не должно
+            // падать ни в одном из этих случаев: раньше код создавал всё сам и привык, что
+            // всё всегда на месте.
+            if (eye != null) eye.enabled = active;
+            // Слух и рука необязательны: без AudioListener игра идёт молча, без Interactor —
+            // молча же, но руками. Раньше их создавал код и они были всегда; теперь их
+            // ставят в сцене, и отсутствие не должно валить переключение занятий.
+            if (ear != null) ear.enabled = active;
+            if (hand != null) hand.enabled = active;
             if (active)
             {
                 GameInput.Switch(GameInput.Context.Bridge);

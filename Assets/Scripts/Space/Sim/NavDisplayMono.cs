@@ -30,21 +30,66 @@ namespace OuterSpace.Sim
         // а не прыгает: прыжок масштаба сбивает чтение картинки - глаз теряет, что где было.
         public const double ZoomSpeed = 9.0;
 
+        /// <summary>Поворот картинки на стекле. Своё имя, а не UnityEngine.ScreenOrientation.</summary>
+        public enum ScreenTurn { Deg0, Deg90, Deg180, Deg270 }
+
+        /// <summary>Угол стекла, к которому прижаты показания.</summary>
+        public enum Corner { TopLeft, TopRight, BottomLeft, BottomRight }
+
         public static NavDisplayMono instance;
 
-        public int textureWidth = 1024;
+        [Tooltip("Разрешение прибора по высоте. Ширина считается из пропорций стекла.")]
         public int textureHeight = 768;
-        // 12 пикселей из 768 по высоте экрана прибора.
-        public double markerFraction = 12.0 / 768.0;
-        public double labelFraction = 18.0 / 768.0;
-        public double lineFraction = 2.0 / 768.0;
+        [Tooltip("Ширина текстуры. Подгоняется под меш при запуске; заданное здесь значение — запас на случай, если поверхности нет.")]
+        public int textureWidth = 1024;
+        // Размеры элементов прибора задаются в пикселях его текстуры — в том же счёте, в
+        // котором задано разрешение выше. Это единственная мера, которую видно глазом:
+        // «метка 12 пикселей» проверяется на скриншоте, а доля экрана — нет. Внутри всё
+        // равно считается долей высоты (пиксели / textureHeight), потому что сам экран может
+        // быть любого размера в метрах.
+        [Tooltip("Диаметр метки тела в пикселях текстуры.")]
+        public float markerPixels = 12f;
+        [Tooltip("Высота подписи имени в пикселях текстуры. Кегль в образце подписи на размер не влияет — он нормализуется.")]
+        public float labelPixels = 18f;
+        [Tooltip("Толщина линий в пикселях текстуры: орбиты, траектории, выноски, кольца меток.")]
+        public float linePixels = 2f;
         // Поле переименовано намеренно: в сценах лежит старый индекс из лестницы на пять
         // ступеней, и на новой он означал бы совсем другую дальность.
         public int rangeStep = -1;
 
-        public RenderTexture texture { get; private set; }
-        public TextMeshProUGUI readout { get; private set; }
+        /// <summary>Камера прибора. Создаётся при запуске — см. CreateCamera.</summary>
         public Camera cam { get; private set; }
+
+        // Всё, что прибор сделал сам. Объекты — его дети и умрут вместе с ним; список нужен
+        // на случай, когда сносят один компонент, а объект остаётся жить.
+        readonly System.Collections.Generic.List<GameObject> made = new();
+        [Tooltip("Поверхность, на которой видна картинка прибора: любой меш с UV.")]
+        public Renderer surface;
+        [Tooltip("Чем залит экран там, где ничего нет.")]
+        public Color screenBackground = Color.black;
+        [Tooltip("Растянуть развёртку экрана на всю текстуру. Нужно, если меш вырезан из модели и его UV — кусок общей развёртки.")]
+        public bool normalizeScreenUV = true;
+        [Tooltip("Повернуть картинку на стекле. Развёртка вырезанной грани может идти вдоль любой стороны.")]
+        public ScreenTurn screenRotation = ScreenTurn.Deg0;
+        [Tooltip("Отразить картинку поперёк.")]
+        public bool flipScreenU;
+        [Tooltip("Отразить картинку вдоль.")]
+        public bool flipScreenV;
+        [Tooltip("Образец строки показаний: шрифт, кегль, цвет. Пусто — показаний не будет.")]
+        public TextMeshProUGUI readoutPrefab;
+        [Tooltip("В каком углу стекла стоят показания.")]
+        public Corner readoutCorner = Corner.TopLeft;
+        [Tooltip("Отступ от края стекла, в пикселях текстуры.")]
+        public Vector2 readoutMargin = new(16f, 16f);
+        [Tooltip("Образец подписи имени на краю экрана. Пусто — имён не будет.")]
+        public TextMeshPro railLabelPrefab;
+        [Tooltip("Образец выноски от подписи к объекту.")]
+        public LineRenderer railLeaderPrefab;
+
+        /// <summary>Готовая строка показаний. Создаётся при запуске из образца.</summary>
+        public TextMeshProUGUI readout { get; private set; }
+
+        public RenderTexture texture { get; private set; }
         /// <summary>
         /// Точка, на которой стоит начало сцены: вокруг неё вращается вид. Не обязательно тело —
         /// на точку манёвра смотрят не реже, чем на луны.
@@ -76,9 +121,11 @@ namespace OuterSpace.Sim
             return Mathf.Clamp(Mathf.RoundToInt((float)t * (RangeSteps - 1)), 0, RangeSteps - 1);
         }
         public double MetersPerPixel => NavScale.MetersPerPixel(NavScale.OrthographicSize, SimView.metersPerSceneUnit, textureHeight);
-        public double MarkerSceneDiameter => NavScale.MarkerSceneDiameter(markerFraction, NavScale.OrthographicSize);
-        public double LabelSceneHeight => NavScale.MarkerSceneDiameter(labelFraction, NavScale.OrthographicSize);
-        public float LineSceneWidth => (float)NavScale.MarkerSceneDiameter(lineFraction, NavScale.OrthographicSize);
+        /// <summary>Пиксели текстуры в доли её высоты — в этой мере считается вся геометрия прибора.</summary>
+        public double Fraction(float pixels) => pixels / (double)Mathf.Max(1, textureHeight);
+        public double MarkerSceneDiameter => NavScale.MarkerSceneDiameter(Fraction(markerPixels), NavScale.OrthographicSize);
+        public double LabelSceneHeight => NavScale.MarkerSceneDiameter(Fraction(labelPixels), NavScale.OrthographicSize);
+        public float LineSceneWidth => (float)NavScale.MarkerSceneDiameter(Fraction(linePixels), NavScale.OrthographicSize);
 
         void Awake()
         {
@@ -87,94 +134,314 @@ namespace OuterSpace.Sim
             range = TargetRange;
             SimView.metersPerSceneUnit = NavScale.MetersPerSceneUnit(range);
 
+            NormalizeUV();
+            FitTextureToSurface();
             texture = new RenderTexture(textureWidth, textureHeight, 24) { name = "NavDisplay" };
+            CreateCamera();
+            CreateReadout();
+            CreateLabelRail();
+            Show();
+        }
 
-            GameObject camObject = new("NavCamera");
-            camObject.transform.parent = transform;
+        void OnDestroy()
+        {
+            foreach (GameObject obj in made)
+            {
+                if (obj != null) Destroy(obj);
+            }
+            made.Clear();
+            if (texture == null) return;
+            // Текстура — не объект сцены, её никто не соберёт: RenderTexture держит память
+            // на видеокарте, пока её явно не отпустят.
+            texture.Release();
+            Destroy(texture);
+        }
+
+        /// <summary>
+        /// Объект, который прибор делает себе сам. Дочерний — чтобы не сорить в корне сцены
+        /// и умереть вместе с прибором.
+        ///
+        /// Масштаб родителя гасится намеренно. NavDisplayMono живёт на RectTransform внутри
+        /// канваса, и единичный масштаб там не гарантирован, а от масштаба этих объектов
+        /// зависит размер подписей и показаний. Унаследованное растяжение проявилось бы как
+        /// «текст почему-то не того размера» — симптом, по которому причину не найти.
+        /// </summary>
+        GameObject Child(string name, int layer)
+        {
+            GameObject child = new(name) { layer = layer };
+            child.transform.SetParent(transform, false);
+            Vector3 parent = transform.lossyScale;
+            child.transform.localScale = new Vector3(
+                parent.x == 0f ? 1f : 1f / parent.x,
+                parent.y == 0f ? 1f : 1f / parent.y,
+                parent.z == 0f ? 1f : 1f / parent.z);
+            made.Add(child);
+            return child;
+        }
+
+        /// <summary>
+        /// Камера прибора создаётся при запуске, а не ставится в сцене: двигать её нельзя —
+        /// положение и поворот прибор ведёт сам каждый кадр, — а её настройки не дело вкуса,
+        /// а условия, при которых верны все расчёты масштаба.
+        ///
+        /// Ортографическая проекция: в перспективе две одинаковые метки на разной глубине
+        /// имели бы разный экранный размер, и промежуточный размер снова начал бы что-то
+        /// означать. Размер вида связан с NavScale, от которого считается всё остальное.
+        /// Видит камера только слой симуляции: на стекле прибора не может оказаться ничего,
+        /// кроме показаний прибора. Это правило игры, а не оптимизация.
+        ///
+        /// </summary>
+        void CreateCamera()
+        {
+            GameObject camObject = Child("NavCamera", LayerMask.NameToLayer("Simulation"));
+
             cam = camObject.AddComponent<Camera>();
             cam.orthographic = true;
             cam.orthographicSize = (float)NavScale.OrthographicSize;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = Color.black;
-            // Прибор видит только слой симуляции, и ничего кроме него нарисовать на нём
-            // технически невозможно.
-            cam.cullingMask = 1 << LayerMask.NameToLayer("Simulation");
+            cam.backgroundColor = screenBackground;
+            cam.cullingMask = 1 << camObject.layer;
             cam.nearClipPlane = 0.01f;
             cam.farClipPlane = 200f;
             cam.targetTexture = texture;
-
-            CreateLabelRail();
-            CreateDebugView();
         }
 
         /// <summary>
-        /// Подписи имён — на слое симуляции: их рисует камера прибора, а не глаза пилота.
+        /// Показания — часть картинки прибора, а не наклейка на стекле: у настоящего
+        /// индикатора изображение одно. Поэтому холст висит перед камерой прибора и попадает
+        /// в ту же текстуру, что и обстановка.
         ///
-        /// Рельса живёт в корне сцены, а не в детях дисплея, и это не вкусовщина: сам
-        /// NavDisplayMono сидит на UI-объекте с RectTransform внутри канваса, а текст,
-        /// оказавшийся в UI-иерархии, рисуется по чужим правилам и чаще всего не рисуется
-        /// вовсе. Линии выносок это переживали — LineRenderer в мировом режиме трансформ
-        /// родителя игнорирует, — и симптом выглядел как «выноски есть, подписей нет».
-        /// Всё, что раскладывается в мировых координатах, держим вне канваса.
+        /// Создаётся кодом, и это не отступление от правила «сцену собирают руками», а его
+        /// следствие: место показаний не выбирают глазами. Оно выводится из камеры — ровно
+        /// перед ней, с масштабом, при котором высота холста равна высоте текстуры. Только
+        /// тогда «кегль 18» означает 18 пикселей из 768, а не случайную долю кадра.
+        ///
+        /// Как показания выглядят, код не решает: он клонирует ваш образец.
+        /// </summary>
+        void CreateReadout()
+        {
+            if (readoutPrefab == null)
+            {
+                Debug.LogWarning($"NavDisplayMono на «{name}»: не задан образец строки показаний — " +
+                    "чисел на приборе не будет.", this);
+                return;
+            }
+
+            GameObject canvasObject = new("NavReadout");
+            canvasObject.layer = cam.gameObject.layer;
+            canvasObject.transform.SetParent(cam.transform, false);
+
+            made.Add(canvasObject);
+            Canvas canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.worldCamera = cam;
+
+            RectTransform rect = canvas.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(textureWidth, textureHeight);
+            rect.localPosition = new Vector3(0f, 0f, 1f);
+            rect.localRotation = Quaternion.identity;
+            float scale = (float)(2.0 * NavScale.OrthographicSize) / textureHeight;
+            rect.localScale = new Vector3(scale, scale, scale);
+
+            readout = Instantiate(readoutPrefab, canvasObject.transform);
+            readout.gameObject.name = "Readout";
+            readout.gameObject.layer = canvasObject.layer;
+            readout.raycastTarget = false;
+            readout.enabled = true;
+            readout.gameObject.SetActive(true);
+            PinToCorner(readout.rectTransform);
+            Debug.Log($"NavDisplayMono: показания созданы. Слой {readout.gameObject.layer} " +
+                $"(камера видит маску {cam.cullingMask}), шрифт " +
+                $"{(readout.font == null ? "НЕТ" : readout.font.name)}, кегль {readout.fontSize}, " +
+                $"цвет {readout.color}, прямоугольник {readout.rectTransform.rect.size} " +
+                $"в точке {readout.rectTransform.anchoredPosition}, масштаб холста " +
+                $"{canvasObject.transform.lossyScale}, текст «{readout.text}».", readout);
+            // Линии прибора рисуются в очереди Overlay и легли бы поверх строк. Показания —
+            // единственное, что не имеет права быть перечёркнутым. В коде, а не в материале:
+            // материал шрифта общий, и правка в нём разъехалась бы по всем надписям проекта.
+            readout.fontMaterial.renderQueue = 4100;
+        }
+
+        /// <summary>
+        /// Рельса подписей — тоже часть картинки прибора: имена рисуются той же камерой и
+        /// попадают в ту же текстуру. Где стоит её объект, не значит ничего — она раскладывает
+        /// подписи по кадру камеры, в мировых координатах. Ставить такое в сцену незачем:
+        /// двигать нечего, а ошибиться слоем — запросто.
+        ///
+        /// Как подписи выглядят, решает ваш образец.
         /// </summary>
         void CreateLabelRail()
         {
-            GameObject railObject = new("NavLabelRail");
-            railObject.layer = LayerMask.NameToLayer("Simulation");
-            railObject.transform.SetParent(null);
-            railObject.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-            railObject.transform.localScale = Vector3.one;
-            railObject.AddComponent<NavLabelRail>();
-        }
+            if (railLabelPrefab == null || railLeaderPrefab == null)
+            {
+                Debug.LogWarning($"NavDisplayMono на «{name}»: не заданы образцы подписи " +
+                    "и выноски — имён объектов на приборе не будет.", this);
+                return;
+            }
 
-        void CreateDebugView()
-        {
-            GameObject canvasObject = new("NavDisplayDebugView");
-            canvasObject.transform.parent = transform;
-            Canvas canvas = canvasObject.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = -100;
+            GameObject railObject = Child("NavLabelRail", cam.gameObject.layer);
 
-            GameObject imageObject = new("Screen");
-            imageObject.transform.SetParent(canvasObject.transform, false);
-            RawImage image = imageObject.AddComponent<RawImage>();
-            image.texture = texture;
-            image.raycastTarget = false;
-            RectTransform rect = image.rectTransform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            GameObject textObject = new("Readout");
-            textObject.transform.SetParent(canvasObject.transform, false);
-            readout = textObject.AddComponent<TextMeshProUGUI>();
-            readout.fontSize = 18f;
-            readout.raycastTarget = false;
-            RectTransform textRect = readout.rectTransform;
-            textRect.anchorMin = new Vector2(0f, 1f);
-            textRect.anchorMax = new Vector2(0f, 1f);
-            textRect.pivot = new Vector2(0f, 1f);
-            textRect.anchoredPosition = new Vector2(12f, -12f);
-            textRect.sizeDelta = new Vector2(600f, 220f);
+            NavLabelRail rail = railObject.AddComponent<NavLabelRail>();
+            rail.labelPrefab = railLabelPrefab;
+            rail.leaderPrefab = railLeaderPrefab;
         }
 
         /// <summary>
-        /// Прибор переезжает на своё место в рубке: тот же самый холст, но в мире, на корпусе
-        /// монитора. Ничего, кроме способа вывода, не меняется — экран и раньше был прибором,
-        /// просто висел на весь кадр за неимением рубки.
+        /// Экран — обычно не Quad, а грань, вырезанная из модели монитора. У такой грани UV
+        /// достались от общей развёртки корпуса: островок в атласе, возможно повёрнутый или
+        /// зеркальный. Текстура прибора легла бы по ним и показалась бы не так.
+        ///
+        /// Поэтому развёртка растягивается на всю текстуру. Это не вкусовое решение:
+        /// на техническом экране картинка обязана занимать всё стекло целиком, иного
+        /// правильного варианта нет, и выводится он из самой грани.
+        ///
+        /// Правится копия меша (MeshFilter.mesh, не sharedMesh): исходный ассет модели
+        /// трогать нельзя, он общий для всех её копий.
         /// </summary>
-        public void MountOn(Transform anchor, double screenWidthMeters)
+        void NormalizeUV()
         {
-            Canvas canvas = readout.canvas;
-            canvas.renderMode = RenderMode.WorldSpace;
-            RectTransform rect = canvas.GetComponent<RectTransform>();
-            rect.SetParent(anchor, false);
-            rect.sizeDelta = new Vector2(textureWidth, textureHeight);
-            rect.localPosition = Vector3.zero;
-            rect.localRotation = Quaternion.identity;
-            float scale = (float)(screenWidthMeters / textureWidth);
-            rect.localScale = new Vector3(scale, scale, scale);
+            if (!normalizeScreenUV || surface == null) return;
+            MeshFilter filter = surface.GetComponent<MeshFilter>();
+            if (filter == null || filter.sharedMesh == null) return;
+
+            Vector2[] uv = filter.sharedMesh.uv;
+            if (uv == null || uv.Length == 0)
+            {
+                Debug.LogWarning($"NavDisplayMono: у меша экрана «{surface.name}» нет развёртки — " +
+                    "текстуру не на что положить.", this);
+                return;
+            }
+
+            Vector2 min = uv[0], max = uv[0];
+            foreach (Vector2 point in uv)
+            {
+                min = Vector2.Min(min, point);
+                max = Vector2.Max(max, point);
+            }
+            Vector2 size = max - min;
+            if (size.x <= 1e-6f || size.y <= 1e-6f)
+            {
+                Debug.LogWarning($"NavDisplayMono: развёртка экрана «{surface.name}» вырождена " +
+                    $"({size}) — растянуть её на текстуру нельзя.", this);
+                return;
+            }
+
+            for (int i = 0; i < uv.Length; i++)
+            {
+                Vector2 point = new((uv[i].x - min.x) / size.x, (uv[i].y - min.y) / size.y);
+                uv[i] = Flip(Turn(point));
+            }
+            filter.mesh.uv = uv;
+        }
+
+        /// <summary>
+        /// Показания прижимаются к углу стекла отступом в пикселях текстуры. Якоря образца
+        /// при этом переписываются, и намеренно: образец не знает и не должен знать размер
+        /// холста прибора. Позиция, осмысленная на холсте 1920 × 1080, на холсте 1024 × 768
+        /// уезжает за край — так и случилось. Размер блока остаётся вашим: его задаёт
+        /// Size Delta образца.
+        /// </summary>
+        void PinToCorner(RectTransform rect)
+        {
+            bool left = readoutCorner is Corner.TopLeft or Corner.BottomLeft;
+            bool top = readoutCorner is Corner.TopLeft or Corner.TopRight;
+
+            Vector2 corner = new(left ? 0f : 1f, top ? 1f : 0f);
+            rect.anchorMin = corner;
+            rect.anchorMax = corner;
+            rect.pivot = corner;
+            rect.anchoredPosition = new Vector2(
+                left ? readoutMargin.x : -readoutMargin.x,
+                top ? -readoutMargin.y : readoutMargin.y);
+        }
+
+        /// <summary>
+        /// Поворот в единичном квадрате развёртки. Разворачивается развёртка, а не картинка:
+        /// тогда и стороны, которые меряются вдоль U и V, встают на свои места, и пропорции
+        /// текстуры получаются верными сами собой.
+        /// </summary>
+        Vector2 Turn(Vector2 uv) => screenRotation switch
+        {
+            ScreenTurn.Deg90 => new Vector2(uv.y, 1f - uv.x),
+            ScreenTurn.Deg180 => new Vector2(1f - uv.x, 1f - uv.y),
+            ScreenTurn.Deg270 => new Vector2(1f - uv.y, uv.x),
+            _ => uv,
+        };
+
+        Vector2 Flip(Vector2 uv) => new(flipScreenU ? 1f - uv.x : uv.x, flipScreenV ? 1f - uv.y : uv.y);
+
+        /// <summary>
+        /// Ширина текстуры подгоняется под пропорции стекла: если экран не 4:3, картинка
+        /// на нём иначе растянулась бы, и круглая метка перестала бы быть круглой — а метка
+        /// фиксированного экранного размера и есть то, чем прибор не врёт о размерах.
+        /// Высота остаётся мерой разрешения и задаётся в инспекторе.
+        ///
+        /// Размеры берутся не из осей меша: у грани, вырезанной из модели, ось «вширь» может
+        /// быть любой. Ширина и высота меряются вдоль самой развёртки — по рёбрам, идущим
+        /// вдоль U и вдоль V. Так работает и Quad, и произвольная грань.
+        /// </summary>
+        void FitTextureToSurface()
+        {
+            if (surface == null) return;
+            MeshFilter filter = surface.GetComponent<MeshFilter>();
+            Mesh mesh = filter == null ? null : filter.sharedMesh;
+            if (mesh == null) return;
+
+            Vector3[] vertices = mesh.vertices;
+            Vector2[] uv = mesh.uv;
+            int[] triangles = mesh.triangles;
+            if (uv == null || uv.Length != vertices.Length) return;
+
+            Vector3 lossy = surface.transform.lossyScale;
+            float width = 0f, height = 0f;
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                for (int e = 0; e < 3; e++)
+                {
+                    int a = triangles[i + e], b = triangles[i + (e + 1) % 3];
+                    Vector2 duv = uv[b] - uv[a];
+                    Vector3 edge = Vector3.Scale(vertices[b] - vertices[a], lossy);
+                    // Ребро вдоль U меряет ширину, вдоль V — высоту. Косые рёбра (диагонали
+                    // грани) не меряют ничего и пропускаются.
+                    if (Mathf.Abs(duv.x) > 0.01f && Mathf.Abs(duv.y) < 0.01f)
+                    {
+                        width = Mathf.Max(width, edge.magnitude / Mathf.Abs(duv.x));
+                    }
+                    else if (Mathf.Abs(duv.y) > 0.01f && Mathf.Abs(duv.x) < 0.01f)
+                    {
+                        height = Mathf.Max(height, edge.magnitude / Mathf.Abs(duv.y));
+                    }
+                }
+            }
+
+            if (width <= 0f || height <= 0f)
+            {
+                Debug.LogWarning($"NavDisplayMono: по развёртке экрана «{surface.name}» (меш {mesh.name}) " +
+                    $"не удалось померить стороны ({width:F3} × {height:F3}) — пропорции текстуры " +
+                    "оставлены как есть. Развёртка грани должна идти вдоль U и V.", this);
+                return;
+            }
+            textureWidth = Mathf.Max(1, Mathf.RoundToInt(textureHeight * width / height));
+            Debug.Log($"NavDisplayMono: экран «{surface.name}», меш {mesh.name}, " +
+                $"{width:F3} × {height:F3} м, текстура {textureWidth} × {textureHeight}.", this);
+        }
+
+        /// <summary>
+        /// Текстура попадает на поверхность через собственный материал прибора: чужой был бы
+        /// освещаемым, и экран темнел бы вместе с кабиной, хотя светится сам.
+        /// </summary>
+        void Show()
+        {
+            if (surface == null) return;
+
+            Shader shader = Resources.Load<Shader>("Shaders/ScreenSurface");
+            if (shader == null)
+            {
+                Debug.LogWarning("NavDisplayMono: нет шейдера Shaders/ScreenSurface, экран будет освещаемым.", this);
+                surface.material.mainTexture = texture;
+                return;
+            }
+            surface.material = new Material(shader) { name = "NavScreen", mainTexture = texture };
         }
 
         /// <summary>
@@ -183,6 +450,7 @@ namespace OuterSpace.Sim
         /// </summary>
         void UpdateReadout()
         {
+            if (readout == null) return;
             Ship ship = SimMono.playerShip as Ship;
             if (ship == null) return;
             GameMono game = GameMono.instance;
