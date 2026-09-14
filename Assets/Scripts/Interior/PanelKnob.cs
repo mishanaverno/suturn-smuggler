@@ -19,23 +19,47 @@ namespace Interior
     ///
     /// Тем и лучше рычага с удержанием, который тут был раньше: у рычага величина ползёт,
     /// пока держишь, и чтобы попасть в нужное значение, надо отпустить вовремя. Крутилка
-    /// не требует чувства времени — только счёта.
+    /// не требует чувства времени — только счёта. По той же причине здесь нет разгона при
+    /// быстром вращении: он вернул бы ту самую неопределённость, ради ухода от которой
+    /// крутилку и завели.
     ///
-    /// Что она крутит, знает не она, а CockpitControls: панель — это железо, смысл железа
-    /// задаётся проводкой.
+    /// Величины крутилка не знает: она отдаёт знак, а насколько сдвинуть — решает устройство.
+    /// Что получилось, человек читает на табло рядом (PanelReading), а не по положению ручки.
     /// </summary>
     public class PanelKnob : MonoBehaviour, IInteractable, IScrollable
     {
-        public string label = "";
-        public Action<int> onStep;
-        public Func<bool> available;
+        [Tooltip("Что эта крутилка крутит. Ассет из папки разъёмов.")]
+        public StepPort port;
 
-        public string Prompt => label;
-        public bool Available => onStep != null && (available == null || available());
+        [Tooltip("Подпись для старой проводки по имени. При заполненном разъёме не используется.")]
+        public string label = "";
+
+        [HideInInspector] public Action<int> onStep;
+        [HideInInspector] public Func<bool> available;
+
+        ControlResponse[] responses;
+
+        void Awake() => responses = GetComponents<ControlResponse>();
+
+        public string Prompt => port != null ? port.Title : label;
+
+        public bool Available => port != null
+            ? ControlBus.Available(port.id)
+            : onStep != null && (available == null || available());
+
+        public bool Wired => (port != null && port.Assigned) || onStep != null;
 
         /// <summary>Крутилку не нажимают: щелчок по ней ничего не значит.</summary>
         public void Interact() { }
 
-        public void Scroll(int direction) => onStep?.Invoke(direction);
+        public void Scroll(int direction)
+        {
+            if (!Available || direction == 0) return;
+
+            if (port != null) ControlBus.Turn(port.id, direction);
+            else onStep(direction);
+
+            foreach (ControlResponse response in responses) response.Play(direction);
+        }
     }
 }
