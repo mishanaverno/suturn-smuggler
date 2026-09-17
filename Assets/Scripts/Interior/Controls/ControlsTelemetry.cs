@@ -16,7 +16,7 @@ namespace Interior
     /// Ищет по всей сцене, а не среди своих детей: щиток общий, орган работает где угодно,
     /// и искать среди детей значило бы молчать ровно в том случае, который надо поймать.
     /// </summary>
-    public class CockpitControls : MonoBehaviour
+    public class ControlsTelemetry : MonoBehaviour
     {
         void Start()
         {

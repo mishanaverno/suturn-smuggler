@@ -32,6 +32,7 @@ namespace Interior
         ViewYawMinus = 202,
         ViewPitchPlus = 203,
         ViewPitchMinus = 204,
+        KnobAccurateModeToggele = 205,
     }
 
     /// <summary>
@@ -48,6 +49,7 @@ namespace Interior
         // Навигационный компьютер — 200
         ManeuverPlanned = 200,
         DeltaVRemaining = 201,
+        KnobAccurateModeEnabled = 202,
     }
 
     /// <summary>
@@ -96,5 +98,12 @@ namespace Interior
         DeltaVY = 203,
         DeltaVZ = 204,
         RemainingDeltaV = 205,
+        ShipOrbitPereapsis = 206,
+        ShipOrbitApoapsis = 207,
+        ShipOrbitSemiMajorAxis = 208,
+        ShipOrbitEccentricity = 209,
+        ShipOrbitInclination = 210,
+        ShipOrbitLongitudeOfAscendingNode = 211,
+        ShipOrbitArgumentOfPeriapsis = 212,
     }
 }

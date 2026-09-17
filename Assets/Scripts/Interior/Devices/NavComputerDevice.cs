@@ -46,6 +46,8 @@ namespace Interior
             Bind(ReadingId.DeltaVY, () => Plan()?.deltaLVLHVelocity.y ?? double.NaN);
             Bind(ReadingId.DeltaVZ, () => Plan()?.deltaLVLHVelocity.z ?? double.NaN);
             Bind(ReadingId.RemainingDeltaV, () => Ship == null ? double.NaN : Ship.RemainingDeltaV);
+            Bind(ReadingId.ShipOrbitEccentricity, () => Ship.orbitParams.eccentricity);
+            Bind(ReadingId.ShipOrbitSemiMajorAxis, () => Ship.orbitParams.semiMajorAxis);
         }
 
         static Maneuver Plan() => Ship?.GetManeuver();
