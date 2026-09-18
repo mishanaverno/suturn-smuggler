@@ -571,8 +571,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game::Interior.ManeuverPanel
   surface: {fileID: 620502156620432727}
-  textureHeight: 360
-  textureWidth: 256
+  textureHeight: 480
+  textureWidth: 480
   screenBackground: {r: 0, g: 0, b: 0, a: 1}
   normalizeScreenUV: 1
   screenRotation: 3
@@ -1064,7 +1064,7 @@ MonoBehaviour:
   flipScreenU: 0
   flipScreenV: 0
   textPrefab: {fileID: 6954439547780492514, guid: 18698795237934dce82d617b58bf64dc, type: 3}
-  labelPixels: 18
+  labelPixels: 22
   margin: {x: 12, y: 12}
   everyFrames: 10
 --- !u!1 &1043663273

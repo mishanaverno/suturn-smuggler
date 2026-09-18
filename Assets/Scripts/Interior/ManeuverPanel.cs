@@ -132,21 +132,20 @@ namespace Interior
 
             double epoch = GameMono.instance.Epoch;
             readout.text =
-                $"BURN T- {TrajectoryRenderer.Clock(ship.BurnStartEpoch - epoch)}\n" +
-                $"NODE T- {TrajectoryRenderer.Clock(maneuver.startEpoch - epoch)}\n" +
-                $"DV REQUIRED {maneuver.PlannedMagnitude:F1} m/s\n" +
-                $"DV SPENT    {ship.BurnedDeltaV:F1} m/s\n" +
-                "CURRENT ORBIT\n" + Orbit(ship.orbitParams) +
-                "TARGET ORBIT\n" + Orbit(maneuver.newOrbitParams);
+                $"BURN > T- {TrajectoryRenderer.Clock(ship.BurnStartEpoch - epoch)}\n" +
+                $"NODE > T- {TrajectoryRenderer.Clock(maneuver.startEpoch - epoch)}\n" +
+                $"DV {maneuver.PlannedMagnitude-ship.BurnedDeltaV:F1}/{maneuver.PlannedMagnitude:F1} m/s\n" +
+                "--CURRENT ORBIT----\n" + Orbit(ship.orbitParams) +
+                "--TARGET ORBIT-----\n" + Orbit(maneuver.newOrbitParams);
         }
 
         static string Orbit(OrbitElements orbit)
         {
             (double periapsis, double apoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(orbit);
-            return $"PE {Km(periapsis)} " +
-                $"AP {Km(apoapsis)}\n" +
-                $"E  {orbit.eccentricity:F4} " +
-                $"I  {orbit.inclination:F2}°\n";
+            return $"PE: {Km(periapsis)} " +
+                $"AP: {Km(apoapsis)}\n" +
+                $"E: {orbit.eccentricity:F4} " +
+                $"I: {orbit.inclination:F2}°\n";
         }
 
         static string Km(double meters) => $"{meters / 1000.0:N0} km";
