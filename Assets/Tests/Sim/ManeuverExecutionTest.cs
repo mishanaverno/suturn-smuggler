@@ -56,6 +56,9 @@ public class ManeuverExecutionTest
     {
         world.Step(from, ship);
         ship.UpdateDirection();
+        // Разворот занимает время, а проверяется здесь не он: корабль ставится уже
+        // направленным по режиму, как если бы довернулся заранее.
+        ship.AlignInstantly();
         ship.SetThrust(true);
         for (double epoch = from + step; epoch <= to + 0.5 * step; epoch += step)
         {
@@ -106,6 +109,7 @@ public class ManeuverExecutionTest
         double from = ship.GetManeuver().startEpoch - 0.5 * duration;
         world.Step(from, ship);
         ship.UpdateDirection();
+        ship.AlignInstantly();
         ship.SetThrust(true);
         Vector3d first = ship.Direction;
         Vector3d startPosition = ship.simTransform.RELATIVE_R;

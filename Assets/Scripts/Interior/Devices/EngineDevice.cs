@@ -26,6 +26,17 @@ namespace Interior
                 Ship == null || Ship.GetManeuver() == null ? double.NaN : Ship.RemainingBurnDuration);
         }
 
+        /// <summary>
+        /// Положение рычага отдаёт сам рычаг: его разъём подключён к органу, а не сюда.
+        /// Двигатель это положение только исполняет — переносит в модель долю полной тяги.
+        /// Нет рычага — тяга полная: корабль без органа управления не должен стоять на нуле.
+        /// </summary>
+        void Update()
+        {
+            if (Ship == null) return;
+            Ship.throttle = ControlBus.TryRead(ReadingId.Throttle, out double value) ? value : 1.0;
+        }
+
         static bool HasPlan() => Ship != null && Ship.GetManeuver() != null;
     }
 }

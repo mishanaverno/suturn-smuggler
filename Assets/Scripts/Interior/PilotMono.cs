@@ -95,6 +95,7 @@ namespace Interior
             if (hand != null)
             {
                 if (GameInput.Click.WasPressedThisFrame()) hand.Activate();
+                if (GameInput.Click.WasReleasedThisFrame()) hand.Drop();
                 float wheel = GameInput.Scroll.ReadValue<float>();
                 if (Mathf.Abs(wheel) > 0.01f) hand.Scroll(wheel > 0f ? 1 : -1);
             }

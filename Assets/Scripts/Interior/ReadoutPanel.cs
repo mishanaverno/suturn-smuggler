@@ -19,14 +19,7 @@ namespace Interior
     /// </summary>
     public class ReadoutPanel : MonoBehaviour
     {
-        // Экраны снимаются каждый своей камерой и стоят далеко от кабины и друг от друга:
-        // иначе камера одного экрана видела бы холст соседнего. Место условное, лишь бы
-        // пустое, — на сцену эти объекты не смотрят.
-        const float ScreenPitch = 10f;
-        const float ScreenDepth = -1000f;
         const string ScreenLayer = "Panels";
-
-        static int screens;
 
         [Tooltip("Поверхность, на которой видна картинка экрана: любой меш с UV.")]
         public Renderer surface;
@@ -121,7 +114,7 @@ namespace Interior
             }
 
             rig = new GameObject($"Readout {name}") { layer = layer };
-            rig.transform.position = new Vector3(screens++ * ScreenPitch, ScreenDepth, 0f);
+            rig.transform.position = ScreenGlass.NextRigPosition();
 
             Camera cam = rig.AddComponent<Camera>();
             cam.orthographic = true;

@@ -1,4 +1,5 @@
-﻿using Game;
+﻿using DoublePrecision;
+using Game;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
 using UnityEngine;
@@ -44,6 +45,7 @@ namespace Controls
             ReadNavDisplay();
             ReadWarp();
             ReadOrientation(ship);
+            ReadRotation(ship);
             ReadThrust(ship);
             ReadManeuver(ship);
         }
@@ -91,6 +93,24 @@ namespace Controls
             {
                 if (GameInput.Orientation[i].WasPressedThisFrame()) ship.orientation = Modes[i];
             }
+        }
+
+        /// <summary>
+        /// Ручка задаёт вращение, а не положение: отклонённая — раскручивает, отпущенная —
+        /// оставляет как есть. Гасят вращение тоже ею, в другую сторону, или режимом
+        /// ориентации — автопилот останавливает корабль сам.
+        ///
+        /// Взятая ручка снимает режим: иначе пилот и автопилот тянули бы корабль в разные
+        /// стороны, и на органах это выглядело бы как заедание, а не как спор.
+        /// </summary>
+        static void ReadRotation(Ship ship)
+        {
+            Vector2 stick = GameInput.Rotate.ReadValue<Vector2>();
+            float roll = GameInput.Roll.ReadValue<float>();
+            // Связанные оси корабля: X — вперёд, Y — влево, Z — вверх. W даёт нос вниз,
+            // A — нос влево, E — крен вправо, как у ручки самолёта.
+            ship.rotationCommand = new Vector3d(roll, stick.y, -stick.x);
+            if (ship.rotationCommand.sqrMagnitude > 0.0) ship.orientation = ShipOrientation.Free;
         }
 
         static void ReadThrust(Ship ship)

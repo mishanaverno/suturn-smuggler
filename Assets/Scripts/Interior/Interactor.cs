@@ -21,6 +21,7 @@ namespace Interior
 
         IAim aim;
         IInteractable aimed;
+        IDraggable held;
 
         void Awake()
         {
@@ -33,12 +34,20 @@ namespace Interior
 
         void OnDisable()
         {
+            Drop();
             if (label != null) label.text = "";
         }
 
         void Update()
         {
             if (aim == null) return;
+            // Взятый орган руки не отпускает: курсор при движении рычага сходит с рукоятки,
+            // и переприцеливание на ходу отдавало бы рычаг соседней кнопке.
+            if (held != null)
+            {
+                held.Drag(aim.Ray);
+                return;
+            }
             aimed = Aim();
             if (label == null) return;
             label.text = aimed == null ? "" : aimed.Prompt;
@@ -48,7 +57,21 @@ namespace Interior
         /// <summary>Нажатие приходит от занятия: у тела это клавиша, у пилота — кнопка мыши.</summary>
         public void Activate()
         {
+            if (aimed is IDraggable grip)
+            {
+                held = grip;
+                grip.Grab(aim.Ray);
+                return;
+            }
             if (aimed != null) aimed.Interact();
+        }
+
+        /// <summary>Отпустили кнопку: рука разжимается. Без этого взятый орган остался бы в ней.</summary>
+        public void Drop()
+        {
+            if (held == null) return;
+            held.Drop();
+            held = null;
         }
 
         /// <summary>Щелчок колеса по тому, на что наведён курсор.</summary>

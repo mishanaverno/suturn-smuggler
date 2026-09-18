@@ -14,9 +14,10 @@ namespace Controls
     ///
     /// Контексты не «режимы интерфейса», а разные занятия. Тело летает по кораблю в
     /// невесомости: WASD — тяга скафандра, курсор захвачен, взгляд идёт за мышью. Пилот на своём месте не ходит вовсе: курсор
-    /// видим и указывает на органы управления, голова доворачивается краями экрана, и тот же
-    /// WASD означает три оси характеристической скорости. Одна клавиша не может значить два
-    /// намерения одновременно, поэтому карты взаимно исключающие, а не приоритетные.
+    /// видим и указывает на органы управления, а WASD с Q/E разворачивает корабль — это его
+    /// основное занятие, поэтому главные клавиши отданы ему, а голова ушла на стрелки. Одна
+    /// клавиша не может значить два намерения одновременно, поэтому карты взаимно
+    /// исключающие, а не приоритетные.
     /// </summary>
     public static class GameInput
     {
@@ -48,6 +49,9 @@ namespace Controls
         public static InputAction Scroll { get; private set; }
         /// <summary>Поворот головы. Клавишами, а не мышью: мышь занята курсором.</summary>
         public static InputAction View { get; private set; }
+        /// <summary>Ручка ориентации: X — рыскание, Y — тангаж. Нажатие задаёт вращение, а не угол.</summary>
+        public static InputAction Rotate { get; private set; }
+        public static InputAction Roll { get; private set; }
         public static InputAction Thrust { get; private set; }
         public static InputAction ManeuverCreate { get; private set; }
         public static InputAction ManeuverDelete { get; private set; }
@@ -95,10 +99,17 @@ namespace Controls
             Scroll = cockpit.AddAction("Scroll", InputActionType.Value, "<Mouse>/scroll/y");
             View = cockpit.AddAction("View", InputActionType.Value);
             View.AddCompositeBinding("2DVector")
+                .With("Up", "<Keyboard>/upArrow")
+                .With("Down", "<Keyboard>/downArrow")
+                .With("Left", "<Keyboard>/leftArrow")
+                .With("Right", "<Keyboard>/rightArrow");
+            Rotate = cockpit.AddAction("Rotate", InputActionType.Value);
+            Rotate.AddCompositeBinding("2DVector")
                 .With("Up", "<Keyboard>/w")
                 .With("Down", "<Keyboard>/s")
                 .With("Left", "<Keyboard>/a")
                 .With("Right", "<Keyboard>/d");
+            Roll = Axis(cockpit, "Roll", "<Keyboard>/q", "<Keyboard>/e");
             Thrust = cockpit.AddAction("Thrust", InputActionType.Button, "<Keyboard>/space");
             ManeuverCreate = cockpit.AddAction("ManeuverCreate", InputActionType.Button, "<Keyboard>/m");
             ManeuverDelete = cockpit.AddAction("ManeuverDelete", InputActionType.Button, "<Keyboard>/r");

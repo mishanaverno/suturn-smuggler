@@ -90,6 +90,7 @@ namespace Interior
         // Двигатель — 100
         Acceleration = 100,
         RemainingBurn = 101,
+        Throttle = 102,
 
         // Навигационный компьютер — 200
         NavRange = 200,

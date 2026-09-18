@@ -101,6 +101,7 @@ namespace Interior
             ReadLook();
             ReadThrust();
             if (hand != null && GameInput.Interact.WasPressedThisFrame()) hand.Activate();
+            if (hand != null && GameInput.Interact.WasReleasedThisFrame()) hand.Drop();
         }
 
         void ReadLook()

@@ -23,7 +23,11 @@ namespace OuterSpace.Sim.Objects
         public const double CoarseFactor = 10.0;
         public const double FineFactor = 0.1;
         Maneuver maneuver;
+        // Направление, которое требует режим ориентации. Куда корабль смотрит на самом деле,
+        // знает attitude: разворот занимает время, и на коротком прожиге тяга уходит не туда,
+        // куда её планировали, пока корабль не довернулся.
         Vector3d dir = Vector3d.right;
+        double attitudeEpoch;
         bool thrusting;
         // Отсечка взводится при включении двигателя и снимается на нуле остатка: иначе
         // дожечь сверх плана было бы нечем, а решение «продолжать ли» остаётся за игроком.
@@ -55,13 +59,26 @@ namespace OuterSpace.Sim.Objects
         const double BurnHorizonPeriods = 1.0;
 
         public ShipOrientation orientation = ShipOrientation.Free;
+        public readonly Attitude attitude = new();
+        /// <summary>Команда ручного вращения по связанным осям: крен, тангаж, рыскание, каждая в [-1, 1].</summary>
+        public Vector3d rotationCommand;
         /// <summary>
         /// Множитель шага настройки, выставляемый пультом: грубо, точно или как есть. Модель
         /// его не выводит из клавиш — она вообще не знает, что клавиши существуют.
         /// </summary>
         public double stepScale = 1.0;
+        /// <summary>
+        /// Доля полной тяги, 0…1: положение рычага на панели. Расчётное ускорение
+        /// (Acceleration) остаётся паспортным — по нему считаются длительность прожига и
+        /// момент его начала, то есть план. Дросселирование меняет исполнение плана, а не
+        /// сам план: прожиг на половине тяги уйдёт за расчётное окно, и это видно по остатку.
+        /// </summary>
+        public double throttle = 1.0;
+
         /// <summary>Направление тяги в инерциальной системе центрального тела.</summary>
-        public Vector3d Direction => dir;
+        public Vector3d Direction => attitude.Forward;
+        /// <summary>Направление, которого требует режим ориентации.</summary>
+        public Vector3d CommandedDirection => dir;
         public bool Thrusting => thrusting;
         public double Acceleration => thrust / mass;
         /// <summary>Сожжено с начала прожига по текущему манёвру, м/с.</summary>
@@ -112,8 +129,6 @@ namespace OuterSpace.Sim.Objects
             {
                 trajectory.Update(orbitParams, centralBody, GameMono.instance.Epoch, SimMono.target);
             }
-
-            UpdateDirection();
         }
 
         public void SetThrust(bool on)
@@ -147,13 +162,42 @@ namespace OuterSpace.Sim.Objects
         /// </summary>
         public void UpdateDirection()
         {
+            Vector3d direction = DirectionOf(orientation);
+            if (direction.sqrMagnitude > 0.0) dir = direction;
+        }
+
+        /// <summary>
+        /// Куда смотрел бы корабль в заданном режиме. Нужно не только тому режиму, который
+        /// включён: шар-указатель показывает все направления сразу, и считаться они обязаны
+        /// из одного места, иначе метка на приборе и разворот по той же клавише разойдутся.
+        /// </summary>
+        public Vector3d DirectionOf(ShipOrientation mode)
+        {
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, GameMono.instance.Epoch);
             Vector3d closing = SimMono.target == null
                 ? Vector3d.zero
                 : simTransform.GLOBAL_V - SimMono.target.simTransform.GLOBAL_V;
             Vector3d planned = maneuver == null ? Vector3d.zero : maneuver.PlannedDeltaV;
-            Vector3d direction = Orientation.Direction(orientation, r, v, closing, planned);
-            if (direction.sqrMagnitude > 0.0) dir = direction;
+            return Orientation.Direction(mode, r, v, closing, planned);
+        }
+
+        /// <summary>Мгновенно совместить тягу с направлением режима, без разворота.</summary>
+        public void AlignInstantly() => attitude.Snap(dir);
+
+        /// <summary>
+        /// Разворот идёт по симуляционному времени. В режиме Free корабль слушает ручку, в
+        /// остальных автопилот сам ведёт продольную ось в направление режима: это и есть
+        /// разница между «держать направление» и «лететь как летится».
+        /// </summary>
+        void UpdateAttitude()
+        {
+            double epoch = GameMono.instance.Epoch;
+            double dt = epoch - attitudeEpoch;
+            attitudeEpoch = epoch;
+            if (dt <= 0.0) return;
+
+            if (orientation == ShipOrientation.Free) attitude.Rotate(rotationCommand, dt);
+            else attitude.AlignTo(dir, dt);
         }
 
         public static double StepScale(bool coarse, bool fine) => coarse ? CoarseFactor : fine ? FineFactor : 1.0;
@@ -251,6 +295,8 @@ namespace OuterSpace.Sim.Objects
 
         public override void FixedUpdate()
         {
+            UpdateDirection();
+            UpdateAttitude();
             if (thrusting) ApplyThrust();
             base.FixedUpdate();
         }
@@ -272,10 +318,10 @@ namespace OuterSpace.Sim.Objects
             burnEpoch = epoch;
             if (dt <= 0.0) return;
 
-            double dv = Acceleration * dt;
+            double dv = Acceleration * Mathd.Clamp01(throttle) * dt;
             BurnedDeltaV += dv;
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
-            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + dir * dv, centralBody.MU, epoch);
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + attitude.Forward * dv, centralBody.MU, epoch);
             trajectory.Invalidate();
 
             if (cutoffArmed && RemainingDeltaV <= 0.0) SetThrust(false);
