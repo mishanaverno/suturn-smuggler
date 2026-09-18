@@ -466,7 +466,7 @@ namespace Interior
                 Vector3d.Dot(upward, shipUp)) * Mathd.Rad2Deg;
             double rate = attitude.angularVelocity.magnitude * Mathd.Rad2Deg;
 
-            readout.text = $"{ship.orientation.ToString().ToUpperInvariant()}   " +
+            readout.text = $"{ship.orientation.ToString().ToUpperInvariant()}  \n " +
                 $"P {pitch,6:+0.0;-0.0}   Y {yaw,6:+0.0;-0.0}   R {roll,6:+0.0;-0.0}   {rate:0.00}/s";
         }
 

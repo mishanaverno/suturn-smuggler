@@ -15,7 +15,7 @@ namespace Interior
         {
             // Переключатель, а не удержание: прожиг длится минутами, держать кнопку всё это
             // время нечем — рука нужна на других органах.
-            Bind(CommandId.EngineToggle, () => Ship?.SetThrust(!Ship.Thrusting), HasPlan);
+            Bind(CommandId.EngineToggle, () => Ship?.SetThrust(!Ship.Thrusting));
 
             // «Нажали кнопку» и «тяга идёт» — разные вещи: они расходятся при автоотсечке,
             // когда характеристическая скорость выбрана, а кнопка осталась нажатой.
