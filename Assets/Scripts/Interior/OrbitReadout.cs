@@ -34,7 +34,7 @@ namespace Interior
                 $"E  {ship.orbitParams.eccentricity:F4}\n" +
                 $"I  {ship.orbitParams.inclination:F2}°";
 
-            Maneuver maneuver = ship.GetManeuver();
+            Maneuver maneuver = ship.GetNextManeuver();
             if (maneuver == null)
             {
                 panel.Text = current + "\n\nNO MANEUVER";

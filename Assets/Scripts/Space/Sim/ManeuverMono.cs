@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using DoublePrecision;
+using OuterSpace.Sim.Objects;
 using UnityEngine;
 using Utilities;
 
@@ -14,8 +15,9 @@ namespace OuterSpace.Sim
         // Своим цветом: предсказанная траектория манёвра не должна путаться с орбитой корабля.
         static readonly Color ManeuverColor = new(0.75f, 0.45f, 1f);
         public IReadOnlyList<TrajectoryPatch> Patches => Object.trajectory.patches;
-        public IReadOnlyList<CloseApproach> Approaches => Object.trajectory.approaches;
-        public SpaceObject Target => Object.trajectory.target;
+        bool IsLast => Object.spaceObject is Ship ship && ship.GetManeuver() == Object;
+        public IReadOnlyList<CloseApproach> Approaches => IsLast ? Object.trajectory.approaches : null;
+        public SpaceObject Target => IsLast ? Object.trajectory.target : null;
 
         public override void OnInstatiated()
         {
@@ -24,8 +26,6 @@ namespace OuterSpace.Sim
             // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
             TrajectoryRenderer renderer = gameObject.AddComponent<TrajectoryRenderer>();
             renderer.color = ManeuverColor;
-            // Метки сближения манёвра тусклее корабельных: одна пара — план, вторая — то, что
-            // произойдёт на самом деле, и разница между ними и есть информация.
             renderer.approachColor = new(0.6f, 0.5f, 0.2f);
             renderer.markStart = true;
             // Точку манёвра он же рисует звёздочкой фиксированного экранного размера, а шарик
@@ -35,7 +35,11 @@ namespace OuterSpace.Sim
         void LateUpdate()
         {
             Object.FollowCentralBody();
-            if (Time.frameCount % RecalculateEveryFrames == 0) Object.UpdateTrajectory(SimMono.target);
+            if (Time.frameCount % RecalculateEveryFrames != 0) return;
+            SpaceObject target = Object.spaceObject is Ship ship
+                ? ship.TargetForTrajectory(Object)
+                : SimMono.target;
+            Object.UpdateTrajectory(target);
         }
         /// <summary>
         /// Разбирать артефакты отрисовки по скриншоту дорого: последнее число здесь —

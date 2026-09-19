@@ -83,7 +83,9 @@ namespace OuterSpace.Sim.Objects
         public double Acceleration => thrust / mass;
         /// <summary>Сожжено с начала прожига по текущему манёвру, м/с.</summary>
         public double BurnedDeltaV { get; private set; }
-        public double RemainingDeltaV => maneuver == null ? 0.0 : maneuver.PlannedMagnitude - BurnedDeltaV;
+        public double RemainingDeltaV => GetNextManeuver() is Maneuver next
+            ? next.PlannedMagnitude - BurnedDeltaV
+            : 0.0;
         /// <summary>Сколько осталось жечь при нынешней тяге, с.</summary>
         public double RemainingBurnDuration => Mathd.Max(RemainingDeltaV, 0.0) / Acceleration;
         /// <summary>
@@ -91,7 +93,9 @@ namespace OuterSpace.Sim.Objects
         /// после него, и чем длиннее — тем сильнее результат разошёлся бы с планом.
         /// </summary>
         public double BurnStartEpoch =>
-            maneuver == null ? 0.0 : maneuver.startEpoch - 0.5 * maneuver.PlannedMagnitude / Acceleration;
+            GetNextManeuver() is Maneuver next
+                ? next.startEpoch - 0.5 * next.PlannedMagnitude / Acceleration
+                : 0.0;
         public double CurrentTimeStep => TimeStep(ManeuverTimeSpan(), stepScale);
         public double CurrentSpeedStep => SpeedStep(SpeedAtNode(), stepScale);
 
@@ -104,30 +108,58 @@ namespace OuterSpace.Sim.Objects
         {
             return maneuver;
         }
+
+        /// <summary>
+        /// Ближайший узел для автоматики и исполнения. GetManeuver оставлен последним
+        /// созданным узлом: именно его редактируют ручки навигационного компьютера.
+        /// </summary>
+        public Maneuver GetNextManeuver()
+        {
+            Maneuver next = maneuver;
+            while (next?.Previous != null) next = next.Previous;
+            return next;
+        }
+
+        /// <summary>
+        /// Цель получает только последняя плановая траектория. source == null означает
+        /// фактическую траекторию корабля, которая используется лишь когда плана нет.
+        /// </summary>
+        public SpaceObject TargetForTrajectory(Maneuver source) =>
+            source == null ? (maneuver == null ? SimMono.target : null) : (maneuver == source ? SimMono.target : null);
+
         public void CreateManeuver(double afterEpoch)
         {
-            maneuver = new(this, GameMono.instance.Epoch + afterEpoch);
-            BurnedDeltaV = 0.0;
+            bool hadPlan = maneuver != null;
+            double epoch = GameMono.instance.Epoch + afterEpoch;
+            if (maneuver != null) epoch = Mathd.Max(epoch, maneuver.startEpoch);
+            maneuver = new(this, epoch, maneuver);
+            if (!hadPlan) BurnedDeltaV = 0.0;
         }
         public override void OnCentralBodyChanged(SpaceObject previous)
         {
             trajectory.Invalidate();
-            if (maneuver != null) maneuver.Reframe(previous);
+            if (maneuver == null) return;
+            // С кораблём напрямую связан только первый узел. Остальные после его перевода
+            // в новую систему отсчёта сами перестроятся по цепочке плановых траекторий.
+            Maneuver first = maneuver;
+            while (first.Previous != null) first = first.Previous;
+            first.Reframe(previous);
         }
         public void DeleteManeuver()
         {
-            UnityEngine.GameObject.Destroy(maneuver.GameObject);
-            maneuver = null;
-            BurnedDeltaV = 0.0;
+            Maneuver deleted = maneuver;
+            bool deletedNext = deleted.Previous == null;
+            maneuver = deleted.Previous;
+            if (maneuver != null) deleted.Detach();
+            UnityEngine.GameObject.Destroy(deleted.GameObject);
+            if (deletedNext) BurnedDeltaV = 0.0;
         }
         public override void Update()
         {
-            // Цель — состояние корабля, а не манёвра: манёвр после исполнения удаляется, а
-            // сближения нужнее всего как раз на финальных коррекциях, когда его уже нет.
             int every = thrusting ? BurnRecalculateEveryFrames : RecalculateEveryFrames;
             if (Time.frameCount % every == 0)
             {
-                trajectory.Update(orbitParams, centralBody, GameMono.instance.Epoch, SimMono.target);
+                trajectory.Update(orbitParams, centralBody, GameMono.instance.Epoch, TargetForTrajectory(null));
             }
         }
 
@@ -177,7 +209,8 @@ namespace OuterSpace.Sim.Objects
             Vector3d closing = SimMono.target == null
                 ? Vector3d.zero
                 : simTransform.GLOBAL_V - SimMono.target.simTransform.GLOBAL_V;
-            Vector3d planned = maneuver == null ? Vector3d.zero : maneuver.PlannedDeltaV;
+            Maneuver next = GetNextManeuver();
+            Vector3d planned = next == null ? Vector3d.zero : next.PlannedDeltaV;
             return Orientation.Direction(mode, r, v, closing, planned);
         }
 
@@ -210,6 +243,9 @@ namespace OuterSpace.Sim.Objects
         /// </summary>
         double ManeuverTimeSpan()
         {
+            // Последующие узлы живут уже не на фактической орбите корабля, а на одной из
+            // дуг плановой траектории предыдущего манёвра. Шаг должен масштабироваться ею.
+            if (maneuver?.Previous != null) return maneuver.SourceTimeSpan;
             if (orbitParams.eccentricity < 1.0) return AstroDynamic.Period(orbitParams);
             IReadOnlyList<TrajectoryPatch> patches = trajectory.patches;
             if (patches == null || patches.Count == 0) return trajectory.settings.openOrbitHorizon;

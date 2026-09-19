@@ -331,7 +331,7 @@ namespace OuterSpace.Sim
         /// </summary>
         static string ManeuverReadout(Ship ship, double epoch)
         {
-            Maneuver maneuver = ship.GetManeuver();
+            Maneuver maneuver = ship.GetNextManeuver();
             if (maneuver == null) return "";
             (double periapsis, double apoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(ship.orbitParams);
             (double plannedPeriapsis, double plannedApoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(maneuver.newOrbitParams);

@@ -123,7 +123,7 @@ namespace Interior
         void Refresh()
         {
             Ship ship = SimMono.playerShip as Ship;
-            Maneuver maneuver = ship?.GetManeuver();
+            Maneuver maneuver = ship?.GetNextManeuver();
             if (maneuver == null)
             {
                 readout.text = "NO MANEUVER DATA";

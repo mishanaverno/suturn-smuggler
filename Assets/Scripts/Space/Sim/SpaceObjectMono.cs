@@ -23,8 +23,12 @@ namespace OuterSpace
         public double SOI => Object.SOI;
         // Прогноз есть только у корабля: остальные тела своих сфер влияния не покидают.
         public IReadOnlyList<TrajectoryPatch> Patches => (Object as Ship)?.trajectory.patches;
-        public IReadOnlyList<CloseApproach> Approaches => (Object as Ship)?.trajectory.approaches;
-        public SpaceObject Target => (Object as Ship)?.trajectory.target;
+        public IReadOnlyList<CloseApproach> Approaches => Object is Ship ship && ship.GetManeuver() == null
+            ? ship.trajectory.approaches
+            : null;
+        public SpaceObject Target => Object is Ship ship && ship.GetManeuver() == null
+            ? ship.trajectory.target
+            : null;
 
         [Header("Vectors")]
         public Vector3d I_V;

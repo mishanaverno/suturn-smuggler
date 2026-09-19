@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using OuterSpace;
 using OuterSpace.Sim;
@@ -8,8 +7,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 
 /// <summary>
-/// Цель принадлежит кораблю, а не манёвру: манёвр после исполнения удаляется, а показания
-/// сближения нужнее всего как раз на финальных коррекциях, когда его уже нет.
+/// Точки сближения принадлежат последнему манёвру, а без плана — траектории корабля.
 /// </summary>
 public class ShipTargetTest
 {
@@ -53,7 +51,7 @@ public class ShipTargetTest
     }
 
     void UpdateShipTrajectory() =>
-        ship.trajectory.Update(ship.orbitParams, ship.centralBody, 0.0, SimMono.target);
+        ship.trajectory.Update(ship.orbitParams, ship.centralBody, 0.0, ship.TargetForTrajectory(null));
 
     [Test]
     public void Approaches_AreComputed_WithoutManeuver()
@@ -67,38 +65,40 @@ public class ShipTargetTest
     }
 
     [Test]
-    public void ShipAndManeuver_KeepIndependentApproaches()
+    public void OnlyLastManeuver_HasApproaches()
     {
         UpdateShipTrajectory();
-        IReadOnlyList<CloseApproach> shipApproaches = ship.trajectory.approaches;
-
         ship.CreateManeuver(600.0);
-        Maneuver maneuver = ship.GetManeuver();
+        Maneuver first = ship.GetManeuver();
+        first.deltaLVLHVelocity = new DoublePrecision.Vector3d(40.0, 0.0, 0.0);
+        first.CalcAndDraw();
+        ship.CreateManeuver(1200.0);
+        Maneuver last = ship.GetManeuver();
         try
         {
-            maneuver.deltaLVLHVelocity = new DoublePrecision.Vector3d(40.0, 0.0, 0.0);
-            maneuver.CalcAndDraw();
-            maneuver.UpdateTrajectory(station);
+            UpdateShipTrajectory();
+            first.UpdateTrajectory(ship.TargetForTrajectory(first));
+            last.UpdateTrajectory(ship.TargetForTrajectory(last));
 
-            Assert.Greater(maneuver.trajectory.approaches.Count, 0);
-            Assert.AreNotSame(shipApproaches, maneuver.trajectory.approaches);
-            // План и то, что произойдёт на самом деле: разница между парами меток и есть информация.
-            Assert.AreNotEqual(shipApproaches[0].Epoch, maneuver.trajectory.approaches[0].Epoch);
-            Assert.AreSame(shipApproaches, ship.trajectory.approaches);
+            Assert.IsNull(ship.Mono.Approaches);
+            Assert.IsNull(first.Mono.Approaches);
+            Assert.Greater(last.Mono.Approaches.Count, 0);
+            Assert.AreSame(station, last.Mono.Target);
         }
         finally
         {
-            UnityEngine.Object.DestroyImmediate(maneuver.GameObject);
+            UnityEngine.Object.DestroyImmediate(last.GameObject);
+            UnityEngine.Object.DestroyImmediate(first.GameObject);
         }
     }
 
     [Test]
-    public void DeletingManeuver_KeepsShipApproaches()
+    public void DeletingLastManeuver_RestoresShipApproaches()
     {
         ship.CreateManeuver(600.0);
         GameObject maneuverObject = ship.GetManeuver().GameObject;
         UpdateShipTrajectory();
-        Assert.Greater(ship.trajectory.approaches.Count, 0);
+        Assert.IsNull(ship.Mono.Approaches);
 
         // Ship.DeleteManeuver снимает объект через Destroy — в edit-mode это ошибка в логе,
         // а не в игре; сам объект приходится убирать вручную.
@@ -108,7 +108,7 @@ public class ShipTargetTest
         UpdateShipTrajectory();
 
         Assert.IsNull(ship.GetManeuver());
-        Assert.Greater(ship.trajectory.approaches.Count, 0);
-        Assert.AreSame(station, ship.trajectory.target);
+        Assert.Greater(ship.Mono.Approaches.Count, 0);
+        Assert.AreSame(station, ship.Mono.Target);
     }
 }
