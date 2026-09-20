@@ -53,7 +53,10 @@ namespace OuterSpace
             // центральное тело, и помечает это событие.
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.TRAJECTORY))
             {
-                gameObject.AddComponent<TrajectoryRenderer>().color = ShipColor;
+                TrajectoryRenderer trajectory = gameObject.AddComponent<TrajectoryRenderer>();
+                trajectory.color = ShipColor;
+                trajectory.markApsides = true;
+                trajectory.markNodes = true;
                 glyph.ringSegments = 3;
                 glyph.ringColor = ShipColor;
             }

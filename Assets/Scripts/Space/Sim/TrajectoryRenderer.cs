@@ -23,6 +23,8 @@ namespace OuterSpace.Sim
     /// </summary>
     public class TrajectoryRenderer : MonoBehaviour
     {
+        enum LabelPlacement { AboveRight, BelowRight }
+
         // Не число точек, а потолок: сколько их на самом деле, решает AstroDynamic.SampleArc
         // по кривизне дуги.
         public const int MaxPointsPerPatch = 1024;
@@ -40,13 +42,38 @@ namespace OuterSpace.Sim
         // Сколько сближений показывать: ближайшее и следующее за ним. Третье уже шум.
         public const int ShownApproaches = 2;
         public bool markStart = false;
+        // Только фактическая траектория корабля отмечает апо- и перицентр. У плановых
+        // траекторий таких пар может быть несколько (по одной на патч), и без отдельного
+        // языка меток они превратят план в россыпь одинаковых AP/PE.
+        public bool markApsides = false;
+        // Узлы фактической орбиты относительно плоскости орбиты центрального тела.
+        public bool markNodes = false;
 
         IHasTrajectory source;
         Material material;
         readonly List<LineRenderer> lines = new();
         readonly List<Vector3d> points = new();
         readonly List<TextMeshPro> labels = new();
+        readonly List<ApsisMarker> apsisMarkers = new();
+        readonly List<NodeMarker> nodeMarkers = new();
         float labelLineHeight;
+
+        sealed class ApsisMarker
+        {
+            public Transform Transform;
+            public Mesh Mesh;
+            public MeshRenderer Renderer;
+            public bool PointsUp;
+            public Color Color;
+        }
+
+        sealed class NodeMarker
+        {
+            public Transform Transform;
+            public Mesh Mesh;
+            public MeshRenderer Renderer;
+            public Color Color;
+        }
 
         void Start()
         {
@@ -65,11 +92,15 @@ namespace OuterSpace.Sim
             {
                 Hide(0);
                 HideLabels(0);
+                HideApsisMarkers(0);
+                HideNodeMarkers(0);
                 return;
             }
 
             int used = 0;
             int labelled = 0;
+            int apsidesUsed = 0;
+            int nodesUsed = 0;
             if (markStart)
             {
                 Vector3d start = PointOnArc(patches[0], patches[0].StartEpoch);
@@ -85,6 +116,15 @@ namespace OuterSpace.Sim
                 // Подпись только у нарисованной метки: у дуги, кончающейся горизонтом, события нет.
                 if (used == before) continue;
                 ShowLabel(Label(labelled++), EventText(patch), PointOnArc(patch, patch.EndEpoch), display);
+            }
+
+            if (markApsides)
+            {
+                DrawApsides(patches[0], ref apsidesUsed, ref labelled, display);
+            }
+            if (markNodes)
+            {
+                DrawNodes(patches[0], ref nodesUsed, ref labelled, display);
             }
 
             IReadOnlyList<CloseApproach> approaches = source.Approaches;
@@ -115,6 +155,201 @@ namespace OuterSpace.Sim
             }
             Hide(used);
             HideLabels(labelled);
+            HideApsisMarkers(apsidesUsed);
+            HideNodeMarkers(nodesUsed);
+        }
+
+        /// <summary>
+        /// Перицентр есть у эллипса и гиперболы, апоцентр — только у эллипса. Метку за
+        /// сферой влияния не ставим: там эта коника уже не является орбитой корабля.
+        /// </summary>
+        void DrawApsides(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayMono display)
+        {
+            OrbitElements orbit = patch.Orbit;
+            double e = orbit.eccentricity;
+            if (Math.Abs(e - 1.0) < 1e-9) return;
+            double centralSOI = patch.Central.IsRoot ? double.PositiveInfinity : patch.Central.SOI;
+
+            double periapsisRadius = orbit.semiMajorAxis * (1.0 - e);
+            if (IsVisibleApsis(periapsisRadius, centralSOI))
+            {
+                Vector3d periapsis = patch.Central.simTransform.GLOBAL_R
+                    + AstroDynamic.PositionAtTrueAnomaly(orbit, 0.0);
+                DrawApsisMarker(Marker(markersUsed++), periapsis, false, color, display);
+                ShowLabel(Label(labelled++), $"PE {Altitude(periapsisRadius, patch.Central.radius)}",
+                    periapsis, display, LabelPlacement.AboveRight);
+            }
+
+            if (e >= 1.0) return;
+            double apoapsisRadius = orbit.semiMajorAxis * (1.0 + e);
+            if (!IsVisibleApsis(apoapsisRadius, centralSOI)) return;
+
+            Vector3d apoapsis = patch.Central.simTransform.GLOBAL_R
+                + AstroDynamic.PositionAtTrueAnomaly(orbit, Math.PI);
+            DrawApsisMarker(Marker(markersUsed++), apoapsis, true, color, display);
+            ShowLabel(Label(labelled++), $"AP {Altitude(apoapsisRadius, patch.Central.radius)}",
+                apoapsis, display, LabelPlacement.AboveRight);
+        }
+
+        static bool IsVisibleApsis(double radius, double soi) =>
+            !double.IsNaN(radius) && !double.IsInfinity(radius) && radius >= 0.0 && radius <= soi;
+
+        static string Altitude(double radius, double bodyRadius) => $"{(radius - bodyRadius) / 1000.0:N0} km";
+
+        /// <summary>
+        /// Узлы считаются относительно плоскости собственной орбиты центрального тела.
+        /// У корневого тела такой плоскости нет; у совпадающих плоскостей вся орбита лежит
+        /// в пересечении, поэтому двух отдельных точек тоже нет.
+        /// </summary>
+        void DrawNodes(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayMono display)
+        {
+            SpaceObject central = patch.Central;
+            if (central.IsRoot || central.orbitParams == null) return;
+            if (!AstroDynamic.TryGetPlaneNodes(patch.Orbit, central.orbitParams,
+                    out double ascending, out double descending)) return;
+
+            double centralSOI = central.SOI;
+            double angle = AstroDynamic.RelativeInclination(patch.Orbit, central.orbitParams);
+            DrawNode(ascending, $"AN {angle:F1}°", patch, centralSOI, ref markersUsed, ref labelled, display);
+            DrawNode(descending, $"DN {angle:F1}°", patch, centralSOI, ref markersUsed, ref labelled, display);
+        }
+
+        void DrawNode(double anomaly, string text, TrajectoryPatch patch, double centralSOI,
+            ref int markersUsed, ref int labelled, NavDisplayMono display)
+        {
+            double radius = AstroDynamic.RadiusAtTrueAnomaly(patch.Orbit, anomaly);
+            // У гиперболы противоположное направление линии пересечения может лежать на
+            // продолжении коники с отрицательным радиусом, а не на самой траектории.
+            if (!IsVisibleApsis(radius, centralSOI)) return;
+
+            Vector3d position = patch.Central.simTransform.GLOBAL_R
+                + AstroDynamic.PositionAtTrueAnomaly(patch.Orbit, anomaly);
+            DrawNodeMarker(Node(markersUsed++), position, color, display);
+            ShowLabel(Label(labelled++), text, position, display, LabelPlacement.BelowRight);
+        }
+
+        void DrawNodeMarker(NodeMarker marker, Vector3d position, Color color, NavDisplayMono display)
+        {
+            marker.Renderer.enabled = true;
+            marker.Transform.SetPositionAndRotation(SimView.ToScene(position), display.cam.transform.rotation);
+            marker.Transform.localScale = Vector3.one * (float)display.MarkerSceneDiameter;
+            if (marker.Color == color) return;
+            Color[] colors = new Color[marker.Mesh.vertexCount];
+            for (int i = 0; i < colors.Length; i++) colors[i] = color;
+            marker.Mesh.colors = colors;
+            marker.Color = color;
+        }
+
+        NodeMarker Node(int index)
+        {
+            while (nodeMarkers.Count <= index) nodeMarkers.Add(CreateNodeMarker(nodeMarkers.Count));
+            return nodeMarkers[index];
+        }
+
+        NodeMarker CreateNodeMarker(int index)
+        {
+            GameObject host = new($"Node {index}");
+            host.layer = gameObject.layer;
+            host.transform.SetParent(transform, false);
+            Mesh mesh = SolidCircle($"Node Circle {index}", RingSegments);
+            host.AddComponent<MeshFilter>().sharedMesh = mesh;
+            MeshRenderer renderer = host.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return new NodeMarker { Transform = host.transform, Mesh = mesh, Renderer = renderer };
+        }
+
+        static Mesh SolidCircle(string name, int segments)
+        {
+            Vector3[] vertices = new Vector3[segments + 1];
+            int[] triangles = new int[segments * 3];
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = 2f * Mathf.PI * i / segments;
+                vertices[i + 1] = new Vector3(0.5f * Mathf.Cos(angle), 0.5f * Mathf.Sin(angle), 0f);
+                int triangle = i * 3;
+                triangles[triangle] = 0;
+                triangles[triangle + 1] = i + 1;
+                triangles[triangle + 2] = (i + 1) % segments + 1;
+            }
+            Mesh mesh = new() { name = name, vertices = vertices, triangles = triangles };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        void HideNodeMarkers(int from)
+        {
+            for (int i = from; i < nodeMarkers.Count; i++) nodeMarkers[i].Renderer.enabled = false;
+        }
+
+        // Залитый треугольник — меш, а не замкнутый LineRenderer: последний оставляет
+        // середину пустой и на малом размере выглядит почти так же, как прежнее кольцо.
+        void DrawApsisMarker(ApsisMarker marker, Vector3d position, bool pointsUp, Color color,
+            NavDisplayMono display)
+        {
+            marker.Renderer.enabled = true;
+            marker.Transform.SetPositionAndRotation(SimView.ToScene(position), display.cam.transform.rotation);
+            marker.Transform.localScale = Vector3.one * (float)display.MarkerSceneDiameter;
+            if (marker.PointsUp != pointsUp) SetTriangle(marker, pointsUp);
+            if (marker.Color != color)
+            {
+                marker.Mesh.colors = new[] { color, color, color };
+                marker.Color = color;
+            }
+        }
+
+        ApsisMarker Marker(int index)
+        {
+            while (apsisMarkers.Count <= index) apsisMarkers.Add(CreateApsisMarker(apsisMarkers.Count));
+            return apsisMarkers[index];
+        }
+
+        ApsisMarker CreateApsisMarker(int index)
+        {
+            GameObject host = new($"Apsis {index}");
+            host.layer = gameObject.layer;
+            host.transform.SetParent(transform, false);
+            Mesh mesh = new() { name = $"Apsis Triangle {index}" };
+            host.AddComponent<MeshFilter>().sharedMesh = mesh;
+            MeshRenderer renderer = host.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            ApsisMarker marker = new() { Transform = host.transform, Mesh = mesh, Renderer = renderer };
+            SetTriangle(marker, true);
+            return marker;
+        }
+
+        static void SetTriangle(ApsisMarker marker, bool pointsUp)
+        {
+            float direction = pointsUp ? 1f : -1f;
+            marker.Mesh.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f * direction, 0f),
+                new Vector3(0.5f, -0.5f * direction, 0f),
+                new Vector3(0f, 0.5f * direction, 0f),
+            };
+            marker.Mesh.triangles = new[] { 0, 1, 2 };
+            marker.Mesh.RecalculateBounds();
+            marker.PointsUp = pointsUp;
+        }
+
+        void HideApsisMarkers(int from)
+        {
+            for (int i = from; i < apsisMarkers.Count; i++) apsisMarkers[i].Renderer.enabled = false;
+        }
+
+        void OnDestroy()
+        {
+            foreach (ApsisMarker marker in apsisMarkers)
+            {
+                if (marker.Mesh != null) Destroy(marker.Mesh);
+            }
+            foreach (NodeMarker marker in nodeMarkers)
+            {
+                if (marker.Mesh != null) Destroy(marker.Mesh);
+            }
         }
 
         // Событие подписывается тем, чем оно важно: через сколько и под кого корабль перейдёт.
@@ -249,14 +484,19 @@ namespace OuterSpace.Sim
             $"T+{Clock(approach.Epoch - GameMono.instance.Epoch)}  " +
             $"{approach.Distance / 1000.0:F1} km  {approach.RelativeSpeed:F0} m/s";
 
-        void ShowLabel(TextMeshPro label, string text, Vector3d at, NavDisplayMono display)
+        void ShowLabel(TextMeshPro label, string text, Vector3d at, NavDisplayMono display,
+            LabelPlacement placement = LabelPlacement.AboveRight)
         {
             label.enabled = true;
             label.text = text;
-            float offset = (float)display.MarkerSceneDiameter * 0.5f;
+            float markerRadius = (float)display.MarkerSceneDiameter * 0.5f;
+            float gap = display.LineSceneWidth * 2f;
+            float x = markerRadius + gap;
+            float y = markerRadius + (float)display.LabelSceneHeight * 0.5f + gap;
+            if (placement == LabelPlacement.BelowRight) y = -y;
             label.transform.rotation = display.cam.transform.rotation;
             label.transform.position = SimView.ToScene(at)
-                + display.cam.transform.rotation * new Vector3(offset, offset, 0f);
+                + display.cam.transform.rotation * new Vector3(x, y, 0f);
             label.transform.localScale = Vector3.one * (float)display.LabelSceneHeight / labelLineHeight;
         }
 

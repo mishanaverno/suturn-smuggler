@@ -483,6 +483,68 @@ namespace OuterSpace.Sim
             else SampleHyperbola(orbit, nuFrom, nuTo - nuFrom, maxPoints, into);
         }
 
+        /// <summary>
+        /// Положение на конике при заданной истинной аномалии в системе отсчёта центрального
+        /// тела. Ноль — перицентр, pi — апоцентр замкнутой орбиты. Параболы, как и в
+        /// остальных расчётах этого класса, не поддерживаются.
+        /// </summary>
+        public static Vector3d PositionAtTrueAnomaly(OrbitElements orbit, double trueAnomaly)
+        {
+            double radius = RadiusAtTrueAnomaly(orbit, trueAnomaly);
+            Vector3d perifocal = new(radius * Math.Cos(trueAnomaly), radius * Math.Sin(trueAnomaly), 0.0);
+            return RotatePerifocalToInertial(perifocal, orbit);
+        }
+
+        public static double RadiusAtTrueAnomaly(OrbitElements orbit, double trueAnomaly)
+        {
+            double e = orbit.eccentricity;
+            double p = orbit.semiMajorAxis * (1.0 - e * e);
+            return p / (1.0 + e * Math.Cos(trueAnomaly));
+        }
+
+        /// <summary>
+        /// Истинные аномалии пересечения орбиты с заданной орбитальной плоскостью.
+        /// Восходящий узел пересекает плоскость по направлению её нормали, нисходящий —
+        /// в обратную сторону. Для совпадающих плоскостей отдельных узлов нет.
+        /// </summary>
+        public static bool TryGetPlaneNodes(OrbitElements orbit, OrbitElements plane,
+            out double ascending, out double descending)
+        {
+            Vector3d orbitNormal = OrbitPlaneNormal(orbit);
+            Vector3d planeNormal = OrbitPlaneNormal(plane);
+            Vector3d line = Vector3d.Cross(planeNormal, orbitNormal);
+            if (line.sqrMagnitude < 1e-20)
+            {
+                ascending = descending = 0.0;
+                return false;
+            }
+
+            Vector3d direction = line.normalized;
+            Vector3d periapsis = RotatePerifocalToInertial(Vector3d.right, orbit);
+            Vector3d transverse = RotatePerifocalToInertial(Vector3d.up, orbit);
+            double anomaly = Math.Atan2(Vector3d.Dot(direction, transverse), Vector3d.Dot(direction, periapsis));
+            Vector3d tangent = -periapsis * Math.Sin(anomaly) + transverse * Math.Cos(anomaly);
+
+            if (Vector3d.Dot(tangent, planeNormal) > 0.0)
+            {
+                ascending = anomaly;
+                descending = anomaly + Math.PI;
+            }
+            else
+            {
+                descending = anomaly;
+                ascending = anomaly + Math.PI;
+            }
+            return true;
+        }
+
+        public static Vector3d OrbitPlaneNormal(OrbitElements orbit) =>
+            RotatePerifocalToInertial(Vector3d.forward, orbit);
+
+        /// <summary>Взаимное наклонение двух орбитальных плоскостей, в градусах.</summary>
+        public static double RelativeInclination(OrbitElements first, OrbitElements second) =>
+            Vector3d.Angle(OrbitPlaneNormal(first), OrbitPlaneNormal(second));
+
         static void SampleEllipse(OrbitElements orbit, double nuFrom, double nuSpan, int maxPoints, List<Vector3d> into)
         {
             double e = orbit.eccentricity;

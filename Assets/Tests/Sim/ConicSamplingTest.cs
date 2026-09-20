@@ -167,6 +167,57 @@ public class ConicSamplingTest
         }
     }
 
+    [TestCase(0.0)]
+    [TestCase(0.4)]
+    [TestCase(0.9)]
+    public void ApsisPositionsHaveExpectedRadiiAndAreOpposite(double eccentricity)
+    {
+        OrbitElements orbit = Orbit(eccentricity);
+        Vector3d periapsis = AstroDynamic.PositionAtTrueAnomaly(orbit, 0.0);
+        Vector3d apoapsis = AstroDynamic.PositionAtTrueAnomaly(orbit, Math.PI);
+
+        Assert.AreEqual(orbit.semiMajorAxis * (1.0 - eccentricity), periapsis.magnitude, 1e-6);
+        Assert.AreEqual(orbit.semiMajorAxis * (1.0 + eccentricity), apoapsis.magnitude, 1e-6);
+        Assert.AreEqual(180.0, Vector3d.Angle(periapsis, apoapsis), 1e-9);
+    }
+
+    [Test]
+    public void HyperbolicPeriapsisPositionHasExpectedRadius()
+    {
+        OrbitElements orbit = Orbit(1.6, -3.0e6);
+        Vector3d periapsis = AstroDynamic.PositionAtTrueAnomaly(orbit, 0.0);
+
+        Assert.AreEqual(orbit.semiMajorAxis * (1.0 - orbit.eccentricity), periapsis.magnitude, 1e-6);
+    }
+
+    [Test]
+    public void PlaneNodesCrossReferencePlaneInOppositeDirections()
+    {
+        OrbitElements reference = Orbit(0.1);
+        reference.inclination = 0.0;
+        reference.longitudeOfAscendingNode = 0.0;
+        reference.argumentOfPeriapsis = 0.0;
+
+        OrbitElements orbit = Orbit(0.4);
+        Assert.IsTrue(AstroDynamic.TryGetPlaneNodes(orbit, reference, out double ascending, out double descending));
+        Assert.AreEqual(orbit.inclination, AstroDynamic.RelativeInclination(orbit, reference), 1e-12);
+
+        const double step = 1e-5;
+        Assert.AreEqual(0.0, AstroDynamic.PositionAtTrueAnomaly(orbit, ascending).z, 1e-6);
+        Assert.Less(AstroDynamic.PositionAtTrueAnomaly(orbit, ascending - step).z, 0.0);
+        Assert.Greater(AstroDynamic.PositionAtTrueAnomaly(orbit, ascending + step).z, 0.0);
+        Assert.AreEqual(0.0, AstroDynamic.PositionAtTrueAnomaly(orbit, descending).z, 1e-6);
+        Assert.Greater(AstroDynamic.PositionAtTrueAnomaly(orbit, descending - step).z, 0.0);
+        Assert.Less(AstroDynamic.PositionAtTrueAnomaly(orbit, descending + step).z, 0.0);
+    }
+
+    [Test]
+    public void CoplanarOrbitHasNoDistinctNodes()
+    {
+        OrbitElements orbit = Orbit(0.4);
+        Assert.IsFalse(AstroDynamic.TryGetPlaneNodes(orbit, orbit, out _, out _));
+    }
+
     [Test]
     public void NearParabolicOrbitDoesNotThrow()
     {
