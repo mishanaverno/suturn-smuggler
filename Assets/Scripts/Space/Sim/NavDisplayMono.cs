@@ -51,6 +51,14 @@ namespace OuterSpace.Sim
         public float labelPixels = 18f;
         [Tooltip("Толщина линий в пикселях текстуры: орбиты, траектории, выноски, кольца меток.")]
         public float linePixels = 2f;
+
+        [Header("Maneuver colors")]
+        [Tooltip("Цвет траектории первого, ближайшего манёвра.")]
+        public Color maneuver1Color = new(0.75f, 0.45f, 1f);
+        [Tooltip("Цвет траектории второго манёвра.")]
+        public Color maneuver2Color = new(1f, 0.55f, 0.2f);
+        [Tooltip("Цвет траектории третьего манёвра.")]
+        public Color maneuver3Color = new(0.25f, 1f, 0.55f);
         // Поле переименовано намеренно: в сценах лежит старый индекс из лестницы на пять
         // ступеней, и на новой он означал бы совсем другую дальность.
         public int rangeStep = -1;
@@ -124,6 +132,16 @@ namespace OuterSpace.Sim
         public double MarkerSceneDiameter => NavScale.MarkerSceneDiameter(Fraction(markerPixels), NavScale.OrthographicSize);
         public double LabelSceneHeight => NavScale.MarkerSceneDiameter(Fraction(labelPixels), NavScale.OrthographicSize);
         public float LineSceneWidth => (float)NavScale.MarkerSceneDiameter(Fraction(linePixels), NavScale.OrthographicSize);
+
+        public Color ManeuverColor(int sequenceIndex)
+        {
+            switch (sequenceIndex)
+            {
+                case 0: return maneuver1Color;
+                case 1: return maneuver2Color;
+                default: return maneuver3Color;
+            }
+        }
 
         void Awake()
         {

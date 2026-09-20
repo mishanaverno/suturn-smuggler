@@ -15,7 +15,7 @@ namespace OuterSpace.Sim
         public readonly TrajectoryCache trajectory = new();
 
         /// <summary>Предыдущий узел плана; null у первого манёвра корабля.</summary>
-        public Maneuver Previous { get; }
+        public Maneuver Previous { get; private set; }
         /// <summary>Центральное тело той дуги плановой траектории, на которой стоит узел.</summary>
         public SpaceObject CentralBody { get; private set; }
         /// <summary>Орбита до импульса: по ней расположен и перемещается этот узел.</summary>
@@ -37,6 +37,17 @@ namespace OuterSpace.Sim
 
         /// <summary>Полная характеристическая скорость манёвра, м/с.</summary>
         public double PlannedMagnitude => PlannedDeltaV.magnitude;
+
+        /// <summary>Позиция в плане: 0 — ближайший, 1 — следующий, 2 — последний.</summary>
+        public int SequenceIndex
+        {
+            get
+            {
+                int index = 0;
+                for (Maneuver current = Previous; current != null; current = current.Previous) index++;
+                return index;
+            }
+        }
 
         /// <summary>Орбитальная скорость в точке манёвра: от неё меряется шаг настройки Δv.</summary>
         public double SpeedAtNode => relativeVelocity.magnitude;
@@ -126,6 +137,20 @@ namespace OuterSpace.Sim
 
         /// <summary>Отцепляет удаляемый последний узел от оставшегося плана.</summary>
         public void Detach() => Previous.next = null;
+
+        /// <summary>
+        /// Снимает первый узел и превращает следующий в корень плана. Новый первый узел
+        /// перестраивается от фактической орбиты корабля, затем каскадно обновляет остальные.
+        /// </summary>
+        public Maneuver DetachNextAsFirst()
+        {
+            Maneuver following = next;
+            next = null;
+            if (following == null) return null;
+            following.Previous = null;
+            following.Rebase();
+            return following;
+        }
 
         /// <summary>Точка манёвра задана относительно центрального тела, а оно движется.</summary>
         public void FollowCentralBody()

@@ -33,6 +33,8 @@ namespace Interior
         ViewPitchPlus = 203,
         ViewPitchMinus = 204,
         KnobAccurateModeToggele = 205,
+        RemoveManeuver = 206,
+        NextManeuver = 207,
     }
 
     /// <summary>
@@ -50,6 +52,9 @@ namespace Interior
         ManeuverPlanned = 200,
         DeltaVRemaining = 201,
         KnobAccurateModeEnabled = 202,
+        Maneuver1Created = 203,
+        Maneuver2Created = 204,
+        Maneuver3Created = 205,
     }
 
     /// <summary>

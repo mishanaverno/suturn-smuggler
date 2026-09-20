@@ -95,6 +95,86 @@ public class ManeuverSequenceTest
     }
 
     [Test]
+    public void DeleteNextManeuver_PromotesFollowingManeuver()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(), 0.0);
+        ship.CreateManeuver(1000.0);
+        Maneuver first = ship.GetManeuver();
+        first.deltaLVLHVelocity = new Vector3d(1200.0, 0.0, 0.0);
+        first.CalcAndDraw();
+        ship.CreateManeuver(5000.0);
+        Maneuver second = ship.GetManeuver();
+
+        LogAssert.Expect(LogType.Error,
+            new System.Text.RegularExpressions.Regex("Destroy may not be called from edit mode"));
+        ship.DeleteNextManeuver();
+
+        Assert.AreSame(second, ship.GetManeuver());
+        Assert.AreSame(second, ship.GetNextManeuver());
+        Assert.IsNull(second.Previous);
+        Assert.AreEqual(ship.orbitParams.semiMajorAxis, second.SourceOrbit.semiMajorAxis, 1e-9);
+        UnityEngine.Object.DestroyImmediate(first.GameObject);
+        UnityEngine.Object.DestroyImmediate(second.GameObject);
+    }
+
+    [Test]
+    public void CannotCreateMoreThanThreeManeuvers()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(), 0.0);
+        ship.CreateManeuver(1000.0);
+        Maneuver first = ship.GetManeuver();
+        ship.CreateManeuver(2000.0);
+        Maneuver second = ship.GetManeuver();
+        ship.CreateManeuver(3000.0);
+        Maneuver third = ship.GetManeuver();
+
+        Assert.AreEqual(Ship.MaxManeuvers, ship.ManeuverCount);
+        Assert.IsFalse(ship.CanCreateManeuver);
+        ship.CreateManeuver(4000.0);
+        Assert.AreSame(third, ship.GetManeuver());
+        Assert.AreEqual(Ship.MaxManeuvers, ship.ManeuverCount);
+
+        LogAssert.Expect(LogType.Error,
+            new System.Text.RegularExpressions.Regex("Destroy may not be called from edit mode"));
+        ship.DeleteManeuver();
+        Assert.IsTrue(ship.CanCreateManeuver);
+        ship.CreateManeuver(4000.0);
+        Maneuver replacement = ship.GetManeuver();
+        Assert.AreEqual(Ship.MaxManeuvers, ship.ManeuverCount);
+
+        UnityEngine.Object.DestroyImmediate(third.GameObject);
+        UnityEngine.Object.DestroyImmediate(replacement.GameObject);
+        UnityEngine.Object.DestroyImmediate(second.GameObject);
+        UnityEngine.Object.DestroyImmediate(first.GameObject);
+    }
+
+    [Test]
+    public void Maneuvers_HaveSequenceIndicesForThreeDisplayColors()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(), 0.0);
+        ship.CreateManeuver(1000.0);
+        Maneuver first = ship.GetManeuver();
+        ship.CreateManeuver(2000.0);
+        Maneuver second = ship.GetManeuver();
+        ship.CreateManeuver(3000.0);
+        Maneuver third = ship.GetManeuver();
+
+        Assert.AreEqual(0, first.SequenceIndex);
+        Assert.AreEqual(1, second.SequenceIndex);
+        Assert.AreEqual(2, third.SequenceIndex);
+
+        LogAssert.Expect(LogType.Error,
+            new System.Text.RegularExpressions.Regex("Destroy may not be called from edit mode"));
+        ship.DeleteNextManeuver();
+        Assert.AreEqual(0, second.SequenceIndex);
+        Assert.AreEqual(1, third.SequenceIndex);
+
+        UnityEngine.Object.DestroyImmediate(first.GameObject);
+        UnityEngine.Object.DestroyImmediate(third.GameObject);
+        UnityEngine.Object.DestroyImmediate(second.GameObject);
+    }
+
+    [Test]
     public void NewManeuver_CannotPrecedePreviousManeuver()
     {
         Ship ship = world.PutShip(world.saturn, Circular(), 0.0);

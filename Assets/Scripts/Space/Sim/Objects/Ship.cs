@@ -22,6 +22,7 @@ namespace OuterSpace.Sim.Objects
         public const double SpeedStepFraction = 0.01;
         public const double CoarseFactor = 10.0;
         public const double FineFactor = 0.1;
+        public const int MaxManeuvers = 3;
         Maneuver maneuver;
         // Направление, которое требует режим ориентации. Куда корабль смотрит на самом деле,
         // знает attitude: разворот занимает время, и на коротком прожиге тяга уходит не туда,
@@ -120,6 +121,18 @@ namespace OuterSpace.Sim.Objects
             return next;
         }
 
+        public int ManeuverCount
+        {
+            get
+            {
+                int count = 0;
+                for (Maneuver current = maneuver; current != null; current = current.Previous) count++;
+                return count;
+            }
+        }
+
+        public bool CanCreateManeuver => ManeuverCount < MaxManeuvers;
+
         /// <summary>
         /// Цель получает только последняя плановая траектория. source == null означает
         /// фактическую траекторию корабля, которая используется лишь когда плана нет.
@@ -129,6 +142,7 @@ namespace OuterSpace.Sim.Objects
 
         public void CreateManeuver(double afterEpoch)
         {
+            if (!CanCreateManeuver) return;
             bool hadPlan = maneuver != null;
             double epoch = GameMono.instance.Epoch + afterEpoch;
             if (maneuver != null) epoch = Mathd.Max(epoch, maneuver.startEpoch);
@@ -147,12 +161,27 @@ namespace OuterSpace.Sim.Objects
         }
         public void DeleteManeuver()
         {
+            if (maneuver == null) return;
             Maneuver deleted = maneuver;
             bool deletedNext = deleted.Previous == null;
             maneuver = deleted.Previous;
             if (maneuver != null) deleted.Detach();
             UnityEngine.GameObject.Destroy(deleted.GameObject);
             if (deletedNext) BurnedDeltaV = 0.0;
+        }
+
+        /// <summary>
+        /// Удаляет ближайший к исполнению узел. Следующий узел становится началом плана и
+        /// пересчитывает оставшуюся цепочку от текущей фактической орбиты корабля.
+        /// </summary>
+        public void DeleteNextManeuver()
+        {
+            Maneuver deleted = GetNextManeuver();
+            if (deleted == null) return;
+            Maneuver following = deleted.DetachNextAsFirst();
+            if (maneuver == deleted) maneuver = following;
+            UnityEngine.GameObject.Destroy(deleted.GameObject);
+            BurnedDeltaV = 0.0;
         }
         public override void Update()
         {

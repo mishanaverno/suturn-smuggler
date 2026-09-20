@@ -23,7 +23,10 @@ namespace Interior
 
         protected override void Wire()
         {
-            Bind(CommandId.NewManeuver, () => Ship?.CreateManeuver(0));
+            Bind(CommandId.NewManeuver, () => Ship?.CreateManeuver(0),
+                () => Ship != null && Ship.CanCreateManeuver);
+            Bind(CommandId.RemoveManeuver, () => Ship?.DeleteManeuver(), HasPlan);
+            Bind(CommandId.NextManeuver, () => Ship?.DeleteNextManeuver(), HasPlan);
 
             Bind(CommandId.ViewYawPlus, () => Nav?.Rotate(new Vector2(viewStep, 0f)));
             Bind(CommandId.ViewYawMinus, () => Nav?.Rotate(new Vector2(-viewStep, 0f)));
@@ -39,6 +42,9 @@ namespace Interior
 
             Bind(SignalId.ManeuverPlanned, HasPlan);
             Bind(SignalId.DeltaVRemaining, () => Ship != null && Ship.RemainingDeltaV > 0.0);
+            Bind(SignalId.Maneuver1Created, () => Ship != null && Ship.ManeuverCount >= 1);
+            Bind(SignalId.Maneuver2Created, () => Ship != null && Ship.ManeuverCount >= 2);
+            Bind(SignalId.Maneuver3Created, () => Ship != null && Ship.ManeuverCount >= 3);
 
             Bind(ReadingId.NavRange, () => Nav == null ? double.NaN : Nav.Range);
             Bind(ReadingId.TimeToNode, TimeToNode);

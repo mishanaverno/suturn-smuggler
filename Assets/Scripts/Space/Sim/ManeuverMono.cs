@@ -12,8 +12,9 @@ namespace OuterSpace.Sim
         // Прогноз не должен считаться каждый кадр: вход у него меняется от нажатия клавиши,
         // а не от хода времени.
         const int RecalculateEveryFrames = 10;
-        // Своим цветом: предсказанная траектория манёвра не должна путаться с орбитой корабля.
-        static readonly Color ManeuverColor = new(0.75f, 0.45f, 1f);
+        // Запасной цвет нужен до появления NavDisplay; в игре цвета задаёт сам прибор.
+        static readonly Color DefaultManeuverColor = new(0.75f, 0.45f, 1f);
+        TrajectoryRenderer trajectoryRenderer;
         public IReadOnlyList<TrajectoryPatch> Patches => Object.trajectory.patches;
         bool IsLast => Object.spaceObject is Ship ship && ship.GetManeuver() == Object;
         public IReadOnlyList<CloseApproach> Approaches => IsLast ? Object.trajectory.approaches : null;
@@ -24,10 +25,12 @@ namespace OuterSpace.Sim
             base.OnInstatiated();
             // Одной орбиты вокруг одного центра здесь мало: получившаяся траектория может
             // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
-            TrajectoryRenderer renderer = gameObject.AddComponent<TrajectoryRenderer>();
-            renderer.color = ManeuverColor;
-            renderer.approachColor = new(0.6f, 0.5f, 0.2f);
-            renderer.markStart = true;
+            trajectoryRenderer = gameObject.AddComponent<TrajectoryRenderer>();
+            trajectoryRenderer.color = NavDisplayMono.instance == null
+                ? DefaultManeuverColor
+                : NavDisplayMono.instance.ManeuverColor(Object.SequenceIndex);
+            trajectoryRenderer.approachColor = new(0.6f, 0.5f, 0.2f);
+            trajectoryRenderer.markStart = true;
             // Точку манёвра он же рисует звёздочкой фиксированного экранного размера, а шарик
             // из префаба на дальних масштабах превращался в пятно без смысла.
             foreach (MeshRenderer mesh in GetComponentsInChildren<MeshRenderer>()) mesh.enabled = false;
@@ -35,6 +38,10 @@ namespace OuterSpace.Sim
         void LateUpdate()
         {
             Object.FollowCentralBody();
+            if (NavDisplayMono.instance != null)
+            {
+                trajectoryRenderer.color = NavDisplayMono.instance.ManeuverColor(Object.SequenceIndex);
+            }
             if (Time.frameCount % RecalculateEveryFrames != 0) return;
             SpaceObject target = Object.spaceObject is Ship ship
                 ? ship.TargetForTrajectory(Object)
