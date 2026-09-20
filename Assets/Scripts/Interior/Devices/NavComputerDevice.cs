@@ -33,6 +33,17 @@ namespace Interior
             Bind(CommandId.ViewPitchPlus, () => Nav?.Rotate(new Vector2(0f, viewStep)));
             Bind(CommandId.ViewPitchMinus, () => Nav?.Rotate(new Vector2(0f, -viewStep)));
 
+            Bind(CommandId.NextTargetListItem, () => TargetListPanel.instance?.MoveCursor(1), HasCursor);
+            Bind(CommandId.PreviousTargetListItem, () => TargetListPanel.instance?.MoveCursor(-1), HasCursor);
+            Bind(CommandId.SelectTarget, () => TargetListPanel.instance?.SelectCursor(),
+                () => TargetListPanel.instance?.CanSelectCursor == true);
+            Bind(CommandId.ClearTarget, () => TargetListPanel.instance?.ClearTarget(),
+                () => SimMono.target != null);
+            Bind(CommandId.TrackTargetListItem, () => TargetListPanel.instance?.TrackCursor(),
+                () => HasCursor() && Nav != null);
+            Bind(CommandId.ShowTargetBodyList, () => TargetListPanel.instance?.ShowBodies(), HasTargetList);
+            Bind(CommandId.ShowManeuverList, () => TargetListPanel.instance?.ShowManeuvers(), HasTargetList);
+
             Bind(StepId.NavRange, direction => Nav?.ShiftRange(direction));
             Bind(StepId.ManeuverTime,
                 direction => Ship?.ShiftManeuverTime(direction * Ship.CurrentTimeStep), HasPlan);
@@ -59,6 +70,10 @@ namespace Interior
         static Maneuver Plan() => Ship?.GetManeuver();
 
         static bool HasPlan() => Plan() != null;
+
+        static bool HasTargetList() => TargetListPanel.instance != null;
+
+        static bool HasCursor() => TargetListPanel.instance?.HasCursor == true;
 
         /// <summary>
         /// Время до узла манёвра. Без плана показания нет — NaN, и табло гаснет: пустая

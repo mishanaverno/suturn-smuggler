@@ -35,6 +35,13 @@ namespace Interior
         KnobAccurateModeToggele = 205,
         RemoveManeuver = 206,
         NextManeuver = 207,
+        NextTargetListItem = 208,
+        PreviousTargetListItem = 209,
+        SelectTarget = 210,
+        ClearTarget = 211,
+        TrackTargetListItem = 212,
+        ShowTargetBodyList = 213,
+        ShowManeuverList = 214,
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 ﻿using DoublePrecision;
 using Game;
+using Interior;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
 using UnityEngine;
@@ -51,15 +52,15 @@ namespace Controls
         }
 
         /// <summary>
-        /// С клавиатуры у прибора осталось только то, чему ещё нет органа на панели: выбор
-        /// точки наблюдения и цели. Дальность и разворот вида — крутилка и крестовина.
+        /// Клавиша цели двигает курсор списка, но не подтверждает выбор: активная цель
+        /// назначается отдельной кнопкой на панели.
         /// </summary>
         void ReadNavDisplay()
         {
             NavDisplayMono nav = NavDisplayMono.instance;
             if (nav == null) return;
             if (GameInput.CycleFocus.WasPressedThisFrame()) nav.CycleFocus();
-            if (GameInput.CycleTarget.WasPressedThisFrame()) nav.CycleTarget();
+            if (GameInput.CycleTarget.WasPressedThisFrame()) TargetListPanel.instance?.MoveCursor(1);
         }
 
         void ReadWarp()

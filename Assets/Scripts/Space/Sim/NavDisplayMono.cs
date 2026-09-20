@@ -105,7 +105,6 @@ namespace OuterSpace.Sim
         float yaw = 0f;
         float pitch = 60f;
         int focusIndex = -1;
-        int targetIndex = -1;
 
         double range = DefaultRange;
 
@@ -393,11 +392,12 @@ namespace OuterSpace.Sim
             pitch = Mathf.Clamp(pitch + degrees.y, -89f, 89f);
         }
 
-        public void CycleTarget()
+        /// <summary>Перевести центр навигационного экрана на тело или точку манёвра.</summary>
+        public void FocusOn(SimTransform point)
         {
-            targetIndex++;
-            if (targetIndex >= SimMono.bodies.Count) targetIndex = -1;
-            SimMono.target = targetIndex < 0 ? null : SimMono.bodies[targetIndex];
+            if (point == null) return;
+            focus = point;
+            focusIndex = FocusPoints().IndexOf(focus);
         }
 
         public void CycleFocus()
@@ -412,8 +412,15 @@ namespace OuterSpace.Sim
         {
             List<SimTransform> points = new();
             foreach (SpaceObject obj in SimMono.updateOrder) points.Add(obj.simTransform);
-            Maneuver maneuver = (SimMono.playerShip as Ship)?.GetManeuver();
-            if (maneuver != null) points.Add(maneuver.simTransform);
+            int maneuverStart = points.Count;
+            for (Maneuver maneuver = (SimMono.playerShip as Ship)?.GetManeuver();
+                 maneuver != null;
+                 maneuver = maneuver.Previous)
+            {
+                // Цепочка хранится от последнего узла назад. Вставка в одну позицию
+                // разворачивает её в порядок исполнения: MANEUVER 1, 2, 3.
+                points.Insert(maneuverStart, maneuver.simTransform);
+            }
             return points;
         }
     }
