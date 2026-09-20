@@ -41,7 +41,7 @@ namespace Interior
 
         protected static Ship Ship => SimMono.playerShip as Ship;
 
-        protected static NavDisplayMono Nav => NavDisplayMono.instance;
+        protected static NavDisplayPanel Nav => NavDisplayPanel.instance;
 
         /// <summary>Какие дела устройство берёт на себя. Вызывается при включении.</summary>
         protected abstract void Wire();

@@ -9,13 +9,13 @@ namespace OuterSpace.Sim
     /// рисует в левой системе с Y вверх. Перестановка Y и Z даёт орбиты в плоскости XZ
     /// и сохраняет направление обхода: прямое движение видно против часовой стрелки сверху.
     ///
-    /// Начало отсчёта и масштаб задаёт прибор (NavDisplayMono), а не мир: масштаб — это
+    /// Начало отсчёта и масштаб задаёт прибор (NavDisplayPanel), а не мир: масштаб — это
     /// положение ручки дальности, а не свойство системы Сатурна.
     /// </summary>
     public static class SimView
     {
         public static Vector3d origin = Vector3d.zero;
-        public static double metersPerSceneUnit = NavScale.MetersPerSceneUnit(NavDisplayMono.DefaultRange);
+        public static double metersPerSceneUnit = NavScale.MetersPerSceneUnit(NavDisplayPanel.DefaultRange);
 
         public static Vector3 ToScene(Vector3d simVector)
         {

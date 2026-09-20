@@ -466,8 +466,12 @@ namespace Interior
                 Vector3d.Dot(upward, shipUp)) * Mathd.Rad2Deg;
             double rate = attitude.angularVelocity.magnitude * Mathd.Rad2Deg;
 
-            readout.text = $"{ship.orientation.ToString().ToUpperInvariant()}  \n " +
-                $"P {pitch,6:+0.0;-0.0}   Y {yaw,6:+0.0;-0.0}   R {roll,6:+0.0;-0.0}   {rate:0.00}/s";
+            string content = $"P{pitch,6:+0.0;-0.0} Y{yaw,6:+0.0;-0.0} R{roll,6:+0.0;-0.0} {rate:0.00}/s";
+            string title = ship.orientation.ToString().ToUpperInvariant();
+            int lineLength = Mathf.Max(content.Length + 4, title.Length + 2);
+            // Без нижней рамки: у этого экрана на показания снизу от шара отведено ровно
+            // две строки, третья уезжает за верх текстуры камеры прибора.
+            readout.text = AsciiTable.TitledBorder(title, lineLength) + "\n" + AsciiTable.Row(content, lineLength);
         }
 
         /// <summary>

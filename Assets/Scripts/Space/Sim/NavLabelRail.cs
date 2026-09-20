@@ -62,7 +62,7 @@ namespace OuterSpace.Sim
 
         void LateUpdate()
         {
-            NavDisplayMono display = NavDisplayMono.instance;
+            NavDisplayPanel display = NavDisplayPanel.instance;
             if (display == null || display.cam == null) return;
             if (labelPrefab == null || leaderPrefab == null)
             {
@@ -94,7 +94,7 @@ namespace OuterSpace.Sim
         /// игрок задаёт, пока выбирает. Выбрав, он спрашивает уже другое, и девять подписей
         /// вокруг одной нужной только мешают.
         /// </summary>
-        void Collect(NavDisplayMono display)
+        void Collect(NavDisplayPanel display)
         {
             left.Clear();
             right.Clear();
@@ -125,7 +125,7 @@ namespace OuterSpace.Sim
         /// заданного промежутка к соседней. Жадно сверху вниз — тот, кто выше, место не
         /// уступает, и подписи не прыгают от кадра к кадру, пока объекты не поменялись местами.
         /// </summary>
-        int Place(List<Entry> entries, NavDisplayMono display, float rail, TextAlignmentOptions align,
+        int Place(List<Entry> entries, NavDisplayPanel display, float rail, TextAlignmentOptions align,
             float pivotX, int used)
         {
             entries.Sort((a, b) => b.ViewportY.CompareTo(a.ViewportY));
@@ -178,7 +178,7 @@ namespace OuterSpace.Sim
             return used;
         }
 
-        void Report(int used, NavDisplayMono display)
+        void Report(int used, NavDisplayPanel display)
         {
             if (!logOnce || logged) return;
             logged = true;
@@ -201,10 +201,10 @@ namespace OuterSpace.Sim
         }
 
         /// <summary>Мировая ширина в долях ширины экрана прибора.</summary>
-        static float ViewportWidth(NavDisplayMono display, float worldWidth) =>
+        static float ViewportWidth(NavDisplayPanel display, float worldWidth) =>
             worldWidth / (2f * (float)NavScale.OrthographicSize * display.cam.aspect);
 
-        Vector3 Point(NavDisplayMono display, float x, float y) =>
+        Vector3 Point(NavDisplayPanel display, float x, float y) =>
             display.cam.ViewportToWorldPoint(new Vector3(x, y, display.cam.nearClipPlane + 100f));
 
         TextMeshPro Label(int index)
@@ -215,7 +215,7 @@ namespace OuterSpace.Sim
                 text.gameObject.name = $"RailLabel {labels.Count}";
                 Adopt(text.gameObject);
                 // Кегль образца рельса нормализует: высоту подписи задаёт прибор долей экрана
-                // (NavDisplayMono.labelPixels), иначе имя тела читалось бы по-разному на
+                // (NavDisplayPanel.labelPixels), иначе имя тела читалось бы по-разному на
                 // разных приборах. Но прямоугольник образца при этом остаётся прежним, и
                 // крупный кегль начинал переноситься по словам — ручка, которая «ничего не
                 // меняет, только ломает». Переносов у имени быть не может: оно одно слово.

@@ -1,5 +1,6 @@
+using System.Collections.Generic;
+using System.Text;
 using Game;
-using OuterSpace;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
 using TMPro;
@@ -120,32 +121,59 @@ namespace Interior
             if (Time.frameCount % Mathf.Max(everyFrames, 1) == 0) Refresh();
         }
 
+        const string Title = "MANEUVER";
+
         void Refresh()
         {
             Ship ship = SimMono.playerShip as Ship;
             Maneuver maneuver = ship?.GetNextManeuver();
             if (maneuver == null)
             {
-                readout.text = "NO MANEUVER DATA";
+                int empty = Mathf.Max("NO DATA".Length + 4, Title.Length + 2);
+                readout.text = AsciiTable.TitledBorder(Title, empty) + "\n" +
+                    AsciiTable.Row("NO DATA", empty) + "\n" +
+                    AsciiTable.Border(empty, AsciiTable.BottomLeft, AsciiTable.BottomRight);
                 return;
             }
 
             double epoch = GameMono.instance.Epoch;
-            readout.text =
-                $"BURN > {TrajectoryRenderer.Countdown(ship.BurnStartEpoch - epoch)}\n" +
-                $"NODE > {TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch)}\n" +
-                $"DV {maneuver.PlannedMagnitude-ship.BurnedDeltaV:F1}/{maneuver.PlannedMagnitude:F1} m/s\n" +
-                "--CURRENT ORBIT----\n" + Orbit(ship.orbitParams) +
-                "--TARGET ORBIT-----\n" + Orbit(maneuver.newOrbitParams);
-        }
+            string burnLine = $"BURN {TrajectoryRenderer.Countdown(ship.BurnStartEpoch - epoch)}";
+            string nodeLine = $"NODE {TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch)}";
+            string dvLine = $"DV {maneuver.PlannedMagnitude - ship.BurnedDeltaV:F1}/{maneuver.PlannedMagnitude:F1} m/s";
 
-        static string Orbit(OrbitElements orbit)
-        {
-            (double periapsis, double apoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(orbit);
-            return $"PE: {Km(periapsis)} " +
-                $"AP: {Km(apoapsis)}\n" +
-                $"E: {orbit.eccentricity:F4} " +
-                $"I: {orbit.inclination:F2}°\n";
+            (double curPe, double curAp) = AstroDynamic.GetPeriapsisAndApoapsis(ship.orbitParams);
+            (double tgtPe, double tgtAp) = AstroDynamic.GetPeriapsisAndApoapsis(maneuver.newOrbitParams);
+            string[] header = { "", "CURRENT", "TARGET" };
+            List<string[]> rows = new()
+            {
+                new[] { "PE", Km(curPe), Km(tgtPe) },
+                new[] { "AP", Km(curAp), Km(tgtAp) },
+                new[] { "E", $"{ship.orbitParams.eccentricity:F4}", $"{maneuver.newOrbitParams.eccentricity:F4}" },
+                new[] { "I", $"{ship.orbitParams.inclination:F2}°", $"{maneuver.newOrbitParams.inclination:F2}°" },
+            };
+
+            int[] colWidth = new int[header.Length];
+            for (int c = 0; c < header.Length; c++) colWidth[c] = header[c].Length;
+            foreach (string[] row in rows)
+                for (int c = 0; c < row.Length; c++) colWidth[c] = Mathf.Max(colWidth[c], row[c].Length);
+            string columnsBorder = AsciiTable.ColumnsBorder(colWidth, AsciiTable.TopJoint);
+
+            int lineLength = columnsBorder.Length;
+            lineLength = Mathf.Max(lineLength, burnLine.Length + 4);
+            lineLength = Mathf.Max(lineLength, nodeLine.Length + 4);
+            lineLength = Mathf.Max(lineLength, dvLine.Length + 4);
+            lineLength = Mathf.Max(lineLength, Title.Length + 2);
+            if (lineLength > columnsBorder.Length) colWidth[^1] += lineLength - columnsBorder.Length;
+
+            StringBuilder text = new(AsciiTable.TitledBorder(Title, lineLength));
+            text.Append('\n').Append(AsciiTable.Row(burnLine, lineLength));
+            text.Append('\n').Append(AsciiTable.Row(nodeLine, lineLength));
+            text.Append('\n').Append(AsciiTable.Row(dvLine, lineLength));
+            text.Append('\n').Append(AsciiTable.TitledColumnsBorder(header, colWidth, AsciiTable.TopJoint));
+            foreach (string[] row in rows) text.Append('\n').Append(AsciiTable.ColumnsRow(row, colWidth));
+            text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.BottomJoint));
+            text.Append('\n').Append(AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight));
+            readout.text = text.ToString();
         }
 
         static string Km(double meters) => $"{meters / 1000.0:N0} km";

@@ -48,7 +48,7 @@ namespace OuterSpace.Sim
 
         void LateUpdate()
         {
-            NavDisplayMono display = NavDisplayMono.instance;
+            NavDisplayPanel display = NavDisplayPanel.instance;
             if (display == null) return;
 
             double markerDiameter = display.MarkerSceneDiameter;

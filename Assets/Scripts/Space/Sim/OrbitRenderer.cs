@@ -29,10 +29,10 @@ namespace OuterSpace.Sim
         void LateUpdate()
         {
             
-            if (parent != null && parent.OrbitParams != null && NavDisplayMono.instance != null)
+            if (parent != null && parent.OrbitParams != null && NavDisplayPanel.instance != null)
             {
                 if (!lineRenderer.enabled) lineRenderer.enabled = true;
-                lineRenderer.widthMultiplier = NavDisplayMono.instance.LineSceneWidth;
+                lineRenderer.widthMultiplier = NavDisplayPanel.instance.LineSceneWidth;
                 Vector3[] positions = GetOrbitPoints(parent.OrbitParams);
                 lineRenderer.positionCount = positions.Length;
                 lineRenderer.SetPositions(positions);

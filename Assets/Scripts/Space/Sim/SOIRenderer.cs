@@ -22,7 +22,7 @@ namespace OuterSpace.Sim
 
         void LateUpdate()
         {
-            if (parent != null && NavDisplayMono.instance != null)
+            if (parent != null && NavDisplayPanel.instance != null)
             {
                 if (parent.SOI > 0 && parent.SOI < double.PositiveInfinity)
                 {
@@ -38,11 +38,11 @@ namespace OuterSpace.Sim
         {
             lineRenderer.positionCount = segments + 1;
             lineRenderer.enabled = true;
-            lineRenderer.widthMultiplier = NavDisplayMono.instance.LineSceneWidth;
+            lineRenderer.widthMultiplier = NavDisplayPanel.instance.LineSceneWidth;
 
             float radius = (float)NavScale.SceneUnits(parent.SOI, SimView.metersPerSceneUnit);
             Vector3 center = SimView.ToScene(parent.GlobalPosition);
-            Transform view = NavDisplayMono.instance.cam.transform;
+            Transform view = NavDisplayPanel.instance.cam.transform;
             for (int i = 0; i <= segments; i++)
             {
                 float angle = (float)i / (float)segments * 360f * Mathf.Deg2Rad;

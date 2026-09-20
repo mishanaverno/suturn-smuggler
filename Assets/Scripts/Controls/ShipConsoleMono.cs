@@ -9,7 +9,7 @@ namespace Controls
 {
     /// <summary>
     /// Оператор за пультом: превращает намерения карты Console в вызовы модели. Раньше это
-    /// делали сами Ship, NavDisplayMono и TimeToggler, каждый по-своему; здесь всё в одном
+    /// делали сами Ship, NavDisplayPanel и TimeToggler, каждый по-своему; здесь всё в одном
     /// месте, и видно, что именно умеет пульт.
     ///
     /// Компонент работает всегда, но карта Console включена только пока игрок сидит в кресле,
@@ -57,7 +57,7 @@ namespace Controls
         /// </summary>
         void ReadNavDisplay()
         {
-            NavDisplayMono nav = NavDisplayMono.instance;
+            NavDisplayPanel nav = NavDisplayPanel.instance;
             if (nav == null) return;
             if (GameInput.CycleFocus.WasPressedThisFrame()) nav.CycleFocus();
             if (GameInput.CycleTarget.WasPressedThisFrame()) TargetListPanel.instance?.MoveCursor(1);

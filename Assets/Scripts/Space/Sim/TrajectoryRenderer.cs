@@ -86,7 +86,7 @@ namespace OuterSpace.Sim
 
         void LateUpdate()
         {
-            NavDisplayMono display = NavDisplayMono.instance;
+            NavDisplayPanel display = NavDisplayPanel.instance;
             IReadOnlyList<TrajectoryPatch> patches = source?.Patches;
             if (display == null || patches == null || patches.Count == 0)
             {
@@ -163,7 +163,7 @@ namespace OuterSpace.Sim
         /// Перицентр есть у эллипса и гиперболы, апоцентр — только у эллипса. Метку за
         /// сферой влияния не ставим: там эта коника уже не является орбитой корабля.
         /// </summary>
-        void DrawApsides(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayMono display)
+        void DrawApsides(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayPanel display)
         {
             OrbitElements orbit = patch.Orbit;
             double e = orbit.eccentricity;
@@ -201,7 +201,7 @@ namespace OuterSpace.Sim
         /// У корневого тела такой плоскости нет; у совпадающих плоскостей вся орбита лежит
         /// в пересечении, поэтому двух отдельных точек тоже нет.
         /// </summary>
-        void DrawNodes(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayMono display)
+        void DrawNodes(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayPanel display)
         {
             SpaceObject central = patch.Central;
             if (central.IsRoot || central.orbitParams == null) return;
@@ -215,7 +215,7 @@ namespace OuterSpace.Sim
         }
 
         void DrawNode(double anomaly, string text, TrajectoryPatch patch, double centralSOI,
-            ref int markersUsed, ref int labelled, NavDisplayMono display)
+            ref int markersUsed, ref int labelled, NavDisplayPanel display)
         {
             double radius = AstroDynamic.RadiusAtTrueAnomaly(patch.Orbit, anomaly);
             // У гиперболы противоположное направление линии пересечения может лежать на
@@ -228,7 +228,7 @@ namespace OuterSpace.Sim
             ShowLabel(Label(labelled++), text, position, display, LabelPlacement.BelowRight);
         }
 
-        void DrawNodeMarker(NodeMarker marker, Vector3d position, Color color, NavDisplayMono display)
+        void DrawNodeMarker(NodeMarker marker, Vector3d position, Color color, NavDisplayPanel display)
         {
             marker.Renderer.enabled = true;
             marker.Transform.SetPositionAndRotation(SimView.ToScene(position), display.cam.transform.rotation);
@@ -286,7 +286,7 @@ namespace OuterSpace.Sim
         // Залитый треугольник — меш, а не замкнутый LineRenderer: последний оставляет
         // середину пустой и на малом размере выглядит почти так же, как прежнее кольцо.
         void DrawApsisMarker(ApsisMarker marker, Vector3d position, bool pointsUp, Color color,
-            NavDisplayMono display)
+            NavDisplayPanel display)
         {
             marker.Renderer.enabled = true;
             marker.Transform.SetPositionAndRotation(SimView.ToScene(position), display.cam.transform.rotation);
@@ -364,7 +364,7 @@ namespace OuterSpace.Sim
         // Дуги различаются яркостью: видно, где траектория переходит к следующему телу.
         Color PatchColor(int index) => Color.Lerp(color, color * 0.45f, index * 0.3f);
 
-        void DrawArc(LineRenderer line, TrajectoryPatch patch, Color color, NavDisplayMono display)
+        void DrawArc(LineRenderer line, TrajectoryPatch patch, Color color, NavDisplayPanel display)
         {
             AstroDynamic.SampleArc(patch.Orbit, patch.StartEpoch, patch.EndEpoch, MaxPointsPerPatch, points);
             Prepare(line, color, display);
@@ -393,7 +393,7 @@ namespace OuterSpace.Sim
         }
 
         /// <summary>Точка самого манёвра — звёздочка: ни начало дуги, ни событие на ней.</summary>
-        int DrawStar(int index, Vector3d position, Color color, NavDisplayMono display)
+        int DrawStar(int index, Vector3d position, Color color, NavDisplayPanel display)
         {
             Vector3 center = SimView.ToScene(position);
             float radius = (float)display.MarkerSceneDiameter * 0.5f;
@@ -412,7 +412,7 @@ namespace OuterSpace.Sim
         }
 
         /// <summary>Вход в сферу влияния — кружок, выход и столкновение — крестик.</summary>
-        int DrawEndMarker(int index, TrajectoryPatch patch, Color color, NavDisplayMono display)
+        int DrawEndMarker(int index, TrajectoryPatch patch, Color color, NavDisplayPanel display)
         {
             Vector3d point = PointOnArc(patch, patch.EndEpoch);
             switch (patch.EndReason)
@@ -432,7 +432,7 @@ namespace OuterSpace.Sim
 
         // Метки развёрнуты к камере и фиксированного экранного размера: точка события — это
         // момент, а не тело, и собственного размера у неё нет.
-        void DrawRing(LineRenderer line, Vector3d position, Color color, NavDisplayMono display)
+        void DrawRing(LineRenderer line, Vector3d position, Color color, NavDisplayPanel display)
         {
             Prepare(line, color, display);
             line.positionCount = RingSegments + 1;
@@ -447,7 +447,7 @@ namespace OuterSpace.Sim
         }
 
         // Одной ломаной крестик не нарисовать: диагонали не соединены.
-        void DrawCross(LineRenderer first, LineRenderer second, Vector3d position, Color color, NavDisplayMono display)
+        void DrawCross(LineRenderer first, LineRenderer second, Vector3d position, Color color, NavDisplayPanel display)
         {
             Vector3 center = SimView.ToScene(position);
             Vector3 right = display.cam.transform.right * (float)display.MarkerSceneDiameter * 0.5f;
@@ -464,13 +464,13 @@ namespace OuterSpace.Sim
             second.SetPosition(1, center + right - up);
         }
 
-        static void Prepare(LineRenderer line, Color color, NavDisplayMono display)
+        static void Prepare(LineRenderer line, Color color, NavDisplayPanel display)
         {
             line.widthMultiplier = display.LineSceneWidth;
             line.startColor = line.endColor = color;
         }
 
-        void DrawLink(LineRenderer line, Vector3d ship, Vector3d target, Color color, NavDisplayMono display)
+        void DrawLink(LineRenderer line, Vector3d ship, Vector3d target, Color color, NavDisplayPanel display)
         {
             Prepare(line, color, display);
             line.positionCount = 2;
@@ -484,7 +484,7 @@ namespace OuterSpace.Sim
             $"T+{Clock(approach.Epoch - GameMono.instance.Epoch)}  " +
             $"{approach.Distance / 1000.0:F1} km  {approach.RelativeSpeed:F0} m/s";
 
-        void ShowLabel(TextMeshPro label, string text, Vector3d at, NavDisplayMono display,
+        void ShowLabel(TextMeshPro label, string text, Vector3d at, NavDisplayPanel display,
             LabelPlacement placement = LabelPlacement.AboveRight)
         {
             label.enabled = true;

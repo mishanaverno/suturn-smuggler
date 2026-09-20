@@ -192,7 +192,7 @@ namespace Interior
         public void TrackCursor()
         {
             SimTransform focus = CursorEntry().Focus;
-            if (focus != null) NavDisplayMono.instance?.FocusOn(focus);
+            if (focus != null) NavDisplayPanel.instance?.FocusOn(focus);
         }
 
         public void ShowBodies()

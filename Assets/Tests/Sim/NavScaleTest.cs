@@ -19,8 +19,8 @@ public class NavScaleTest
 
     static double[] BuildRanges()
     {
-        double[] ranges = new double[NavDisplayMono.RangeSteps];
-        for (int i = 0; i < ranges.Length; i++) ranges[i] = NavDisplayMono.RangeAt(i);
+        double[] ranges = new double[NavDisplayPanel.RangeSteps];
+        for (int i = 0; i < ranges.Length; i++) ranges[i] = NavDisplayPanel.RangeAt(i);
         return ranges;
     }
 
@@ -31,8 +31,8 @@ public class NavScaleTest
     [Test]
     public void RangeLadder_IsGeometric_AndSpansItsBounds()
     {
-        Assert.AreEqual(NavDisplayMono.MinRange, Ranges[0], NavDisplayMono.MinRange * 1e-9);
-        Assert.AreEqual(NavDisplayMono.MaxRange, Ranges[^1], NavDisplayMono.MaxRange * 1e-9);
+        Assert.AreEqual(NavDisplayPanel.MinRange, Ranges[0], NavDisplayPanel.MinRange * 1e-9);
+        Assert.AreEqual(NavDisplayPanel.MaxRange, Ranges[^1], NavDisplayPanel.MaxRange * 1e-9);
 
         double factor = Ranges[1] / Ranges[0];
         for (int i = 1; i < Ranges.Length; i++)
@@ -44,7 +44,7 @@ public class NavScaleTest
 
         for (int i = 0; i < Ranges.Length; i++)
         {
-            Assert.AreEqual(i, NavDisplayMono.StepAt(Ranges[i]), $"ступень {i} не находится по своей дальности");
+            Assert.AreEqual(i, NavDisplayPanel.StepAt(Ranges[i]), $"ступень {i} не находится по своей дальности");
         }
     }
 

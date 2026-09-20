@@ -4,8 +4,8 @@ using Game;
 using OuterSpace.Sim.Objects;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using Utilities;
+using Interior;
 
 namespace OuterSpace.Sim
 {
@@ -18,7 +18,7 @@ namespace OuterSpace.Sim
     /// Камера ортографическая: в перспективе две одинаковые метки на разной глубине имели бы
     /// разный экранный размер, и промежуточный размер снова начал бы что-то означать.
     /// </summary>
-    public class NavDisplayMono : MonoBehaviour
+    public class NavDisplayPanel : MonoBehaviour
     {
         // Дальность - половина высоты видимой области в метрах. Лестница геометрическая:
         // равные шаги ручки дают равные множители, поэтому одно движение значит одно и то же
@@ -35,7 +35,7 @@ namespace OuterSpace.Sim
         /// <summary>Угол стекла, к которому прижаты показания.</summary>
         public enum Corner { TopLeft, TopRight, BottomLeft, BottomRight }
 
-        public static NavDisplayMono instance;
+        public static NavDisplayPanel instance;
 
         [Tooltip("Разрешение прибора по высоте. Ширина считается из пропорций стекла.")]
         public int textureHeight = 768;
@@ -50,6 +50,8 @@ namespace OuterSpace.Sim
         public float markerPixels = 12f;
         [Tooltip("Высота подписи имени в пикселях текстуры. Кегль в образце подписи на размер не влияет — он нормализуется.")]
         public float labelPixels = 18f;
+        [Tooltip("Высота строки показаний в пикселях текстуры. Кегль в образце строки на размер не влияет — он нормализуется.")]
+        public float readoutPixels = 18f;
         [Tooltip("Толщина линий в пикселях текстуры: орбиты, траектории, выноски, кольца меток.")]
         public float linePixels = 2f;
 
@@ -177,7 +179,7 @@ namespace OuterSpace.Sim
         /// Объект, который прибор делает себе сам. Дочерний — чтобы не сорить в корне сцены
         /// и умереть вместе с прибором.
         ///
-        /// Масштаб родителя гасится намеренно. NavDisplayMono живёт на RectTransform внутри
+        /// Масштаб родителя гасится намеренно. NavDisplayPanel живёт на RectTransform внутри
         /// канваса, и единичный масштаб там не гарантирован, а от масштаба этих объектов
         /// зависит размер подписей и показаний. Унаследованное растяжение проявилось бы как
         /// «текст почему-то не того размера» — симптом, по которому причину не найти.
@@ -238,7 +240,7 @@ namespace OuterSpace.Sim
         {
             if (readoutPrefab == null)
             {
-                Debug.LogWarning($"NavDisplayMono на «{name}»: не задан образец строки показаний — " +
+                Debug.LogWarning($"NavDisplayPanel на «{name}»: не задан образец строки показаний — " +
                     "чисел на приборе не будет.", this);
                 return;
             }
@@ -265,8 +267,9 @@ namespace OuterSpace.Sim
             readout.raycastTarget = false;
             readout.enabled = true;
             readout.gameObject.SetActive(true);
+            readout.fontSize = Mathf.Max(readoutPixels, 1f);
             PinToCorner(readout.rectTransform);
-            Debug.Log($"NavDisplayMono: показания созданы. Слой {readout.gameObject.layer} " +
+            Debug.Log($"NavDisplayPanel: показания созданы. Слой {readout.gameObject.layer} " +
                 $"(камера видит маску {cam.cullingMask}), шрифт " +
                 $"{(readout.font == null ? "НЕТ" : readout.font.name)}, кегль {readout.fontSize}, " +
                 $"цвет {readout.color}, прямоугольник {readout.rectTransform.rect.size} " +
@@ -290,7 +293,7 @@ namespace OuterSpace.Sim
         {
             if (railLabelPrefab == null || railLeaderPrefab == null)
             {
-                Debug.LogWarning($"NavDisplayMono на «{name}»: не заданы образцы подписи " +
+                Debug.LogWarning($"NavDisplayPanel на «{name}»: не заданы образцы подписи " +
                     "и выноски — имён объектов на приборе не будет.", this);
                 return;
             }
@@ -323,44 +326,67 @@ namespace OuterSpace.Sim
                 top ? -readoutMargin.y : readoutMargin.y);
         }
 
-        /// <summary>
-        /// Числа, без которых управление читается как случайное: в каком режиме стоит корабль,
-        /// насколько двигает орбиту одно нажатие и почему перемотка идёт медленнее запрошенной.
-        /// </summary>
         void UpdateReadout()
         {
             if (readout == null) return;
             Ship ship = SimMono.playerShip as Ship;
             if (ship == null) return;
-            GameMono game = GameMono.instance;
-            SpaceObject target = SimMono.target;
-            string targetLine = target == null ? "TARGET NONE" : $"TARGET {target.GameObject.name}   R {Km(target.radius)}";
-            string warp = $"WARP x{game.WarpSpeed:0.##} / x{game.TimeSpeed}";
-            if (game.WarpLimitReason != null) warp += $"\nSLOWDOWN: {game.WarpLimitReason}";
-            readout.text =
-                $"ORIENT {ship.orientation.ToString().ToUpperInvariant()}   {targetLine}\n" +
-                $"STEP {ship.CurrentTimeStep:F0} s   {ship.CurrentSpeedStep:F2} m/s\n" +
-                warp + ManeuverReadout(ship, game.Epoch);
+            readout.text = BuildReadout(ship, GameMono.instance.Epoch);
         }
 
         static string Km(double meters) => $"{meters / 1000.0:N0} km";
 
-        /// <summary>Весь план, по одному узлу в строке: сколько жечь и когда узел наступит.</summary>
-        static string ManeuverReadout(Ship ship, double epoch)
+        /// <summary>
+        /// Показания рамкой: цель сверху, план снизу таблицей — по строке на узел и сумма под
+        /// ней. Ширина рамки считается от самой длинной строки внутри, чтобы длинное имя цели
+        /// не вылезало за края таблицы манёвров — разница уходит в столбец времени, он и так
+        /// текст переменной длины.
+        /// </summary>
+        static string BuildReadout(Ship ship, double epoch)
         {
-            List<Maneuver> maneuvers = ship.Maneuvers();
-            if (maneuvers.Count == 0) return "";
+            SpaceObject target = SimMono.target;
+            const string targetTitle = "TARGET";
+            string targetLine = target == null ? "NONE" : $"{target.GameObject.name}   R {Km(target.radius)}";
 
-            StringBuilder text = new();
+            List<Maneuver> maneuvers = ship.Maneuvers();
+            string[] header = { "M", "DV m/s", "T" };
+            List<string[]> rows = new();
             double plannedTotal = 0.0;
-            for (int i = 0; i < maneuvers.Count; i++)
+            foreach (Maneuver maneuver in maneuvers)
             {
-                Maneuver maneuver = maneuvers[i];
                 plannedTotal += maneuver.PlannedMagnitude;
-                text.Append($"\nM{i + 1} DV {maneuver.PlannedMagnitude:F1} m/s   " +
-                    $"{TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch)}");
+                rows.Add(new[]
+                {
+                    (rows.Count + 1).ToString(),
+                    maneuver.PlannedMagnitude.ToString("F1"),
+                    TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch),
+                });
             }
-            text.Append($"\nTOTAL DV {plannedTotal:F1} m/s");
+            string totalLine = $"TOTAL   {plannedTotal:F1} m/s";
+
+            int[] colWidth = new int[header.Length];
+            for (int c = 0; c < header.Length; c++) colWidth[c] = header[c].Length;
+            foreach (string[] row in rows)
+                for (int c = 0; c < row.Length; c++) colWidth[c] = Mathf.Max(colWidth[c], row[c].Length);
+            string columnsBorder = AsciiTable.ColumnsBorder(colWidth, AsciiTable.TopJoint);
+
+            int lineLength = Mathf.Max(columnsBorder.Length, targetLine.Length + 4);
+            lineLength = Mathf.Max(lineLength, targetTitle.Length + 2);
+            if (maneuvers.Count > 0) lineLength = Mathf.Max(lineLength, totalLine.Length + 4);
+            if (lineLength > columnsBorder.Length) colWidth[^1] += lineLength - columnsBorder.Length;
+
+            StringBuilder text = new(AsciiTable.TitledBorder(targetTitle, lineLength));
+            text.Append('\n').Append(AsciiTable.Row(targetLine, lineLength));
+            if (maneuvers.Count > 0)
+            {
+                text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.TopJoint));
+                text.Append('\n').Append(AsciiTable.ColumnsRow(header, colWidth));
+                text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.Cross));
+                foreach (string[] row in rows) text.Append('\n').Append(AsciiTable.ColumnsRow(row, colWidth));
+                text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.BottomJoint));
+                text.Append('\n').Append(AsciiTable.Row(totalLine, lineLength));
+            }
+            text.Append('\n').Append(AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight));
             return text.ToString();
         }
 

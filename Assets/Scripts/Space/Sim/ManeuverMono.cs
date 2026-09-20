@@ -26,9 +26,9 @@ namespace OuterSpace.Sim
             // Одной орбиты вокруг одного центра здесь мало: получившаяся траектория может
             // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
             trajectoryRenderer = gameObject.AddComponent<TrajectoryRenderer>();
-            trajectoryRenderer.color = NavDisplayMono.instance == null
+            trajectoryRenderer.color = NavDisplayPanel.instance == null
                 ? DefaultManeuverColor
-                : NavDisplayMono.instance.ManeuverColor(Object.SequenceIndex);
+                : NavDisplayPanel.instance.ManeuverColor(Object.SequenceIndex);
             trajectoryRenderer.approachColor = new(0.6f, 0.5f, 0.2f);
             trajectoryRenderer.markStart = true;
             // Точку манёвра он же рисует звёздочкой фиксированного экранного размера, а шарик
@@ -42,9 +42,9 @@ namespace OuterSpace.Sim
             // показывает только последний манёвр. При добавлении нового они перейдут на него.
             trajectoryRenderer.markNodes = IsLast;
             trajectoryRenderer.markApsides = IsLast;
-            if (NavDisplayMono.instance != null)
+            if (NavDisplayPanel.instance != null)
             {
-                trajectoryRenderer.color = NavDisplayMono.instance.ManeuverColor(Object.SequenceIndex);
+                trajectoryRenderer.color = NavDisplayPanel.instance.ManeuverColor(Object.SequenceIndex);
             }
             if (Time.frameCount % RecalculateEveryFrames != 0) return;
             SpaceObject target = Object.spaceObject is Ship ship
