@@ -17,7 +17,6 @@ namespace OuterSpace.Sim
         TrajectoryRenderer trajectoryRenderer;
         public IReadOnlyList<TrajectoryPatch> Patches => Object.trajectory.patches;
         bool IsLast => Object.spaceObject is Ship ship && ship.GetManeuver() == Object;
-        bool IsNext => Object.spaceObject is Ship ship && ship.GetNextManeuver() == Object;
         public IReadOnlyList<CloseApproach> Approaches => IsLast ? Object.trajectory.approaches : null;
         public SpaceObject Target => IsLast ? Object.trajectory.target : null;
 
@@ -39,10 +38,10 @@ namespace OuterSpace.Sim
         void LateUpdate()
         {
             Object.FollowCentralBody();
-            // Узлы и апсиды нужны только у ближайшего к исполнению манёвра. После его
-            // удаления или выполнения метки сами перейдут к следующему элементу плана.
-            trajectoryRenderer.markNodes = IsNext;
-            trajectoryRenderer.markApsides = IsNext;
+            // Узлы и апсиды относятся к конечному результату всего плана, поэтому их
+            // показывает только последний манёвр. При добавлении нового они перейдут на него.
+            trajectoryRenderer.markNodes = IsLast;
+            trajectoryRenderer.markApsides = IsLast;
             if (NavDisplayMono.instance != null)
             {
                 trajectoryRenderer.color = NavDisplayMono.instance.ManeuverColor(Object.SequenceIndex);
