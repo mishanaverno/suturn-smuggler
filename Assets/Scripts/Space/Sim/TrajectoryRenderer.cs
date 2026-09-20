@@ -506,6 +506,14 @@ namespace OuterSpace.Sim
             return $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}";
         }
 
+        /// <summary>
+        /// Отсчёт с меткой: до события T-, после него T+. На нуле счёт не замирает — иначе
+        /// прожиг, начавшийся полминуты назад, выглядит как начинающийся прямо сейчас, и по
+        /// табло не понять, опаздываешь ты или нет.
+        /// </summary>
+        public static string Countdown(double seconds) =>
+            $"T{(seconds < 0.0 ? '+' : '-')} {Clock(Math.Abs(seconds))}";
+
         LineRenderer Line(int index)
         {
             while (lines.Count <= index) lines.Add(Create());

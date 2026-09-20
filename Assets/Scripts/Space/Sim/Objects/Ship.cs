@@ -15,11 +15,12 @@ namespace OuterSpace.Sim.Objects
         }
 
         // Шаг считается не абсолютной константой, а долей той величины, к которой применяется:
-        // процент периода той орбиты, на которой стоит манёвр, и процент орбитальной скорости
+        // долей периода той орбиты, на которой стоит манёвр, и долей орбитальной скорости
         // в его точке. Иначе одно и то же нажатие на парковочной орбите и на перелётной
-        // означает несопоставимое.
-        public const double TimeStepFraction = 0.01;
-        public const double SpeedStepFraction = 0.01;
+        // означает несопоставимое. Доля мелкая: крупный шаг крутилка набирает разгоном, и
+        // одиночный щелчок обязан быть тем самым точным подкручиванием.
+        public const double TimeStepFraction = 0.001;
+        public const double SpeedStepFraction = 0.001;
         public const double CoarseFactor = 10.0;
         public const double FineFactor = 0.1;
         public const int MaxManeuvers = 3;
@@ -129,6 +130,15 @@ namespace OuterSpace.Sim.Objects
                 for (Maneuver current = maneuver; current != null; current = current.Previous) count++;
                 return count;
             }
+        }
+
+        /// <summary>Узлы плана от ближайшего к исполнению до последнего, для показаний по всему плану разом.</summary>
+        public List<Maneuver> Maneuvers()
+        {
+            List<Maneuver> list = new();
+            for (Maneuver current = maneuver; current != null; current = current.Previous) list.Add(current);
+            list.Reverse();
+            return list;
         }
 
         public bool CanCreateManeuver => ManeuverCount < MaxManeuvers;

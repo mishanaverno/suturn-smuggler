@@ -42,6 +42,10 @@ namespace Interior
         TrackTargetListItem = 212,
         ShowTargetBodyList = 213,
         ShowManeuverList = 214,
+        ManeuverLock = 215,
+        ClearDeltaVX = 216,
+        ClearDeltaVY = 217,
+        ClearDeltaVZ = 218,
     }
 
     /// <summary>
@@ -62,6 +66,7 @@ namespace Interior
         Maneuver1Created = 203,
         Maneuver2Created = 204,
         Maneuver3Created = 205,
+        ManeuverLocked = 206,
     }
 
     /// <summary>

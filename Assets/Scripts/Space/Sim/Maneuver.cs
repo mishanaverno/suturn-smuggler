@@ -12,6 +12,7 @@ namespace OuterSpace.Sim
         public SimTransform simTransform;
         public OrbitElements newOrbitParams;
         public Vector3d deltaLVLHVelocity = Vector3d.zero;
+        public bool locked;
         public SpaceObject spaceObject;
         public double startEpoch;
         public readonly TrajectoryCache trajectory = new();

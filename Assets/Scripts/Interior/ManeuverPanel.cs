@@ -132,8 +132,8 @@ namespace Interior
 
             double epoch = GameMono.instance.Epoch;
             readout.text =
-                $"BURN > T- {TrajectoryRenderer.Clock(ship.BurnStartEpoch - epoch)}\n" +
-                $"NODE > T- {TrajectoryRenderer.Clock(maneuver.startEpoch - epoch)}\n" +
+                $"BURN > {TrajectoryRenderer.Countdown(ship.BurnStartEpoch - epoch)}\n" +
+                $"NODE > {TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch)}\n" +
                 $"DV {maneuver.PlannedMagnitude-ship.BurnedDeltaV:F1}/{maneuver.PlannedMagnitude:F1} m/s\n" +
                 "--CURRENT ORBIT----\n" + Orbit(ship.orbitParams) +
                 "--TARGET ORBIT-----\n" + Orbit(maneuver.newOrbitParams);

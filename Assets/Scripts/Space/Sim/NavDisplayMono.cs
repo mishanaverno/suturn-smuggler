@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text;
 using Game;
 using OuterSpace.Sim.Objects;
 using TMPro;
@@ -332,33 +333,35 @@ namespace OuterSpace.Sim
             Ship ship = SimMono.playerShip as Ship;
             if (ship == null) return;
             GameMono game = GameMono.instance;
-            string target = SimMono.target == null ? "NONE" : SimMono.target.GameObject.name;
+            SpaceObject target = SimMono.target;
+            string targetLine = target == null ? "TARGET NONE" : $"TARGET {target.GameObject.name}   R {Km(target.radius)}";
             string warp = $"WARP x{game.WarpSpeed:0.##} / x{game.TimeSpeed}";
             if (game.WarpLimitReason != null) warp += $"\nSLOWDOWN: {game.WarpLimitReason}";
             readout.text =
-                $"ORIENT {ship.orientation.ToString().ToUpperInvariant()}   TARGET {target}\n" +
+                $"ORIENT {ship.orientation.ToString().ToUpperInvariant()}   {targetLine}\n" +
                 $"STEP {ship.CurrentTimeStep:F0} s   {ship.CurrentSpeedStep:F2} m/s\n" +
                 warp + ManeuverReadout(ship, game.Epoch);
         }
 
-        /// <summary>
-        /// По этим числам игрок и решает, когда включать двигатель и когда выключать: остаток
-        /// характеристической скорости, сколько его ещё жечь, отсчёты до начала прожига и до
-        /// узла, и расхождение фактической орбиты с плановой, которое стремится к нулю.
-        /// </summary>
+        static string Km(double meters) => $"{meters / 1000.0:N0} km";
+
+        /// <summary>Весь план, по одному узлу в строке: сколько жечь и когда узел наступит.</summary>
         static string ManeuverReadout(Ship ship, double epoch)
         {
-            Maneuver maneuver = ship.GetNextManeuver();
-            if (maneuver == null) return "";
-            (double periapsis, double apoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(ship.orbitParams);
-            (double plannedPeriapsis, double plannedApoapsis) = AstroDynamic.GetPeriapsisAndApoapsis(maneuver.newOrbitParams);
-            return
-                $"\nDV {ship.RemainingDeltaV:F1} / {maneuver.PlannedMagnitude:F1} m/s   " +
-                $"BURN {TrajectoryRenderer.Clock(ship.RemainingBurnDuration)}\n" +
-                $"IGNITION T-{TrajectoryRenderer.Clock(ship.BurnStartEpoch - epoch)}   " +
-                $"NODE MT+{TrajectoryRenderer.Clock(maneuver.startEpoch - epoch)}\n" +
-                $"DPE {(periapsis - plannedPeriapsis) / 1000.0:F1} km   " +
-                $"DAP {(apoapsis - plannedApoapsis) / 1000.0:F1} km";
+            List<Maneuver> maneuvers = ship.Maneuvers();
+            if (maneuvers.Count == 0) return "";
+
+            StringBuilder text = new();
+            double plannedTotal = 0.0;
+            for (int i = 0; i < maneuvers.Count; i++)
+            {
+                Maneuver maneuver = maneuvers[i];
+                plannedTotal += maneuver.PlannedMagnitude;
+                text.Append($"\nM{i + 1} DV {maneuver.PlannedMagnitude:F1} m/s   " +
+                    $"{TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch)}");
+            }
+            text.Append($"\nTOTAL DV {plannedTotal:F1} m/s");
+            return text.ToString();
         }
 
         // Update, а не LateUpdate: SimMono двигает тела в FixedUpdate, то есть до Update

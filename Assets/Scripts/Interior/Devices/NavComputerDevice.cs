@@ -44,18 +44,24 @@ namespace Interior
             Bind(CommandId.ShowTargetBodyList, () => TargetListPanel.instance?.ShowBodies(), HasTargetList);
             Bind(CommandId.ShowManeuverList, () => TargetListPanel.instance?.ShowManeuvers(), HasTargetList);
 
+            Bind(CommandId.ManeuverLock, ToggleLock, HasPlan);
+            Bind(CommandId.ClearDeltaVX, () => ClearDeltaV(0), CanEdit);
+            Bind(CommandId.ClearDeltaVY, () => ClearDeltaV(1), CanEdit);
+            Bind(CommandId.ClearDeltaVZ, () => ClearDeltaV(2), CanEdit);
+
             Bind(StepId.NavRange, direction => Nav?.ShiftRange(direction));
             Bind(StepId.ManeuverTime,
-                direction => Ship?.ShiftManeuverTime(direction * Ship.CurrentTimeStep), HasPlan);
-            Bind(StepId.DeltaVX, direction => AddDeltaV(new Vector3d(direction, 0, 0)), HasPlan);
-            Bind(StepId.DeltaVY, direction => AddDeltaV(new Vector3d(0, direction, 0)), HasPlan);
-            Bind(StepId.DeltaVZ, direction => AddDeltaV(new Vector3d(0, 0, direction)), HasPlan);
+                direction => Ship?.ShiftManeuverTime(direction * Ship.CurrentTimeStep), CanEdit);
+            Bind(StepId.DeltaVX, direction => AddDeltaV(new Vector3d(direction, 0, 0)), CanEdit);
+            Bind(StepId.DeltaVY, direction => AddDeltaV(new Vector3d(0, direction, 0)), CanEdit);
+            Bind(StepId.DeltaVZ, direction => AddDeltaV(new Vector3d(0, 0, direction)), CanEdit);
 
             Bind(SignalId.ManeuverPlanned, HasPlan);
             Bind(SignalId.DeltaVRemaining, () => Ship != null && Ship.RemainingDeltaV > 0.0);
             Bind(SignalId.Maneuver1Created, () => Ship != null && Ship.ManeuverCount >= 1);
             Bind(SignalId.Maneuver2Created, () => Ship != null && Ship.ManeuverCount >= 2);
             Bind(SignalId.Maneuver3Created, () => Ship != null && Ship.ManeuverCount >= 3);
+            Bind(SignalId.ManeuverLocked, Locked);
 
             Bind(ReadingId.NavRange, () => Nav == null ? double.NaN : Nav.Range);
             Bind(ReadingId.TimeToNode, TimeToNode);
@@ -70,6 +76,10 @@ namespace Interior
         static Maneuver Plan() => Ship?.GetManeuver();
 
         static bool HasPlan() => Plan() != null;
+
+        static bool Locked() => Plan()?.locked ?? false;
+
+        static bool CanEdit() => HasPlan() && !Locked();
 
         static bool HasTargetList() => TargetListPanel.instance != null;
 
@@ -91,6 +101,22 @@ namespace Interior
             Ship ship = Ship;
             if (ship == null || ship.GetManeuver() == null) return;
             ship.AddDeltaV(direction * ship.CurrentSpeedStep);
+        }
+
+        static void ToggleLock()
+        {
+            Maneuver plan = Plan();
+            if (plan != null) plan.locked = !plan.locked;
+        }
+
+        static void ClearDeltaV(int axis)
+        {
+            Maneuver plan = Plan();
+            if (plan == null) return;
+            Vector3d delta = plan.deltaLVLHVelocity;
+            delta[axis] = 0.0;
+            plan.deltaLVLHVelocity = delta;
+            plan.CalcAndDraw();
         }
     }
 }

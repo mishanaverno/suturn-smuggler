@@ -138,8 +138,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f500a9e07bf3d45bcb4d8d5df40c9e0e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game::Interior.PanelKnob
-  port: {fileID: 11400000, guid: 3d79294401f6e47c6834a094b4a08ae6, type: 2}
+  port: {fileID: 11400000, guid: 1c595235ff1114ff49c46ac12f5d36e5, type: 2}
   label: 
+  stepsPerDecade: 5
+  maxScale: 50
+  resetDelay: 0.5
 --- !u!114 &8503205179012618740
 MonoBehaviour:
   m_ObjectHideFlags: 0
