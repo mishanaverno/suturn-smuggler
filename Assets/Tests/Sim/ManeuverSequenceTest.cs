@@ -113,6 +113,126 @@ public class ManeuverSequenceTest
         Assert.AreSame(second, ship.GetNextManeuver());
         Assert.IsNull(second.Previous);
         Assert.AreEqual(ship.orbitParams.semiMajorAxis, second.SourceOrbit.semiMajorAxis, 1e-9);
+        (Vector3d expectedPosition, _) =
+            AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(ship.orbitParams, second.startEpoch);
+        Assert.Less((second.simTransform.RELATIVE_R - expectedPosition).magnitude, 1e-3,
+            "пересаженный узел должен сразу оказаться на орбите корабля");
+        Assert.IsNotNull(second.trajectory.patches,
+            "новая траектория должна быть рассчитана сразу, без старых зависших патчей");
+        Assert.AreEqual(second.newOrbitParams.semiMajorAxis,
+            second.trajectory.patches[0].Orbit.semiMajorAxis, 1e-6);
+        UnityEngine.Object.DestroyImmediate(first.GameObject);
+        UnityEngine.Object.DestroyImmediate(second.GameObject);
+    }
+
+    [Test]
+    public void DeleteNextManeuver_RepositionsEntireRemainingChain()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(), 0.0);
+        ship.CreateManeuver(1000.0);
+        Maneuver first = ship.GetManeuver();
+        first.deltaLVLHVelocity = new Vector3d(1200.0, 0.0, 0.0);
+        first.CalcAndDraw();
+        ship.CreateManeuver(5000.0);
+        Maneuver second = ship.GetManeuver();
+        second.deltaLVLHVelocity = new Vector3d(300.0, 0.0, 0.0);
+        second.CalcAndDraw();
+        ship.CreateManeuver(9000.0);
+        Maneuver third = ship.GetManeuver();
+
+        LogAssert.Expect(LogType.Error,
+            new System.Text.RegularExpressions.Regex("Destroy may not be called from edit mode"));
+        ship.DeleteNextManeuver();
+
+        (Vector3d expectedSecond, _) =
+            AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(ship.orbitParams, second.startEpoch);
+        (Vector3d expectedThird, _) =
+            AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(second.newOrbitParams, third.startEpoch);
+        Assert.Less((second.simTransform.RELATIVE_R - expectedSecond).magnitude, 1e-3);
+        Assert.Less((third.simTransform.RELATIVE_R - expectedThird).magnitude, 1e-3);
+        Assert.IsNotNull(second.trajectory.patches);
+        Assert.IsNotNull(third.trajectory.patches);
+
+        UnityEngine.Object.DestroyImmediate(first.GameObject);
+        UnityEngine.Object.DestroyImmediate(third.GameObject);
+        UnityEngine.Object.DestroyImmediate(second.GameObject);
+    }
+
+    [Test]
+    public void PromotedManeuver_UsesShipPatchAfterSoiEscape()
+    {
+        SpaceObject titan = world["titan"];
+        const double radius = 2.975e6;
+        double speed = 1.5 * Math.Sqrt(titan.MU / radius);
+        OrbitElements escape = AstroDynamic.CalculateOrbitElements(
+            new Vector3d(radius, 0.0, 0.0), new Vector3d(0.0, speed, 0.0), titan.MU, 0.0);
+        Ship ship = world.PutShip(titan, escape, 0.0);
+        ship.trajectory.Update(ship.orbitParams, titan, 0.0, null);
+        Assert.GreaterOrEqual(ship.trajectory.patches.Count, 2);
+        TrajectoryPatch saturnPatch = ship.trajectory.patches[1];
+        Assert.AreSame(world.saturn, saturnPatch.Central);
+        Assert.Less(saturnPatch.Orbit.eccentricity, 1.0);
+
+        ship.CreateManeuver(1000.0);
+        Maneuver first = ship.GetManeuver();
+        double afterEscape = saturnPatch.StartEpoch + 1000.0;
+        ship.CreateManeuver(afterEscape);
+        Maneuver second = ship.GetManeuver();
+        Assert.AreSame(world.saturn, second.CentralBody);
+
+        LogAssert.Expect(LogType.Error,
+            new System.Text.RegularExpressions.Regex("Destroy may not be called from edit mode"));
+        ship.DeleteNextManeuver();
+
+        Assert.AreSame(second, ship.GetNextManeuver());
+        Assert.AreSame(world.saturn, second.CentralBody,
+            "после удаления первого узел должен остаться на сатурнианском патче корабля");
+        Assert.Less(second.SourceOrbit.eccentricity, 1.0);
+        (Vector3d expected, _) =
+            AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(second.SourceOrbit, second.startEpoch);
+        Assert.Less((second.simTransform.RELATIVE_R - expected).magnitude, 1e-3);
+
+        UnityEngine.Object.DestroyImmediate(first.GameObject);
+        UnityEngine.Object.DestroyImmediate(second.GameObject);
+    }
+
+    [Test]
+    public void CrossingSoiInFlight_DoesNotReshiftManeuversAlreadyOnShipPatch()
+    {
+        SpaceObject titan = world["titan"];
+        const double radius = 2.975e6;
+        double speed = 1.5 * Math.Sqrt(titan.MU / radius);
+        OrbitElements escape = AstroDynamic.CalculateOrbitElements(
+            new Vector3d(radius, 0.0, 0.0), new Vector3d(0.0, speed, 0.0), titan.MU, 0.0);
+        Ship ship = world.PutShip(titan, escape, 0.0);
+        ship.trajectory.Update(ship.orbitParams, titan, 0.0, null);
+        Assert.GreaterOrEqual(ship.trajectory.patches.Count, 2);
+        TrajectoryPatch saturnPatch = ship.trajectory.patches[1];
+        Assert.AreSame(world.saturn, saturnPatch.Central);
+
+        ship.CreateManeuver(saturnPatch.StartEpoch + 2000.0);
+        Maneuver first = ship.GetManeuver();
+        ship.CreateManeuver(saturnPatch.StartEpoch + 6000.0);
+        Maneuver second = ship.GetManeuver();
+        Assert.AreSame(world.saturn, first.CentralBody, "узел уже должен стоять на патче за выходом из SOI");
+        Assert.AreSame(world.saturn, second.CentralBody);
+        Vector3d firstBefore = first.simTransform.RELATIVE_R;
+        Vector3d secondBefore = second.simTransform.RELATIVE_R;
+
+        bool crossed = false;
+        for (double epoch = 0.0; epoch <= saturnPatch.StartEpoch * 1.2; epoch += saturnPatch.StartEpoch / 200.0)
+        {
+            if (world.Step(epoch, ship)) { crossed = true; break; }
+        }
+        Assert.IsTrue(crossed, "тест должен застать сам момент выхода из сферы влияния Титана");
+        Assert.AreSame(world.saturn, ship.centralBody);
+
+        Assert.AreSame(world.saturn, first.CentralBody, "переход не должен переподчинить уже готовый узел");
+        Assert.AreSame(world.saturn, second.CentralBody);
+        Assert.Less((first.simTransform.RELATIVE_R - firstBefore).magnitude, 1e-3,
+            "узел, уже стоявший на орбите корабля, не должен сместиться при фактическом пересечении SOI");
+        Assert.Less((second.simTransform.RELATIVE_R - secondBefore).magnitude, 1e-3);
+
         UnityEngine.Object.DestroyImmediate(first.GameObject);
         UnityEngine.Object.DestroyImmediate(second.GameObject);
     }

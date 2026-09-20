@@ -180,6 +180,7 @@ namespace OuterSpace.Sim.Objects
             if (deleted == null) return;
             Maneuver following = deleted.DetachNextAsFirst();
             if (maneuver == deleted) maneuver = following;
+            following?.RefreshTrajectoryChain(SimMono.target);
             UnityEngine.GameObject.Destroy(deleted.GameObject);
             BurnedDeltaV = 0.0;
         }

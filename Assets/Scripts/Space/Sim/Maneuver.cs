@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using DoublePrecision;
+using Game;
+using OuterSpace.Sim.Objects;
 using UnityEngine;
 using Utilities;
 
@@ -73,10 +75,25 @@ namespace OuterSpace.Sim
             OrbitElements orbit;
             if (Previous == null)
             {
-                CentralBody = spaceObject.centralBody;
-                orbit = spaceObject.orbitParams;
-                sourceArcStartEpoch = double.NaN;
-                sourceArcEndEpoch = double.NaN;
+                if (spaceObject is Ship ship)
+                {
+                    // Первый узел тоже может находиться не на нынешней конике корабля, а на
+                    // следующем patch-conic участке после выхода/входа в SOI.
+                    ship.trajectory.Update(ship.orbitParams, ship.centralBody,
+                        GameMono.instance.Epoch, ship.TargetForTrajectory(null));
+                    TrajectoryPatch patch = PatchAt(ship.trajectory.patches, startEpoch);
+                    CentralBody = patch.Central;
+                    orbit = patch.Orbit;
+                    sourceArcStartEpoch = patch.StartEpoch;
+                    sourceArcEndEpoch = patch.EndEpoch;
+                }
+                else
+                {
+                    CentralBody = spaceObject.centralBody;
+                    orbit = spaceObject.orbitParams;
+                    sourceArcStartEpoch = double.NaN;
+                    sourceArcEndEpoch = double.NaN;
+                }
             }
             else
             {
@@ -91,6 +108,9 @@ namespace OuterSpace.Sim
             simTransform.RelativeTo = CentralBody.simTransform;
             (relativePosition, relativeVelocity) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbit, startEpoch);
             CalcAndDraw();
+            // Не ждать LateUpdate: после переподчинения цепочки старая глобальная позиция
+            // относится к прежней орбите и визуально оставляет узел висеть в пространстве.
+            FollowCentralBody();
         }
 
         static TrajectoryPatch PatchAt(IReadOnlyList<TrajectoryPatch> patches, double epoch)
@@ -123,6 +143,11 @@ namespace OuterSpace.Sim
         /// <summary>Переносит точку манёвра в систему отсчёта нового центрального тела корабля.</summary>
         public void Reframe(SpaceObject previousCentral)
         {
+            // Узел мог заранее оказаться на патче за этим переходом — SetStartEpoch подбирает
+            // его по прогнозу корабля ещё до фактического пересечения SOI. Тогда узел уже не
+            // на previousCentral, и сдвиг координат на разницу тел только испортил бы позицию.
+            if (CentralBody != previousCentral) return;
+
             SimTransform current = spaceObject.centralBody.simTransform;
             relativePosition += previousCentral.simTransform.GLOBAL_R - current.GLOBAL_R;
             relativeVelocity += previousCentral.simTransform.GLOBAL_V - current.GLOBAL_V;
@@ -132,6 +157,7 @@ namespace OuterSpace.Sim
             // только началом координат, так что смена сферы влияния вектор тяги не трогает.
             // Пересчёт через LVLH развернул бы его: базис привязан к радиус-вектору.
             Recalculate();
+            FollowCentralBody();
             next?.Rebase();
         }
 
@@ -150,6 +176,18 @@ namespace OuterSpace.Sim
             following.Previous = null;
             following.Rebase();
             return following;
+        }
+
+        /// <summary>
+        /// Немедленно обновляет прогнозы всей пересаженной цепочки. Invalidate оставляет
+        /// старые патчи доступными до очередного периодического пересчёта, поэтому одного
+        /// Rebase недостаточно: линии несколько кадров рисовались в прежней системе отсчёта.
+        /// </summary>
+        public void RefreshTrajectoryChain(SpaceObject target)
+        {
+            FollowCentralBody();
+            UpdateTrajectory(next == null ? target : null);
+            next?.RefreshTrajectoryChain(target);
         }
 
         /// <summary>Точка манёвра задана относительно центрального тела, а оно движется.</summary>
