@@ -26,9 +26,9 @@ namespace OuterSpace.Sim
     ///
     /// Сколько будет подписей, заранее неизвестно — оно меняется каждый кадр, — поэтому их
     /// приходится плодить в рантайме. Но шрифт и начертание компонент не решает: он клонирует
-    /// образцы, которые вы положили в поля. Цвет — исключение, и намеренное: он означает роль
-    /// объекта и ступень в иерархии текста (NavPalette), а не вкус, и в образце его выбрать
-    /// нельзя — он меняется в полёте.
+    /// образцы из NavPalette — те же, что у остальных экранов кабины. Размер и цвет при этом
+    /// его собственные: высота подписи задана долей стекла, а цвет означает роль объекта и
+    /// ступень в иерархии текста, и в образце его выбрать нельзя — он меняется в полёте.
     /// </summary>
     public class NavLabelRail : MonoBehaviour
     {
@@ -48,10 +48,6 @@ namespace OuterSpace.Sim
         public float verticalMargin = 0.04f;
         /// <summary>Длина горизонтального хвостика у подписи, в долях ширины.</summary>
         public float stub = 0.015f;
-        [Tooltip("Образец подписи. Клонируется по одному на каждое видимое имя.")]
-        public TextMeshPro labelPrefab;
-        [Tooltip("Образец выноски.")]
-        public LineRenderer leaderPrefab;
 
         sealed class Entry
         {
@@ -80,12 +76,13 @@ namespace OuterSpace.Sim
         {
             NavDisplayPanel display = NavDisplayPanel.instance;
             if (display == null || display.cam == null) return;
-            if (labelPrefab == null || leaderPrefab == null)
+            if (NavPalette.LabelPrefab == null || NavPalette.LeaderPrefab == null)
             {
                 if (!complained)
                 {
                     complained = true;
-                    Debug.LogError($"NavLabelRail на «{name}»: не заданы образцы подписи и выноски — имена не появятся.", this);
+                    Debug.LogError($"NavLabelRail на «{name}»: в NavPalette не заданы образцы " +
+                        "подписи и выноски — имена не появятся.", this);
                 }
                 return;
             }
@@ -322,7 +319,7 @@ namespace OuterSpace.Sim
         {
             while (labels.Count <= index)
             {
-                TextMeshPro text = Instantiate(labelPrefab, transform);
+                TextMeshPro text = Instantiate(NavPalette.LabelPrefab, transform);
                 text.gameObject.name = $"RailLabel {labels.Count}";
                 Adopt(text.gameObject);
                 // Кегль образца рельса нормализует: высоту подписи задаёт прибор долей экрана
@@ -349,7 +346,7 @@ namespace OuterSpace.Sim
         {
             while (leaders.Count <= index)
             {
-                LineRenderer line = Instantiate(leaderPrefab, transform);
+                LineRenderer line = Instantiate(NavPalette.LeaderPrefab, transform);
                 line.gameObject.name = $"RailLeader {leaders.Count}";
                 Adopt(line.gameObject);
                 line.useWorldSpace = true;

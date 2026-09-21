@@ -31,8 +31,6 @@ namespace OuterSpace.Sim
         /// </summary>
         const float MinArrowProjection = 0.2f;
 
-        public TextMeshPro labelPrefab;
-
         LineRenderer bar;
         LineRenderer arrow;
         TextMeshPro barLabel;
@@ -157,8 +155,8 @@ namespace OuterSpace.Sim
 
         TextMeshPro CreateLabel(string name)
         {
-            if (labelPrefab == null) return null;
-            TextMeshPro label = Instantiate(labelPrefab, transform);
+            if (NavPalette.LabelPrefab == null) return null;
+            TextMeshPro label = Instantiate(NavPalette.LabelPrefab, transform);
             label.gameObject.name = name;
             label.gameObject.layer = gameObject.layer;
             foreach (Transform child in label.GetComponentsInChildren<Transform>(true))

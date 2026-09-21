@@ -51,8 +51,6 @@ namespace Interior
         public bool flipScreenU;
         public bool flipScreenV;
 
-        [Tooltip("Образец текста: шрифт и цвет экрана.")]
-        public TextMeshProUGUI textPrefab;
         [Tooltip("Размер шрифта в пикселях текстуры. Кегль образца заменяется этим значением.")]
         public float labelPixels = 24f;
         [Tooltip("Сколько целей помещать на экран. Ноль вычисляет число строк из высоты экрана и размера шрифта.")]
@@ -81,9 +79,10 @@ namespace Interior
 
         void Awake()
         {
-            if (surface == null || textPrefab == null)
+            if (surface == null || NavPalette.ReadoutPrefab == null)
             {
-                Debug.LogError($"TargetListPanel на «{name}»: укажите стекло и образец текста.", this);
+                Debug.LogError($"TargetListPanel на «{name}»: нет стекла или в NavPalette не задан " +
+                    "образец строки показаний.", this);
                 enabled = false;
                 return;
             }
@@ -139,7 +138,9 @@ namespace Interior
             canvasRect.sizeDelta = new Vector2(textureWidth, textureHeight);
             canvasRect.localPosition = new Vector3(0f, 0f, 1f);
 
-            readout = Instantiate(textPrefab, canvasObject.transform);
+            // Образец общий для всех табло кабины: шрифт и его материал. Кегль, цвет и
+            // раскладка ниже — свои, они в пикселях этой текстуры.
+            readout = Instantiate(NavPalette.ReadoutPrefab, canvasObject.transform);
             readout.gameObject.name = "Readout";
             readout.gameObject.layer = layer;
             readout.raycastTarget = false;

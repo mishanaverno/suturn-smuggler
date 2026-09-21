@@ -80,16 +80,10 @@ namespace OuterSpace.Sim
         public bool flipScreenU;
         [Tooltip("Отразить картинку вдоль.")]
         public bool flipScreenV;
-        [Tooltip("Образец строки показаний: шрифт, кегль, цвет. Пусто — показаний не будет.")]
-        public TextMeshProUGUI readoutPrefab;
         [Tooltip("В каком углу стекла стоят показания.")]
         public Corner readoutCorner = Corner.TopLeft;
         [Tooltip("Отступ от края стекла, в пикселях текстуры.")]
         public Vector2 readoutMargin = new(16f, 16f);
-        [Tooltip("Образец подписи имени на краю экрана. Пусто — имён не будет.")]
-        public TextMeshPro railLabelPrefab;
-        [Tooltip("Образец выноски от подписи к объекту.")]
-        public LineRenderer railLeaderPrefab;
 
         /// <summary>Готовая строка показаний. Создаётся при запуске из образца.</summary>
         public TextMeshProUGUI readout { get; private set; }
@@ -151,7 +145,7 @@ namespace OuterSpace.Sim
             CreateReadout();
             CreateLabelRail();
             Child("NavPointLabels", cam.gameObject.layer).AddComponent<NavPointLabels>();
-            Child("NavChrome", cam.gameObject.layer).AddComponent<NavChrome>().labelPrefab = railLabelPrefab;
+            Child("NavChrome", cam.gameObject.layer).AddComponent<NavChrome>();
             ScreenGlass.Show(surface, texture);
         }
 
@@ -228,14 +222,17 @@ namespace OuterSpace.Sim
         /// перед ней, с масштабом, при котором высота холста равна высоте текстуры. Только
         /// тогда «кегль 18» означает 18 пикселей из 768, а не случайную долю кадра.
         ///
-        /// Как показания выглядят, код не решает: он клонирует ваш образец.
+        /// Шрифт показаний код не выбирает: он клонирует образец из палитры — один на все
+        /// табло кабины. Размеры и цвет при этом его собственные: они в пикселях этой
+        /// текстуры и в ролях, а не во вкусе.
         /// </summary>
         void CreateReadout()
         {
+            TextMeshProUGUI readoutPrefab = NavPalette.ReadoutPrefab;
             if (readoutPrefab == null)
             {
-                Debug.LogWarning($"NavDisplayPanel на «{name}»: не задан образец строки показаний — " +
-                    "чисел на приборе не будет.", this);
+                Debug.LogWarning($"NavDisplayPanel на «{name}»: в NavPalette не задан образец " +
+                    "строки показаний — чисел на приборе не будет.", this);
                 return;
             }
 
@@ -281,22 +278,19 @@ namespace OuterSpace.Sim
         /// подписи по кадру камеры, в мировых координатах. Ставить такое в сцену незачем:
         /// двигать нечего, а ошибиться слоем — запросто.
         ///
-        /// Как подписи выглядят, решает ваш образец.
+        /// Шрифт подписи и вид выноски решают образцы из палитры — те же, что у остального
+        /// прибора.
         /// </summary>
         void CreateLabelRail()
         {
-            if (railLabelPrefab == null || railLeaderPrefab == null)
+            if (NavPalette.LabelPrefab == null || NavPalette.LeaderPrefab == null)
             {
-                Debug.LogWarning($"NavDisplayPanel на «{name}»: не заданы образцы подписи " +
-                    "и выноски — имён объектов на приборе не будет.", this);
+                Debug.LogWarning($"NavDisplayPanel на «{name}»: в NavPalette не заданы образцы " +
+                    "подписи и выноски — имён объектов на приборе не будет.", this);
                 return;
             }
 
-            GameObject railObject = Child("NavLabelRail", cam.gameObject.layer);
-
-            NavLabelRail rail = railObject.AddComponent<NavLabelRail>();
-            rail.labelPrefab = railLabelPrefab;
-            rail.leaderPrefab = railLeaderPrefab;
+            Child("NavLabelRail", cam.gameObject.layer).AddComponent<NavLabelRail>();
         }
 
         /// <summary>

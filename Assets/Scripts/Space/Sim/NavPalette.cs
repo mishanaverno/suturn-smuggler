@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using UnityEngine;
 
 namespace OuterSpace.Sim
 {
@@ -17,6 +18,12 @@ namespace OuterSpace.Sim
     /// перебирать их пересборкой — значит не перебрать. Лежит он на любом объекте сцены в
     /// одном экземпляре. Без него прибор работает на запасных значениях, а не чернеет:
     /// палитра, забытая в сцене, не должна выглядеть как сломанная отрисовка.
+    ///
+    /// Здесь же лежат образцы текста и линии. Довод тот же, что и у цвета: экранов в кабине
+    /// несколько, а прибор один, и шрифт, разъехавшийся между табло, читается как разные
+    /// приборы от разных изготовителей. Пока образец лежал полем каждой панели, держать их
+    /// в согласии приходилось вручную — то есть не держать. Запасного образца, в отличие от
+    /// цвета, нет: шрифт в коде не соберёшь, и панель без него честно ругается в лог.
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public class NavPalette : MonoBehaviour
@@ -69,6 +76,18 @@ namespace OuterSpace.Sim
         [Tooltip("Яркость выноски в долях от яркости числа.")]
         public float leaderLevel = DefaultLeaderLevel;
 
+        [Header("Samples")]
+        // Из образца берётся шрифт и его материал: обводка, свечение, подложка, начертание,
+        // интервалы. Всё остальное — кегль, цвет, выравнивание, прямоугольник — задаёт тот,
+        // кто образец клонирует: размеры у него в пикселях своей текстуры, а цвет означает
+        // роль и меняется в полёте.
+        [Tooltip("Образец подписи в поле прибора. Берётся шрифт и его материал; кегль, цвет и раскладку задаёт прибор.")]
+        public TextMeshPro labelPrefab;
+        [Tooltip("Образец выноски. Берётся материал линии; толщину и цвет задаёт прибор.")]
+        public LineRenderer leaderPrefab;
+        [Tooltip("Образец строки показаний, общий для всех табло. Берётся шрифт и его материал; кегль, цвет и раскладку задаёт табло.")]
+        public TextMeshProUGUI readoutPrefab;
+
         void Awake() => instance = this;
 
         void OnDestroy()
@@ -94,6 +113,10 @@ namespace OuterSpace.Sim
             return sequenceIndex == 0 ? instance.maneuver1
                 : sequenceIndex == 1 ? instance.maneuver2 : instance.maneuver3;
         }
+
+        public static TextMeshPro LabelPrefab => instance == null ? null : instance.labelPrefab;
+        public static LineRenderer LeaderPrefab => instance == null ? null : instance.leaderPrefab;
+        public static TextMeshProUGUI ReadoutPrefab => instance == null ? null : instance.readoutPrefab;
 
         public static Color For(SpaceObject obj)
         {

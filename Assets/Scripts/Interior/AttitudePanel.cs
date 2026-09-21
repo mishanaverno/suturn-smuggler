@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DoublePrecision;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
@@ -22,9 +22,10 @@ namespace Interior
     /// направлений. Дальняя половина сетки не рисуется вовсе — иначе меридианы просвечивают
     /// насквозь, и по картинке не понять, куда корабль смотрит.
     ///
-    /// Из сцены нужен меш стекла; образцы подписи и метки необязательны — без них шар
-    /// останется без букв. Где стоит камера и как разложены дуги, решает код: это не
-    /// вкусовое, а следствие разрешения текстуры.
+    /// Из сцены нужен меш стекла. Шрифт и цвета берутся из NavPalette, общей на все экраны
+    /// кабины: шар — такой же прибор, как остальные, и говорить он должен на том же языке.
+    /// Где стоит камера и как разложены дуги, решает код: это не вкусовое, а следствие
+    /// разрешения текстуры.
     /// </summary>
     public class AttitudePanel : MonoBehaviour
     {
@@ -72,20 +73,27 @@ namespace Interior
         [Tooltip("Диаметр кольца метки направления в пикселях текстуры: в него целятся носом.")]
         public float markerPixels = 14f;
 
-        public Color gridColor = new(0.35f, 0.65f, 0.55f);
-        [Tooltip("Цвет местного горизонта — экватора шара, он же нулевой тангаж.")]
-        public Color horizonColor = new(0.55f, 0.95f, 0.8f);
-        [Tooltip("Цвет края шара.")]
-        public Color limbColor = new(0.25f, 0.45f, 0.4f);
-        [Tooltip("Цвет неподвижного индекса корабля.")]
-        public Color crossColor = new(1f, 0.85f, 0.3f);
-        [Tooltip("Цвет меток направлений. Если задан образец подписи, цвет берётся у него: кольцо и буквы — одна метка.")]
-        public Color markerColor = new(0.9f, 0.9f, 0.4f);
+        // Цвета — роли из NavPalette, а не поля прибора. Сетка и край шара — обстановка,
+        // по которой читают положение; горизонт в ней главная линия, поэтому ступенью выше.
+        // Крест в центре — это сам корабль, и светится он в полную силу своей роли.
+        static Color GridColor => NavPalette.Other;
+        static Color HorizonColor => NavPalette.Dim(NavPalette.Own, NavPalette.NameLevel);
+        static Color LimbColor => NavPalette.Dim(NavPalette.Other, NavPalette.LeaderLevel);
+        static Color CrossColor => NavPalette.Own;
 
-        [Tooltip("Образец метки направления (PRO, RET, TGT, MNV). Пусто — меток не будет.")]
-        public TextMeshPro markerPrefab;
-        [Tooltip("Образец строки показаний под шаром. Пусто — показаний не будет.")]
-        public TextMeshPro readoutPrefab;
+        /// <summary>
+        /// Цвет метки — роль того, на что она показывает: своя скорость своим цветом, цель
+        /// цветом цели, узел плана тем же, чем нарисована его дуга на навигационном экране.
+        /// Шар и карта обязаны называть одно и то же одинаково, иначе сверять их приходится
+        /// по буквам.
+        /// </summary>
+        static Color MarkerColor(ShipOrientation mode) => mode switch
+        {
+            ShipOrientation.Target => NavPalette.Target,
+            // Шар ведёт к ближайшему узлу, а ближайший — всегда первый в цепочке плана.
+            ShipOrientation.Maneuver => NavPalette.Maneuver(0),
+            _ => NavPalette.Own,
+        };
 
         GameObject rig;
         RenderTexture texture;
@@ -168,11 +176,11 @@ namespace Interior
             for (float latitude = -90f + GridStep; latitude < 90f; latitude += GridStep)
             {
                 parallels.Add(Line(layer, $"Parallel {latitude:F0}",
-                    Mathf.Abs(latitude) < 0.5f ? horizonColor : gridColor));
+                    Mathf.Abs(latitude) < 0.5f ? HorizonColor : GridColor));
             }
             for (float longitude = 0f; longitude < 180f; longitude += GridStep)
             {
-                meridians.Add(Line(layer, $"Meridian {longitude:F0}", gridColor));
+                meridians.Add(Line(layer, $"Meridian {longitude:F0}", GridColor));
             }
             Limb(layer);
             Cross(layer);
@@ -186,7 +194,7 @@ namespace Interior
         /// </summary>
         void Limb(int layer)
         {
-            LineRenderer line = Line(layer, "Limb", limbColor);
+            LineRenderer line = Line(layer, "Limb", LimbColor);
             line.loop = true;
             line.positionCount = PointsPerCircle;
             for (int i = 0; i < PointsPerCircle; i++)
@@ -213,7 +221,7 @@ namespace Interior
 
         void Segment(int layer, string name, Vector3 from, Vector3 to)
         {
-            LineRenderer line = Line(layer, name, crossColor);
+            LineRenderer line = Line(layer, name, CrossColor);
             line.positionCount = 2;
             line.SetPosition(0, from);
             line.SetPosition(1, to);
@@ -230,17 +238,19 @@ namespace Interior
         /// </summary>
         void Labels(int layer)
         {
-            Color color = markerPrefab != null ? markerPrefab.color : markerColor;
-            foreach ((ShipOrientation _, string label) in Markers)
+            foreach ((ShipOrientation mode, string label) in Markers)
             {
+                Color color = MarkerColor(mode);
                 GameObject holder = new($"Marker {label}") { layer = layer };
                 holder.transform.SetParent(rig.transform, false);
                 Ring(layer, holder.transform, color);
                 Dot(layer, holder.transform, color);
-                if (markerPrefab != null)
+                if (NavPalette.LabelPrefab != null)
                 {
-                    TextMeshPro text = Label(layer, markerPrefab, "Label", holder.transform);
+                    TextMeshPro text = Label(layer, "Label", holder.transform);
                     text.alignment = TextAlignmentOptions.Center;
+                    // Кольцо и буквы — одна метка, и цвет у них один.
+                    text.color = color;
                     text.text = label;
                     text.transform.localPosition = new Vector3(
                         0.5f * markerPixels + labelPixels, 0.5f * labelPixels, 0f);
@@ -248,9 +258,11 @@ namespace Interior
                 markers.Add(holder);
             }
 
-            if (readoutPrefab == null) return;
-            readout = Label(layer, readoutPrefab, "Readout", rig.transform);
+            if (NavPalette.LabelPrefab == null) return;
+            readout = Label(layer, "Readout", rig.transform);
             readout.alignment = TextAlignmentOptions.Bottom;
+            // Тангаж, рыскание и крен — числа, по которым ведут корабль: полная сила роли.
+            readout.color = NavPalette.Own;
             readout.transform.localPosition = new Vector3(0f, -0.5f * textureHeight + labelPixels, -radius - linePixels);
         }
 
@@ -281,9 +293,9 @@ namespace Interior
             line.SetPosition(1, new Vector3(0.01f, 0f, 0f));
         }
 
-        TextMeshPro Label(int layer, TextMeshPro prefab, string name, Transform parent)
+        TextMeshPro Label(int layer, string name, Transform parent)
         {
-            TextMeshPro text = Instantiate(prefab, parent);
+            TextMeshPro text = Instantiate(NavPalette.LabelPrefab, parent);
             text.gameObject.name = name;
             text.gameObject.layer = layer;
             text.textWrappingMode = TextWrappingModes.NoWrap;
