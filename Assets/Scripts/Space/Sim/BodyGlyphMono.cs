@@ -16,17 +16,24 @@ namespace OuterSpace.Sim
     /// </summary>
     public class BodyGlyphMono : MonoBehaviour
     {
-        // Форма и цвет метки задаются тем, кто вешает компонент: корабль — синий треугольник,
-        // тела — белые кольца. Треугольник это то же кольцо в три сегмента.
+        // Форма метки задаётся тем, кто вешает компонент: у корабля треугольник, у тела
+        // кольцо. Треугольник это то же кольцо в три сегмента. Цвет компонент не принимает
+        // ни от кого: он не свойство тела, а его сегодняшняя роль — см. NavPalette.
         public int ringSegments = 48;
-        public Color ringColor = Color.white;
 
         Transform body;
+        Renderer bodyRenderer;
         LineRenderer ring;
+        SpaceObjectMono owner;
+        MaterialPropertyBlock tint;
+        static readonly int ColorId = Shader.PropertyToID("_Color");
 
         void Start()
         {
             body = transform.Find("Body");
+            bodyRenderer = body == null ? null : body.GetComponent<Renderer>();
+            owner = GetComponent<SpaceObjectMono>();
+            tint = new MaterialPropertyBlock();
             ring = CreateRing();
         }
 
@@ -39,7 +46,6 @@ namespace OuterSpace.Sim
             line.useWorldSpace = false;
             line.loop = true;
             line.positionCount = ringSegments;
-            line.startColor = line.endColor = ringColor;
             line.widthCurve = AnimationCurve.Constant(0f, 1f, 1f);
             line.sharedMaterial = SimLine.Material;
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -51,16 +57,32 @@ namespace OuterSpace.Sim
             NavDisplayPanel display = NavDisplayPanel.instance;
             if (display == null) return;
 
+            SpaceObject obj = owner.spaceObject;
             double markerDiameter = display.MarkerSceneDiameter;
-            double bodyDiameter = NavScale.BodySceneDiameter(
-                GetComponent<SpaceObjectMono>().spaceObject.radius, SimView.metersPerSceneUnit);
+            double bodyDiameter = NavScale.BodySceneDiameter(obj.radius, SimView.metersPerSceneUnit);
 
             body.localScale = Vector3.one * (float)bodyDiameter;
+            Color role = NavPalette.For(obj);
+            ring.startColor = ring.endColor = role;
+            Paint(obj, role, display);
 
             // Кольцо гаснет, когда диск его перерос: дальше размер показан по-настоящему.
             ring.enabled = NavScale.GlyphSceneDiameter(bodyDiameter, markerDiameter) == markerDiameter;
             float markerRadius = (float)markerDiameter * 0.5f;
             if (ring.enabled) DrawRing(display.cam, markerRadius, display.LineSceneWidth);
+        }
+
+        /// <summary>
+        /// Залит только тот, на кого сейчас смотрят. Заливка — самое громкое, что есть на
+        /// приборе, и раздавать её всем телам подряд значит не говорить ничего: диск Сатурна
+        /// тянул внимание сильнее любого события, хотя событием не был.
+        /// </summary>
+        void Paint(SpaceObject obj, Color role, NavDisplayPanel display)
+        {
+            if (bodyRenderer == null) return;
+            bool focused = display.focus != null && ReferenceEquals(display.focus, obj.simTransform);
+            tint.SetColor(ColorId, focused ? NavPalette.Dim(role, 0.7f) : NavPalette.Neutral);
+            bodyRenderer.SetPropertyBlock(tint);
         }
 
         // Метка развёрнута к камере: круг в фиксированной плоскости при повороте вида

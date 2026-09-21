@@ -31,6 +31,9 @@ namespace OuterSpace.Sim
         // Сколько раз в секунду оставшийся разрыв сокращается в e раз. Дальность едет плавно,
         // а не прыгает: прыжок масштаба сбивает чтение картинки - глаз теряет, что где было.
         public const double ZoomSpeed = 9.0;
+        // Поле вокруг вписанного содержимого: вплотную к краю стекла подписи и метки
+        // обрезаются, а сама рамка читается как «дальше ничего нет».
+        const float FitMargin = 1.2f;
 
         /// <summary>Угол стекла, к которому прижаты показания.</summary>
         public enum Corner { TopLeft, TopRight, BottomLeft, BottomRight }
@@ -108,6 +111,12 @@ namespace OuterSpace.Sim
         float yaw = 0f;
         float pitch = 60f;
         int focusIndex = -1;
+        bool framed;
+        // Смещение картинки от точки фокуса, в метрах в осях сцены. Хранится в метрах, а не
+        // в единицах сцены: кадр стоит на содержимом, а не на доле экрана, и наезд ручкой
+        // не должен его уводить. Считается от фокуса, поэтому корабль остаётся там, куда его
+        // поставила подгонка, а уезжает медленно — вместе с областью, которую он покидает.
+        Vector3 frameOffset = Vector3.zero;
 
         double range = DefaultRange;
 
@@ -158,6 +167,8 @@ namespace OuterSpace.Sim
             CreateCamera();
             CreateReadout();
             CreateLabelRail();
+            Child("NavPointLabels", cam.gameObject.layer).AddComponent<NavPointLabels>();
+            Child("NavChrome", cam.gameObject.layer).AddComponent<NavChrome>().labelPrefab = railLabelPrefab;
             ScreenGlass.Show(surface, texture);
         }
 
@@ -406,8 +417,69 @@ namespace OuterSpace.Sim
             foreach (SpaceObject obj in SimMono.updateOrder) obj.simTransform.Reproject();
 
             cam.transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
-            cam.transform.position = cam.transform.rotation * Vector3.back * 100f;
+            cam.transform.position = cam.transform.rotation * Vector3.back * 100f
+                + frameOffset / (float)SimView.metersPerSceneUnit;
             UpdateReadout();
+
+            // Первый кадр прибор ставит себе сам: дальность из ассета выбрана до того, как
+            // стало известно, где корабль и что у него в цели. Без наезда — показывать
+            // наезд не с чего, это исходное положение, а не смена дальности.
+            if (framed) return;
+            framed = true;
+            Fit();
+            range = TargetRange;
+        }
+
+        /// <summary>
+        /// Вписать в кадр то, что сейчас имеет значение: корабль, тело, вокруг которого он
+        /// идёт, и цель. Камера сама по себе не знает, что показывает, и при дальности,
+        /// выбранной под другую задачу, две трети стекла остаются пустыми, а вся система
+        /// сжата в комок у края.
+        ///
+        /// Подгонка разовая, а не покадровая: дальность и точка фокуса — органы управления,
+        /// и прибор, непрерывно правящий их за игрока, отнимает у ручки смысл. Здесь он
+        /// выставляет их один раз, а дальше ручка крутится от этого места.
+        ///
+        /// Центр кадра при этом уходит с точки фокуса — иначе вписать содержимое нельзя:
+        /// корабль на краю своей орбиты и центральное тело лежат по разные стороны, и
+        /// картинка, центрированная на корабле, вдвое шире нужного. Цена — вид вращается
+        /// вокруг середины кадра, а не вокруг выбранной точки.
+        /// </summary>
+        public void Fit()
+        {
+            SpaceObject ship = SimMono.playerShip;
+            if (ship == null || cam == null) return;
+            focus ??= ship.simTransform;
+
+            Quaternion view = Quaternion.Euler(pitch, yaw, 0f);
+            Vector3 right = view * Vector3.right;
+            Vector3 up = view * Vector3.up;
+            Vector2 min = new(float.PositiveInfinity, float.PositiveInfinity);
+            Vector2 max = new(float.NegativeInfinity, float.NegativeInfinity);
+
+            Include(ship, right, up, ref min, ref max);
+            Include(ship.centralBody, right, up, ref min, ref max);
+            Include(SimMono.target, right, up, ref min, ref max);
+            if (float.IsPositiveInfinity(min.x)) return;
+
+            Vector3 center = right * ((min.x + max.x) * 0.5f) + up * ((min.y + max.y) * 0.5f);
+            frameOffset = center * (float)SimView.metersPerSceneUnit;
+            // Половина высоты видимой области — это и есть дальность. По ширине кадр шире
+            // в отношение сторон стекла, поэтому охват по горизонтали приводится к высоте.
+            float half = Mathf.Max((max.y - min.y) * 0.5f, (max.x - min.x) * 0.5f / cam.aspect);
+            rangeStep = StepAt(NavScale.Meters(half, SimView.metersPerSceneUnit) * FitMargin);
+        }
+
+        /// <summary>Тело входит в кадр целиком: на широкой дальности Сатурн сам шире орбиты.</summary>
+        static void Include(SpaceObject obj, Vector3 right, Vector3 up, ref Vector2 min, ref Vector2 max)
+        {
+            if (obj == null) return;
+            Vector3 point = SimView.ToScene(obj.simTransform.GLOBAL_R);
+            float radius = (float)NavScale.SceneUnits(obj.radius, SimView.metersPerSceneUnit);
+            float x = Vector3.Dot(point, right);
+            float y = Vector3.Dot(point, up);
+            min = new Vector2(Mathf.Min(min.x, x - radius), Mathf.Min(min.y, y - radius));
+            max = new Vector2(Mathf.Max(max.x, x + radius), Mathf.Max(max.y, y + radius));
         }
 
         /// <summary>Дальность переключается ступенями: набор запомнен, подписи честные.</summary>
@@ -427,6 +499,7 @@ namespace OuterSpace.Sim
             if (point == null) return;
             focus = point;
             focusIndex = FocusPoints().IndexOf(focus);
+            frameOffset = Vector3.zero;
         }
 
         public void CycleFocus()
@@ -435,6 +508,9 @@ namespace OuterSpace.Sim
             focusIndex++;
             if (focusIndex >= points.Count) focusIndex = -1;
             focus = focusIndex < 0 ? SimMono.playerShip.simTransform : points[focusIndex];
+            // Выбранная точка уезжает из центра только по команде «вписать»: тот, кто просит
+            // смотреть на тело, просит смотреть на него, а не на область вокруг него.
+            frameOffset = Vector3.zero;
         }
 
         static List<SimTransform> FocusPoints()

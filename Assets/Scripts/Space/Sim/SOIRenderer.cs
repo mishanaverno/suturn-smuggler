@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace OuterSpace.Sim
 {
@@ -7,6 +7,10 @@ namespace OuterSpace.Sim
     {
         // Компонент, содержащий данные о SOI
         private IHasSOI parent;
+        // Сферу влияния рисует только то тело, вокруг которого корабль идёт сейчас: она
+        // отвечает на вопрос «докуда я здесь», и у чужого тела этого вопроса нет, а кольца
+        // всех тел разом - просто ещё одна сетка окружностей поверх траектории.
+        private SpaceObjectMono owner;
         public bool rendered = false;
         private LineRenderer lineRenderer;
         public int segments = 36; // Количество сегментов для круга
@@ -14,6 +18,7 @@ namespace OuterSpace.Sim
         void Start()
         {
             parent = GetComponentInParent<IHasSOI>();
+            owner = GetComponentInParent<SpaceObjectMono>();
             lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
             lineRenderer.useWorldSpace = true;
@@ -22,14 +27,19 @@ namespace OuterSpace.Sim
 
         void LateUpdate()
         {
-            if (parent != null && NavDisplayPanel.instance != null)
+            if (parent == null || NavDisplayPanel.instance == null) return;
+            if (parent.SOI <= 0 || parent.SOI >= double.PositiveInfinity || !IsShipCentral())
             {
-                if (parent.SOI > 0 && parent.SOI < double.PositiveInfinity)
-                {
-                    DrawSOI();
-                }
+                lineRenderer.enabled = false;
+                rendered = false;
+                return;
             }
+            DrawSOI();
         }
+
+        private bool IsShipCentral() =>
+            owner != null && SimMono.playerShip != null
+            && ReferenceEquals(owner.Object, SimMono.playerShip.centralBody);
 
         // Сфера влияния - сфера, а рисуется окружностью. Окружность в фиксированной плоскости
         // показала бы верный радиус, но неверную форму; развёрнутая к камере, она читается
@@ -39,6 +49,9 @@ namespace OuterSpace.Sim
             lineRenderer.positionCount = segments + 1;
             lineRenderer.enabled = true;
             lineRenderer.widthMultiplier = NavDisplayPanel.instance.LineSceneWidth;
+            // Граница — обстановка, а не событие: тревожным красится её пересечение, а само
+            // кольцо приглушено, как и всё чужое.
+            lineRenderer.startColor = lineRenderer.endColor = NavPalette.Other;
 
             float radius = (float)NavScale.SceneUnits(parent.SOI, SimView.metersPerSceneUnit);
             Vector3 center = SimView.ToScene(parent.GlobalPosition);

@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 using Game;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
@@ -44,6 +44,7 @@ namespace Interior
             Bind(CommandId.ShowTargetBodyList, () => TargetListPanel.instance?.ShowBodies(), HasTargetList);
             Bind(CommandId.ShowManeuverList, () => TargetListPanel.instance?.ShowManeuvers(), HasTargetList);
 
+            Bind(CommandId.FitView, () => Nav?.Fit());
             Bind(CommandId.ManeuverLock, ToggleLock, HasPlan);
             Bind(CommandId.ClearDeltaVX, () => ClearDeltaV(0), CanEdit);
             Bind(CommandId.ClearDeltaVY, () => ClearDeltaV(1), CanEdit);

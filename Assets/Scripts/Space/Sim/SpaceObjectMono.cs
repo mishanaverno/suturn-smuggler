@@ -12,7 +12,6 @@ namespace OuterSpace
     {
         // Синий у корабля, сиреневый у манёвра: две цепочки дуг на экране одновременно,
         // и путать, какая из них уже посчитанное будущее, а какая — гипотеза, нельзя.
-        static readonly Color ShipColor = new(0.3f, 0.55f, 1f);
         public bool move = false;
         private bool prevMove = false;
         public SpaceObject spaceObject => Object;
@@ -54,11 +53,10 @@ namespace OuterSpace
             if (Object.parts.Contains(SpaceObject.SpaceObjectParts.TRAJECTORY))
             {
                 TrajectoryRenderer trajectory = gameObject.AddComponent<TrajectoryRenderer>();
-                trajectory.color = ShipColor;
+                trajectory.color = NavPalette.Own;
                 trajectory.markApsides = true;
                 trajectory.markNodes = true;
                 glyph.ringSegments = 3;
-                glyph.ringColor = ShipColor;
             }
         }
         // Start is called before the first frame update

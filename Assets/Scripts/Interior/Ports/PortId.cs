@@ -1,4 +1,4 @@
-namespace Interior
+﻿namespace Interior
 {
     /// <summary>
     /// Нумерация розеток корабля: каждая запись — одна ручка одного устройства.
@@ -46,6 +46,7 @@ namespace Interior
         ClearDeltaVX = 216,
         ClearDeltaVY = 217,
         ClearDeltaVZ = 218,
+        FitView = 219,
     }
 
     /// <summary>

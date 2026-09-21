@@ -30,15 +30,20 @@ namespace OuterSpace.Sim
         public const int MaxPointsPerPatch = 1024;
         const string DefaultFontPath = "Fonts & Materials/LiberationSans SDF";
         const int RingSegments = 24;
+        // Ближе полутора меток апо- и перицентр неразличимы: подписывать там две высоты нечего.
+        const float MinApsisGapInMarkers = 1.5f;
+        // Плоскости, сошедшиеся ближе этого угла, пересекаются практически по всей орбите,
+        // а не в двух точках — узлы на ней не значат ничего. В градусах.
+        const double MinNodeInclination = 1.0;
 
         // Задаются тем, кто вешает компонент: у манёвра свой цвет и звёздочка в начале дуги,
         // у корабля — только цепочка от его нынешнего положения.
-        public Color color = new(0.4f, 1f, 0.9f);
-        // Пар меток сближения на экране две — у корабля и у манёвра, — и различать их надо
-        // не по форме, а по яркости: форма уже занята смыслом события.
-        public Color approachColor = new(1f, 0.85f, 0.3f);
+        public Color color = NavPalette.Own;
+        // Сближение — событие с целью, поэтому и красится ролью цели: отдельный цвет здесь
+        // означал бы отдельную сущность, а её нет.
+        public Color approachColor = NavPalette.Target;
         // Сближение после ближайшего рисуется бледнее: оно есть, но решения принимают не по нему.
-        public Color nextApproachColor = new(1f, 0.85f, 0.3f, 0.4f);
+        public Color nextApproachColor = NavPalette.Dim(NavPalette.Target, 0.45f);
         // Сколько сближений показывать: ближайшее и следующее за ним. Третье уже шум.
         public const int ShownApproaches = 2;
         public bool markStart = false;
@@ -105,17 +110,17 @@ namespace OuterSpace.Sim
             {
                 Vector3d start = PointOnArc(patches[0], patches[0].StartEpoch);
                 used = DrawStar(used, start, PatchColor(0), display);
-                ShowLabel(Label(labelled++), $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}", start, display);
+                ShowLabel(Label(labelled++), $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}", start, display, PatchColor(0));
             }
             for (int i = 0; i < patches.Count; i++)
             {
                 TrajectoryPatch patch = patches[i];
                 DrawArc(Line(used++), patch, PatchColor(i), display);
                 int before = used;
-                used = DrawEndMarker(used, patch, PatchColor(i), display);
+                used = DrawEndMarker(used, patch, display);
                 // Подпись только у нарисованной метки: у дуги, кончающейся горизонтом, события нет.
                 if (used == before) continue;
-                ShowLabel(Label(labelled++), EventText(patch), PointOnArc(patch, patch.EndEpoch), display);
+                ShowLabel(Label(labelled++), EventText(patch), PointOnArc(patch, patch.EndEpoch), display, NavPalette.Alarm);
             }
 
             if (markApsides)
@@ -149,7 +154,7 @@ namespace OuterSpace.Sim
                     DrawLink(Line(used++), ship, target, color, display);
                     DrawRing(Line(used++), ship, color, display);
                     DrawRing(Line(used++), target, color, display);
-                    ShowLabel(Label(labelled++), ApproachText(approach), target, display);
+                    ShowLabel(Label(labelled++), ApproachText(approach), target, display, color);
                     shown++;
                 }
             }
@@ -169,26 +174,53 @@ namespace OuterSpace.Sim
             double e = orbit.eccentricity;
             if (Math.Abs(e - 1.0) < 1e-9) return;
             double centralSOI = patch.Central.IsRoot ? double.PositiveInfinity : patch.Central.SOI;
+            Vector3d center = patch.Central.simTransform.GLOBAL_R;
 
             double periapsisRadius = orbit.semiMajorAxis * (1.0 - e);
-            if (IsVisibleApsis(periapsisRadius, centralSOI))
+            bool hasPeriapsis = IsVisibleApsis(periapsisRadius, centralSOI);
+            double apoapsisRadius = orbit.semiMajorAxis * (1.0 + e);
+            bool hasApoapsis = e < 1.0 && IsVisibleApsis(apoapsisRadius, centralSOI);
+
+            Vector3d periapsis = center + AstroDynamic.PositionAtTrueAnomaly(orbit, 0.0);
+            Vector3d apoapsis = hasApoapsis
+                ? center + AstroDynamic.PositionAtTrueAnomaly(orbit, Math.PI)
+                : periapsis;
+
+            // Сошедшиеся на экране апсиды — одна высота. Два маркера в одном пикселе отвечают
+            // на вопрос, которого не было, и вдобавок врут, что точки там две.
+            if (hasPeriapsis && hasApoapsis
+                && ScreenGap(periapsis, apoapsis, display)
+                    < MinApsisGapInMarkers * (float)display.MarkerSceneDiameter)
             {
-                Vector3d periapsis = patch.Central.simTransform.GLOBAL_R
-                    + AstroDynamic.PositionAtTrueAnomaly(orbit, 0.0);
                 DrawApsisMarker(Marker(markersUsed++), periapsis, false, color, display);
-                ShowLabel(Label(labelled++), $"PE {Altitude(periapsisRadius, patch.Central.radius)}",
-                    periapsis, display, LabelPlacement.AboveRight);
+                ShowLabel(Label(labelled++),
+                    $"ALT {Altitude(0.5 * (periapsisRadius + apoapsisRadius), patch.Central.radius)}",
+                    periapsis, display, color, LabelPlacement.AboveRight);
+                return;
             }
 
-            if (e >= 1.0) return;
-            double apoapsisRadius = orbit.semiMajorAxis * (1.0 + e);
-            if (!IsVisibleApsis(apoapsisRadius, centralSOI)) return;
+            if (hasPeriapsis)
+            {
+                DrawApsisMarker(Marker(markersUsed++), periapsis, false, color, display);
+                ShowLabel(Label(labelled++), $"PE {Altitude(periapsisRadius, patch.Central.radius)}",
+                    periapsis, display, color, LabelPlacement.AboveRight);
+            }
 
-            Vector3d apoapsis = patch.Central.simTransform.GLOBAL_R
-                + AstroDynamic.PositionAtTrueAnomaly(orbit, Math.PI);
+            if (!hasApoapsis) return;
             DrawApsisMarker(Marker(markersUsed++), apoapsis, true, color, display);
             ShowLabel(Label(labelled++), $"AP {Altitude(apoapsisRadius, patch.Central.radius)}",
-                apoapsis, display, LabelPlacement.AboveRight);
+                apoapsis, display, color, LabelPlacement.AboveRight);
+        }
+
+        /// <summary>
+        /// Расстояние между точками так, как его видно на стекле. Камера ортографическая,
+        /// поэтому хватает проекции разности на её оси.
+        /// </summary>
+        static float ScreenGap(Vector3d first, Vector3d second, NavDisplayPanel display)
+        {
+            Vector3 delta = SimView.ToScene(second) - SimView.ToScene(first);
+            Transform view = display.cam.transform;
+            return new Vector2(Vector3.Dot(delta, view.right), Vector3.Dot(delta, view.up)).magnitude;
         }
 
         static bool IsVisibleApsis(double radius, double soi) =>
@@ -205,11 +237,12 @@ namespace OuterSpace.Sim
         {
             SpaceObject central = patch.Central;
             if (central.IsRoot || central.orbitParams == null) return;
+            double angle = AstroDynamic.RelativeInclination(patch.Orbit, central.orbitParams);
+            if (angle < MinNodeInclination) return;
             if (!AstroDynamic.TryGetPlaneNodes(patch.Orbit, central.orbitParams,
                     out double ascending, out double descending)) return;
 
             double centralSOI = central.SOI;
-            double angle = AstroDynamic.RelativeInclination(patch.Orbit, central.orbitParams);
             DrawNode(ascending, $"AN {angle:F1}°", patch, centralSOI, ref markersUsed, ref labelled, display);
             DrawNode(descending, $"DN {angle:F1}°", patch, centralSOI, ref markersUsed, ref labelled, display);
         }
@@ -225,7 +258,7 @@ namespace OuterSpace.Sim
             Vector3d position = patch.Central.simTransform.GLOBAL_R
                 + AstroDynamic.PositionAtTrueAnomaly(patch.Orbit, anomaly);
             DrawNodeMarker(Node(markersUsed++), position, color, display);
-            ShowLabel(Label(labelled++), text, position, display, LabelPlacement.BelowRight);
+            ShowLabel(Label(labelled++), text, position, display, color, LabelPlacement.BelowRight);
         }
 
         void DrawNodeMarker(NodeMarker marker, Vector3d position, Color color, NavDisplayPanel display)
@@ -411,9 +444,14 @@ namespace OuterSpace.Sim
             return index;
         }
 
-        /// <summary>Вход в сферу влияния — кружок, выход и столкновение — крестик.</summary>
-        int DrawEndMarker(int index, TrajectoryPatch patch, Color color, NavDisplayPanel display)
+        /// <summary>
+        /// Вход в сферу влияния — кружок, выход и столкновение — крестик. И то и другое
+        /// красится тревожным: это единственное на приборе, что требует действия, и цвет
+        /// у него должен быть свой, не встречающийся больше нигде.
+        /// </summary>
+        int DrawEndMarker(int index, TrajectoryPatch patch, NavDisplayPanel display)
         {
+            Color color = NavPalette.Alarm;
             Vector3d point = PointOnArc(patch, patch.EndEpoch);
             switch (patch.EndReason)
             {
@@ -485,10 +523,13 @@ namespace OuterSpace.Sim
             $"{approach.Distance / 1000.0:F1} km  {approach.RelativeSpeed:F0} m/s";
 
         void ShowLabel(TextMeshPro label, string text, Vector3d at, NavDisplayPanel display,
-            LabelPlacement placement = LabelPlacement.AboveRight)
+            Color color, LabelPlacement placement = LabelPlacement.AboveRight)
         {
             label.enabled = true;
             label.text = text;
+            // Подписи берутся из общего запаса и достаются покрашенными с прошлого раза:
+            // цвет назначается всегда, иначе тревожный красный переезжает на чужую метку.
+            label.color = color;
             float markerRadius = (float)display.MarkerSceneDiameter * 0.5f;
             float gap = display.LineSceneWidth * 2f;
             float x = markerRadius + gap;
@@ -498,6 +539,7 @@ namespace OuterSpace.Sim
             label.transform.position = SimView.ToScene(at)
                 + display.cam.transform.rotation * new Vector3(x, y, 0f);
             label.transform.localScale = Vector3.one * (float)display.LabelSceneHeight / labelLineHeight;
+            NavPointLabels.Request(label, display);
         }
 
         public static string Clock(double seconds)

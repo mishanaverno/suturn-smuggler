@@ -29,7 +29,9 @@ namespace OuterSpace.Sim
             trajectoryRenderer.color = NavDisplayPanel.instance == null
                 ? DefaultManeuverColor
                 : NavDisplayPanel.instance.ManeuverColor(Object.SequenceIndex);
-            trajectoryRenderer.approachColor = new(0.6f, 0.5f, 0.2f);
+            // Сближение по плану — то же сближение, только ещё не случившееся: роль цели,
+            // приглушённая.
+            trajectoryRenderer.approachColor = NavPalette.Dim(NavPalette.Target, 0.6f);
             trajectoryRenderer.markStart = true;
             // Точку манёвра он же рисует звёздочкой фиксированного экранного размера, а шарик
             // из префаба на дальних масштабах превращался в пятно без смысла.

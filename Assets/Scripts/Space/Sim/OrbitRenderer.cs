@@ -12,11 +12,13 @@ namespace OuterSpace.Sim
         public bool rendered = false;
 
         private LineRenderer lineRenderer;
+        private SpaceObjectMono owner;
         private readonly System.Collections.Generic.List<Vector3d> points = new();
         // Start is called before the first frame update
         void Start()
         {
             parent = GetComponentInParent<IHasOrbit>();
+            owner = GetComponentInParent<SpaceObjectMono>();
             lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
             lineRenderer.useWorldSpace = true;
@@ -33,6 +35,10 @@ namespace OuterSpace.Sim
             {
                 if (!lineRenderer.enabled) lineRenderer.enabled = true;
                 lineRenderer.widthMultiplier = NavDisplayPanel.instance.LineSceneWidth;
+                // Цвет орбиты — роль её хозяина, а не настройка в образце: выбрали цель, и
+                // её орбита должна выделиться, не дожидаясь правки ассета.
+                lineRenderer.startColor = lineRenderer.endColor =
+                    NavPalette.For(owner == null ? null : owner.spaceObject);
                 Vector3[] positions = GetOrbitPoints(parent.OrbitParams);
                 lineRenderer.positionCount = positions.Length;
                 lineRenderer.SetPositions(positions);
