@@ -12,8 +12,6 @@ namespace OuterSpace.Sim
         // Прогноз не должен считаться каждый кадр: вход у него меняется от нажатия клавиши,
         // а не от хода времени.
         const int RecalculateEveryFrames = 10;
-        // Запасной цвет нужен до появления NavDisplay; в игре цвета задаёт сам прибор.
-        static readonly Color DefaultManeuverColor = new(0.75f, 0.45f, 1f);
         TrajectoryRenderer trajectoryRenderer;
         public IReadOnlyList<TrajectoryPatch> Patches => Object.trajectory.patches;
         bool IsLast => Object.spaceObject is Ship ship && ship.GetManeuver() == Object;
@@ -26,9 +24,7 @@ namespace OuterSpace.Sim
             // Одной орбиты вокруг одного центра здесь мало: получившаяся траектория может
             // уйти в чужую сферу влияния, и рисовать её надо цепочкой дуг.
             trajectoryRenderer = gameObject.AddComponent<TrajectoryRenderer>();
-            trajectoryRenderer.color = NavDisplayPanel.instance == null
-                ? DefaultManeuverColor
-                : NavDisplayPanel.instance.ManeuverColor(Object.SequenceIndex);
+            trajectoryRenderer.color = NavPalette.Maneuver(Object.SequenceIndex);
             // Сближение по плану — то же сближение, только ещё не случившееся: роль цели,
             // приглушённая.
             trajectoryRenderer.approachColor = NavPalette.Dim(NavPalette.Target, 0.6f);
@@ -44,10 +40,12 @@ namespace OuterSpace.Sim
             // показывает только последний манёвр. При добавлении нового они перейдут на него.
             trajectoryRenderer.markNodes = IsLast;
             trajectoryRenderer.markApsides = IsLast;
-            if (NavDisplayPanel.instance != null)
-            {
-                trajectoryRenderer.color = NavDisplayPanel.instance.ManeuverColor(Object.SequenceIndex);
-            }
+            // Узел без введённой скорости повторяет предыдущую траекторию точка в точку: её
+            // дуги, метки и отсчёты легли бы вторым слоем поверх тех же самых, и прибор
+            // показывал бы две траектории там, где она одна. Сама точка при этом остаётся:
+            // иначе узел, который сейчас редактируешь, на приборе просто не найти.
+            trajectoryRenderer.pointOnly = Object.PlannedMagnitude <= 0.0;
+            trajectoryRenderer.color = NavPalette.Maneuver(Object.SequenceIndex);
             if (Time.frameCount % RecalculateEveryFrames != 0) return;
             SpaceObject target = Object.spaceObject is Ship ship
                 ? ship.TargetForTrajectory(Object)

@@ -47,6 +47,9 @@ namespace OuterSpace.Sim
         // Сколько сближений показывать: ближайшее и следующее за ним. Третье уже шум.
         public const int ShownApproaches = 2;
         public bool markStart = false;
+        // Узел, в который ещё не ввели скорость: его траектория — это предыдущая траектория,
+        // и от неё рисуется только сама точка.
+        public bool pointOnly = false;
         // Только фактическая траектория корабля отмечает апо- и перицентр. У плановых
         // траекторий таких пар может быть несколько (по одной на патч), и без отдельного
         // языка меток они превратят план в россыпь одинаковых AP/PE.
@@ -110,7 +113,21 @@ namespace OuterSpace.Sim
             {
                 Vector3d start = PointOnArc(patches[0], patches[0].StartEpoch);
                 used = DrawStar(used, start, PatchColor(0), display);
-                ShowLabel(Label(labelled++), $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}", start, display, PatchColor(0));
+                // Отсчёт до узла — такое же повторение предыдущей дуги, как и всё остальное:
+                // при пустом узле он показывал бы время до события, которого нет.
+                if (!pointOnly)
+                {
+                    ShowLabel(Label(labelled++), $"MT+{Clock(patches[0].StartEpoch - GameMono.instance.Epoch)}",
+                        start, display, PatchColor(0));
+                }
+            }
+            if (pointOnly)
+            {
+                Hide(used);
+                HideLabels(labelled);
+                HideApsisMarkers(0);
+                HideNodeMarkers(0);
+                return;
             }
             for (int i = 0; i < patches.Count; i++)
             {
@@ -123,13 +140,17 @@ namespace OuterSpace.Sim
                 ShowLabel(Label(labelled++), EventText(patch), PointOnArc(patch, patch.EndEpoch), display, NavPalette.Alarm);
             }
 
+            // Апсиды и узлы — у той орбиты, на которой всё кончится, а не у первой дуги.
+            // Дуга, уходящая из сферы влияния, своих апсид не имеет вовсе: они лежат за
+            // границей, где эта коника уже не траектория, — и метки просто не появлялись.
+            TrajectoryPatch last = patches[patches.Count - 1];
             if (markApsides)
             {
-                DrawApsides(patches[0], ref apsidesUsed, ref labelled, display);
+                DrawApsides(last, ref apsidesUsed, ref labelled, display);
             }
             if (markNodes)
             {
-                DrawNodes(patches[0], ref nodesUsed, ref labelled, display);
+                DrawNodes(last, ref nodesUsed, ref labelled, display);
             }
 
             IReadOnlyList<CloseApproach> approaches = source.Approaches;
@@ -229,25 +250,48 @@ namespace OuterSpace.Sim
         static string Altitude(double radius, double bodyRadius) => $"{(radius - bodyRadius) / 1000.0:N0} km";
 
         /// <summary>
-        /// Узлы считаются относительно плоскости собственной орбиты центрального тела.
-        /// У корневого тела такой плоскости нет; у совпадающих плоскостей вся орбита лежит
-        /// в пересечении, поэтому двух отдельных точек тоже нет.
+        /// Плоскость, от которой считаются узлы, выбирается по тому, зачем их смотрят.
+        ///
+        /// Есть цель вокруг того же тела — от её орбиты: плоскость меняют, чтобы сойтись
+        /// с кем-то, и узлы нужны там, где это обойдётся дешевле всего. У орбит с разными
+        /// центрами общей линии узлов нет, поэтому чужая цель не годится.
+        ///
+        /// Иначе — от собственной орбиты центрального тела, а у корневого, своей орбиты не
+        /// имеющего, от базовой плоскости системы: той, в которой заданы наклонения всех
+        /// элементов. Орбита вокруг Сатурна наклонена именно к ней, и узлы на ней настоящие.
+        ///
+        /// Число в подписи при смене плоскости меняет смысл, а выглядит так же, поэтому узлы
+        /// по цели красятся ролью цели: одно и то же «AN 12.3°» не должно молча означать
+        /// разное.
+        ///
+        /// У совпадающих плоскостей вся орбита лежит в пересечении, поэтому двух отдельных
+        /// точек нет — см. MinNodeInclination.
         /// </summary>
         void DrawNodes(TrajectoryPatch patch, ref int markersUsed, ref int labelled, NavDisplayPanel display)
         {
             SpaceObject central = patch.Central;
-            if (central.IsRoot || central.orbitParams == null) return;
-            double angle = AstroDynamic.RelativeInclination(patch.Orbit, central.orbitParams);
+            SpaceObject target = source.Target;
+            bool byTarget = target != null && !ReferenceEquals(target, central)
+                && target.orbitParams != null && ReferenceEquals(target.centralBody, central);
+
+            Vector3d plane;
+            if (byTarget) plane = AstroDynamic.OrbitPlaneNormal(target.orbitParams);
+            else if (central.IsRoot) plane = Vector3d.forward;
+            else if (central.orbitParams != null) plane = AstroDynamic.OrbitPlaneNormal(central.orbitParams);
+            else return;
+
+            double angle = AstroDynamic.RelativeInclination(patch.Orbit, plane);
             if (angle < MinNodeInclination) return;
-            if (!AstroDynamic.TryGetPlaneNodes(patch.Orbit, central.orbitParams,
+            if (!AstroDynamic.TryGetPlaneNodes(patch.Orbit, plane,
                     out double ascending, out double descending)) return;
 
+            Color nodeColor = byTarget ? NavPalette.Target : color;
             double centralSOI = central.SOI;
-            DrawNode(ascending, $"AN {angle:F1}°", patch, centralSOI, ref markersUsed, ref labelled, display);
-            DrawNode(descending, $"DN {angle:F1}°", patch, centralSOI, ref markersUsed, ref labelled, display);
+            DrawNode(ascending, $"AN {angle:F1}°", patch, centralSOI, nodeColor, ref markersUsed, ref labelled, display);
+            DrawNode(descending, $"DN {angle:F1}°", patch, centralSOI, nodeColor, ref markersUsed, ref labelled, display);
         }
 
-        void DrawNode(double anomaly, string text, TrajectoryPatch patch, double centralSOI,
+        void DrawNode(double anomaly, string text, TrajectoryPatch patch, double centralSOI, Color color,
             ref int markersUsed, ref int labelled, NavDisplayPanel display)
         {
             double radius = AstroDynamic.RadiusAtTrueAnomaly(patch.Orbit, anomaly);

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using Game;
 using OuterSpace.Sim;
@@ -37,10 +37,14 @@ namespace Interior
         public Vector2 margin = new(12f, 12f);
         [Tooltip("Интервал обновления показаний в кадрах.")]
         public int everyFrames = 10;
+        [Tooltip("Ширина рамки в знаках. Ноль меряет шаг знака у шрифта и растягивает рамку по стеклу.")]
+        public int lineColumns;
 
         GameObject rig;
         RenderTexture texture;
         TextMeshProUGUI readout;
+        /// <summary>Ширина стекла в знаках: рамка растягивается на неё, а не на длину текста.</summary>
+        int columns;
 
         void Awake()
         {
@@ -114,6 +118,9 @@ namespace Interior
             textRect.sizeDelta = new Vector2(
                 Mathf.Max(1f, textureWidth - 2f * margin.x),
                 Mathf.Max(1f, textureHeight - 2f * margin.y));
+            // Заданное руками число знаков важнее меренного: у экрана может быть своя
+            // причина быть уже стекла — рамка соседней панели, наклейка, вырез.
+            columns = lineColumns > 0 ? lineColumns : NavText.Columns(readout, textRect.sizeDelta.x);
         }
 
         void Update()
@@ -130,9 +137,11 @@ namespace Interior
             if (maneuver == null)
             {
                 int empty = Mathf.Max("NO DATA".Length + 4, Title.Length + 2);
-                readout.text = AsciiTable.TitledBorder(Title, empty) + "\n" +
-                    AsciiTable.Row("NO DATA", empty) + "\n" +
-                    AsciiTable.Border(empty, AsciiTable.BottomLeft, AsciiTable.BottomRight);
+                empty = Mathf.Max(empty, columns);
+                readout.text = NavText.Frame(
+                    NavText.Paint(AsciiTable.TitledBorder(Title, empty), NavText.Label) + "\n" +
+                    NavText.Paint(AsciiTable.Row("NO DATA", empty), NavText.Label) + "\n" +
+                    NavText.Paint(AsciiTable.Border(empty, AsciiTable.BottomLeft, AsciiTable.BottomRight), NavText.Label));
                 return;
             }
 
@@ -163,17 +172,38 @@ namespace Interior
             lineLength = Mathf.Max(lineLength, nodeLine.Length + 4);
             lineLength = Mathf.Max(lineLength, dvLine.Length + 4);
             lineLength = Mathf.Max(lineLength, Title.Length + 2);
+            // Рамка по ширине стекла: таблица в половину экрана читается как обрывок, а
+            // лишнюю ширину есть куда деть — в столбец, который и так переменной длины.
+            lineLength = Mathf.Max(lineLength, columns);
             if (lineLength > columnsBorder.Length) colWidth[^1] += lineLength - columnsBorder.Length;
 
-            StringBuilder text = new(AsciiTable.TitledBorder(Title, lineLength));
-            text.Append('\n').Append(AsciiTable.Row(burnLine, lineLength));
-            text.Append('\n').Append(AsciiTable.Row(nodeLine, lineLength));
-            text.Append('\n').Append(AsciiTable.Row(dvLine, lineLength));
-            text.Append('\n').Append(AsciiTable.TitledColumnsBorder(header, colWidth, AsciiTable.TopJoint));
-            foreach (string[] row in rows) text.Append('\n').Append(AsciiTable.ColumnsRow(row, colWidth));
-            text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.BottomJoint));
-            text.Append('\n').Append(AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight));
-            readout.text = text.ToString();
+            // Столбец «что сейчас» — своей ролью, «что получится» — цветом той траектории,
+            // которую этот узел рисует на навигационном экране: панель и картинка говорят
+            // про один и тот же манёвр и обязаны называть его одинаково.
+            Color label = NavText.Label;
+            Color planned = NavPalette.Maneuver(maneuver.SequenceIndex);
+
+            StringBuilder text = new(NavText.Paint(AsciiTable.TitledBorder(Title, lineLength), label));
+            text.Append('\n').Append(NavText.Paint(AsciiTable.Row(burnLine, lineLength), NavPalette.Own));
+            text.Append('\n').Append(NavText.Paint(AsciiTable.Row(nodeLine, lineLength), NavPalette.Own));
+            text.Append('\n').Append(NavText.Paint(AsciiTable.Row(dvLine, lineLength), NavPalette.Own));
+            text.Append('\n').Append(NavText.Paint(
+                AsciiTable.TitledColumnsBorder(header, colWidth, AsciiTable.TopJoint), label));
+            foreach (string[] row in rows)
+            {
+                string[] painted =
+                {
+                    NavText.Cell(row[0], colWidth[0], label),
+                    NavText.Cell(row[1], colWidth[1], NavPalette.Own),
+                    NavText.Cell(row[2], colWidth[2], planned),
+                };
+                text.Append('\n').Append(AsciiTable.ColumnsRow(painted, colWidth));
+            }
+            text.Append('\n').Append(NavText.Paint(
+                AsciiTable.ColumnsBorder(colWidth, AsciiTable.BottomJoint), label));
+            text.Append('\n').Append(NavText.Paint(
+                AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight), label));
+            readout.text = NavText.Frame(text.ToString());
         }
 
         static string Km(double meters) => $"{meters / 1000.0:N0} km";

@@ -58,13 +58,6 @@ namespace OuterSpace.Sim
         [Tooltip("Толщина линий в пикселях текстуры: орбиты, траектории, выноски, кольца меток.")]
         public float linePixels = 2f;
 
-        [Header("Maneuver colors")]
-        [Tooltip("Цвет траектории первого, ближайшего манёвра.")]
-        public Color maneuver1Color = new(0.75f, 0.45f, 1f);
-        [Tooltip("Цвет траектории второго манёвра.")]
-        public Color maneuver2Color = new(1f, 0.55f, 0.2f);
-        [Tooltip("Цвет траектории третьего манёвра.")]
-        public Color maneuver3Color = new(0.25f, 1f, 0.55f);
         // Поле переименовано намеренно: в сценах лежит старый индекс из лестницы на пять
         // ступеней, и на новой он означал бы совсем другую дальность.
         public int rangeStep = -1;
@@ -143,16 +136,6 @@ namespace OuterSpace.Sim
         public double MarkerSceneDiameter => NavScale.MarkerSceneDiameter(Fraction(markerPixels), NavScale.OrthographicSize);
         public double LabelSceneHeight => NavScale.MarkerSceneDiameter(Fraction(labelPixels), NavScale.OrthographicSize);
         public float LineSceneWidth => (float)NavScale.MarkerSceneDiameter(Fraction(linePixels), NavScale.OrthographicSize);
-
-        public Color ManeuverColor(int sequenceIndex)
-        {
-            switch (sequenceIndex)
-            {
-                case 0: return maneuver1Color;
-                case 1: return maneuver2Color;
-                default: return maneuver3Color;
-            }
-        }
 
         void Awake()
         {
@@ -386,19 +369,28 @@ namespace OuterSpace.Sim
             if (maneuvers.Count > 0) lineLength = Mathf.Max(lineLength, totalLine.Length + 4);
             if (lineLength > columnsBorder.Length) colWidth[^1] += lineLength - columnsBorder.Length;
 
-            StringBuilder text = new(AsciiTable.TitledBorder(targetTitle, lineLength));
-            text.Append('\n').Append(AsciiTable.Row(targetLine, lineLength));
+            // Строка плана светится цветом своей траектории на картинке: номер узла — это
+            // адрес, по которому игрок ищет строку, и таблица обязана отвечать тем же адресом,
+            // что и дуга на стекле.
+            Color label = NavText.Label;
+            StringBuilder text = new(NavText.Paint(AsciiTable.TitledBorder(targetTitle, lineLength), label));
+            text.Append('\n').Append(NavText.Paint(AsciiTable.Row(targetLine, lineLength),
+                target == null ? label : NavPalette.Target));
             if (maneuvers.Count > 0)
             {
-                text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.TopJoint));
-                text.Append('\n').Append(AsciiTable.ColumnsRow(header, colWidth));
-                text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.Cross));
-                foreach (string[] row in rows) text.Append('\n').Append(AsciiTable.ColumnsRow(row, colWidth));
-                text.Append('\n').Append(AsciiTable.ColumnsBorder(colWidth, AsciiTable.BottomJoint));
-                text.Append('\n').Append(AsciiTable.Row(totalLine, lineLength));
+                text.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsBorder(colWidth, AsciiTable.TopJoint), label));
+                text.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsRow(header, colWidth), label));
+                text.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsBorder(colWidth, AsciiTable.Cross), label));
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    text.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsRow(rows[i], colWidth), NavPalette.Maneuver(i)));
+                }
+                text.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsBorder(colWidth, AsciiTable.BottomJoint), label));
+                text.Append('\n').Append(NavText.Paint(AsciiTable.Row(totalLine, lineLength), NavPalette.Own));
             }
-            text.Append('\n').Append(AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight));
-            return text.ToString();
+            text.Append('\n').Append(NavText.Paint(
+                AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight), label));
+            return NavText.Frame(text.ToString());
         }
 
         // Update, а не LateUpdate: SimMono двигает тела в FixedUpdate, то есть до Update

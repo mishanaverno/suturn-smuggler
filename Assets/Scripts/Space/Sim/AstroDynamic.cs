@@ -508,10 +508,18 @@ namespace OuterSpace.Sim
         /// в обратную сторону. Для совпадающих плоскостей отдельных узлов нет.
         /// </summary>
         public static bool TryGetPlaneNodes(OrbitElements orbit, OrbitElements plane,
+            out double ascending, out double descending) =>
+            TryGetPlaneNodes(orbit, OrbitPlaneNormal(plane), out ascending, out descending);
+
+        /// <summary>
+        /// Узлы относительно плоскости, заданной нормалью. Нужна не только плоскость чужой
+        /// орбиты: у корневого тела своей орбиты нет вовсе, и отсчитывать приходится от
+        /// базовой плоскости системы — той, в которой заданы наклонения всех элементов.
+        /// </summary>
+        public static bool TryGetPlaneNodes(OrbitElements orbit, Vector3d planeNormal,
             out double ascending, out double descending)
         {
             Vector3d orbitNormal = OrbitPlaneNormal(orbit);
-            Vector3d planeNormal = OrbitPlaneNormal(plane);
             Vector3d line = Vector3d.Cross(planeNormal, orbitNormal);
             if (line.sqrMagnitude < 1e-20)
             {
@@ -543,7 +551,11 @@ namespace OuterSpace.Sim
 
         /// <summary>Взаимное наклонение двух орбитальных плоскостей, в градусах.</summary>
         public static double RelativeInclination(OrbitElements first, OrbitElements second) =>
-            Vector3d.Angle(OrbitPlaneNormal(first), OrbitPlaneNormal(second));
+            RelativeInclination(first, OrbitPlaneNormal(second));
+
+        /// <summary>Наклонение орбиты к плоскости, заданной нормалью, в градусах.</summary>
+        public static double RelativeInclination(OrbitElements orbit, Vector3d planeNormal) =>
+            Vector3d.Angle(OrbitPlaneNormal(orbit), planeNormal);
 
         static void SampleEllipse(OrbitElements orbit, double nuFrom, double nuSpan, int maxPoints, List<Vector3d> into)
         {

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using OuterSpace;
 using OuterSpace.Sim;
@@ -25,11 +25,14 @@ namespace Interior
             public readonly string Label;
             public readonly SimTransform Focus;
             public readonly SpaceObject Target;
+            /// <summary>Роль строки: тем же цветом эта же вещь нарисована на навигационном экране.</summary>
+            public readonly Color Role;
 
-            public ListEntry(string label, SimTransform focus, SpaceObject target = null)
+            public ListEntry(string label, SimTransform focus, Color role, SpaceObject target = null)
             {
                 Label = label;
                 Focus = focus;
+                Role = role;
                 Target = target;
             }
         }
@@ -58,6 +61,8 @@ namespace Interior
         public Vector2 margin = new(12f, 12f);
         [Tooltip("Интервал обновления списка в кадрах.")]
         public int everyFrames = 10;
+        [Tooltip("Ширина рамки в знаках. Ноль меряет шаг знака у шрифта и растягивает рамку по стеклу.")]
+        public int lineColumns;
 
         readonly StringBuilder builder = new();
         readonly List<ListEntry> entries = new();
@@ -66,6 +71,8 @@ namespace Interior
         RenderTexture texture;
         TextMeshProUGUI readout;
         ListMode mode;
+        /// <summary>Ширина стекла в знаках: рамка растягивается на неё, а не на длину имени.</summary>
+        int columns;
         int cursorIndex = -1;
         int scrollOffset;
 
@@ -147,6 +154,9 @@ namespace Interior
             textRect.sizeDelta = new Vector2(
                 Mathf.Max(1f, textureWidth - 2f * margin.x),
                 Mathf.Max(1f, textureHeight - 2f * margin.y));
+            // Заданное руками число знаков важнее меренного: у экрана может быть своя
+            // причина быть уже стекла — рамка соседней панели, наклейка, вырез.
+            columns = lineColumns > 0 ? lineColumns : NavText.Columns(readout, textRect.sizeDelta.x);
         }
 
         void Update()
@@ -234,30 +244,40 @@ namespace Interior
             scrollOffset = Mathf.Clamp(scrollOffset, 0, maxOffset);
 
             int end = Mathf.Min(scrollOffset + rows, count);
-            builder.Clear();
-            builder.Append(mode == ListMode.Bodies ? "BODIES" : "MANEUVERS");
-            if (count > rows)
-            {
-                builder.Append(' ');
-                builder.Append(scrollOffset + 1);
-                builder.Append('-');
-                builder.Append(end);
-                builder.Append('/');
-                builder.Append(count);
-            }
-            if (mode == ListMode.Bodies && SimMono.target == null) builder.Append("  NO TARGET");
-            builder.Append('\n');
+            string title = mode == ListMode.Bodies ? "BODIES" : "MANEUVERS";
+            if (count > rows) title += $" {scrollOffset + 1}-{end}/{count}";
 
+            // Ширина рамки — по стеклу, но не уже самой длинной строки внутри: список
+            // меняется в полёте, и имя длиннее экрана резать нечем.
+            int lineLength = Mathf.Max(columns, title.Length + 2);
+            for (int i = scrollOffset; i < end; i++)
+            {
+                lineLength = Mathf.Max(lineLength, entries[i].Label.Length + 6);
+            }
+            if (count == 0) lineLength = Mathf.Max(lineLength, "NO DATA".Length + 4);
+
+            Color label = NavText.Label;
+            builder.Clear();
+            builder.Append(NavText.Paint(AsciiTable.TitledBorder(title, lineLength), label));
+            if (count == 0)
+            {
+                builder.Append('\n').Append(NavText.Paint(AsciiTable.Row("NO DATA", lineLength), label));
+            }
             for (int i = scrollOffset; i < end; i++)
             {
                 ListEntry entry = entries[i];
-                builder.Append(i == cursorIndex ? '>' : ' ');
-                builder.Append(entry.Target != null && ReferenceEquals(entry.Target, SimMono.target) ? '*' : ' ');
-                builder.Append(' ');
-                builder.Append(entry.Label);
-                builder.Append('\n');
+                // Выбранная цель отмечена цветом роли — тем же, каким она нарисована на
+                // навигационном экране. Звёздочка рядом говорила бы то же самое второй раз.
+                string line = $"{(i == cursorIndex ? '>' : ' ')} {entry.Label}";
+                // Строка под курсором горит в полную силу своей роли, остальные — как имена:
+                // курсор это «куда я сейчас смотрю», и он должен читаться, не меняя цвета,
+                // которым эта же вещь нарисована на навигационном экране.
+                Color row = i == cursorIndex ? entry.Role : NavPalette.Dim(entry.Role, NavPalette.NameLevel);
+                builder.Append('\n').Append(NavText.Paint(AsciiTable.Row(line, lineLength), row));
             }
-            readout.text = builder.ToString();
+            builder.Append('\n').Append(NavText.Paint(
+                AsciiTable.Border(lineLength, AsciiTable.BottomLeft, AsciiTable.BottomRight), label));
+            readout.text = NavText.Frame(builder.ToString());
         }
 
         ListEntry CursorEntry()
@@ -275,13 +295,14 @@ namespace Interior
                 // SimMono.bodies уже содержит ровно те тела, которые разрешено выбрать целью.
                 foreach (SpaceObject body in SimMono.bodies)
                 {
-                    entries.Add(new ListEntry(body.GameObject.name.ToUpperInvariant(), body.simTransform, body));
+                    entries.Add(new ListEntry(body.GameObject.name.ToUpperInvariant(), body.simTransform,
+                        NavPalette.For(body), body));
                 }
                 return;
             }
 
             if (SimMono.playerShip is not Ship ship) return;
-            entries.Add(new ListEntry("SHIP", ship.simTransform));
+            entries.Add(new ListEntry("SHIP", ship.simTransform, NavPalette.Own));
 
             maneuvers.Clear();
             for (Maneuver maneuver = ship.GetManeuver(); maneuver != null; maneuver = maneuver.Previous)
@@ -291,18 +312,20 @@ namespace Interior
             maneuvers.Reverse();
             for (int i = 0; i < maneuvers.Count; i++)
             {
-                entries.Add(new ListEntry($"MANEUVER {i + 1}", maneuvers[i].simTransform));
+                entries.Add(new ListEntry($"MANEUVER {i + 1}", maneuvers[i].simTransform,
+                    NavPalette.Maneuver(i)));
             }
         }
 
         int VisibleTargetCount()
         {
             if (visibleTargets > 0) return visibleTargets;
-            // Одна строка занята заголовком. Коэффициент 1.2 оставляет место под обычный
-            // межстрочный интервал TMP, чтобы последняя строка не обрезалась краем экрана.
+            // Две строки заняты рамкой: заголовок врезан в верхнюю, нижняя закрывает список.
+            // Коэффициент 1.2 оставляет место под обычный межстрочный интервал TMP, чтобы
+            // последняя строка не обрезалась краем экрана.
             float height = Mathf.Max(1f, textureHeight - 2f * margin.y);
             int lines = Mathf.FloorToInt(height / (Mathf.Max(labelPixels, 1f) * 1.2f));
-            return Mathf.Max(1, lines - 1);
+            return Mathf.Max(1, lines - 2);
         }
     }
 }
