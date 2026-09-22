@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using Interior;
@@ -8,8 +8,8 @@ using UnityEngine;
 namespace InteriorEditor
 {
     /// <summary>
-    /// Генератор разъёмов: по перечню дел в коде (CommandId, SignalId) заводит недостающие
-    /// ассеты в папке разъёмов и рассказывает, что в папке не сходится.
+    /// Генератор разъёмов: по перечню дел в коде заводит недостающие ассеты в папке
+    /// разъёмов и рассказывает, что в папке не сходится.
     ///
     /// Смысл — убрать ручную работу оттуда, где ошибиться легко, а заметить трудно. Ассеты
     /// пустые: генератор отвечает только за то, что на каждое дело есть ровно один ассет с
@@ -45,6 +45,11 @@ namespace InteriorEditor
                 port => (int)port.id,
                 (port, id) => port.id = (StepId)id,
                 "Steps", report);
+
+            created += Sync<SettingPort, SettingId>(
+                port => (int)port.id,
+                (port, id) => port.id = (SettingId)id,
+                "Settings", report);
 
             created += Sync<SignalPort, SignalId>(
                 port => (int)port.id,

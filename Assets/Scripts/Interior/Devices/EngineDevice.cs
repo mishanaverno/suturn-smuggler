@@ -1,13 +1,7 @@
-using UnityEngine;
-
-namespace Interior
+﻿namespace Interior
 {
     /// <summary>
-    /// Двигатель: включить тягу и сказать, идёт ли она.
-    ///
-    /// Тяга разрешена только при запланированном манёвре — это не свойство двигателя,
-    /// а правило игры: прожиг исполняет план, а не заменяет его. Условие живёт здесь,
-    /// потому что отказывает в нажатии именно двигатель.
+    /// Двигатель: включить тягу, принять её долю от рычага и сказать, идёт ли она.
     /// </summary>
     public class EngineDevice : ShipDevice
     {
@@ -24,19 +18,19 @@ namespace Interior
             Bind(ReadingId.Acceleration, () => Ship == null ? double.NaN : Ship.Acceleration);
             Bind(ReadingId.RemainingBurn, () =>
                 Ship == null || Ship.GetManeuver() == null ? double.NaN : Ship.RemainingBurnDuration);
+
+            // Долю тяги выставляет рычаг, а хранит её двигатель. Поэтому показание отдаёт
+            // тоже он: рычаг физически стоит, где стоит, но спрашивать «сколько тяги»
+            // надо у того, кто ею распоряжается.
+            Bind(SettingId.Throttle, SetThrottle, HasShip);
+            Bind(ReadingId.Throttle, () => Ship == null ? double.NaN : Ship.throttle);
         }
 
-        /// <summary>
-        /// Положение рычага отдаёт сам рычаг: его разъём подключён к органу, а не сюда.
-        /// Двигатель это положение только исполняет — переносит в модель долю полной тяги.
-        /// Нет рычага — тяга полная: корабль без органа управления не должен стоять на нуле.
-        /// </summary>
-        void Update()
+        static bool HasShip() => Ship != null;
+
+        static void SetThrottle(double value)
         {
-            if (Ship == null) return;
-            Ship.throttle = ControlBus.TryRead(ReadingId.Throttle, out double value) ? value : 1.0;
+            if (Ship != null) Ship.throttle = value;
         }
-
-        static bool HasPlan() => Ship != null && Ship.GetManeuver() != null;
     }
 }

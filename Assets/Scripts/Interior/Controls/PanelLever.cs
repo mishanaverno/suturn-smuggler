@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Interior
 {
@@ -28,14 +28,14 @@ namespace Interior
     /// Поэтому же рычаг двигает свой трансформ сам, а не через ControlResponse: отклик —
     /// это то, что орган делает, сработав, а тут движение и есть величина.
     ///
-    /// И поэтому рычаг — единственный орган, который сам отдаёт показание: его положение есть
-    /// физический факт, спрашивать о нём устройство некого. Разъём у него показания
-    /// (ReadingPort), а не ручки: величина абсолютная, а не щелчок.
+    /// Разъём у него величины (SettingPort), а не ручки: рычаг называет значение целиком,
+    /// а не щёлкает. Хранит это значение устройство — рычаг только выставляет его, когда
+    /// рука его двигает. Иначе снятый или сломанный рычаг уносил бы тягу с собой.
     /// </summary>
     public class PanelLever : MonoBehaviour, IInteractable, IDraggable
     {
-        [Tooltip("Куда отдаётся положение, 0…1. Ассет показания из папки разъёмов.")]
-        public ReadingPort port;
+        [Tooltip("Куда отдаётся положение, 0…1. Ассет величины из папки разъёмов.")]
+        public SettingPort port;
 
         [Tooltip("Направление хода в местных осях объекта. Нормализуется.")]
         public Vector3 axis = Vector3.forward;
@@ -50,26 +50,25 @@ namespace Interior
         float grabOffset;
         Vector3 home;
 
-        /// <summary>Положение рычага: 0 — нижний упор, 1 — верхний.</summary>
-        public double Value => value;
-
-        void Awake() => home = transform.localPosition;
-
-        void OnEnable()
+        void Awake()
         {
+            home = transform.localPosition;
             value = Mathf.Clamp01(start);
             Apply();
-            if (port != null && port.Assigned) ControlBus.Bind(port.id, () => Value);
         }
 
-        void OnDisable()
-        {
-            if (port != null && port.Assigned) ControlBus.Unbind(port.id);
-        }
+        /// <summary>
+        /// Начальное положение отдаётся в Start, а не в OnEnable: устройства подключаются
+        /// в OnEnable, и порядок между ними не определён — рычаг мог бы назвать тягу раньше,
+        /// чем двигатель взялся её принимать.
+        /// </summary>
+        void Start() => Push();
 
         public string Prompt => port != null ? port.Title : name;
 
-        public bool Available => port != null && port.Assigned;
+        public bool Available => port != null && ControlBus.Available(port.id);
+
+        public bool Wired => port != null && port.Assigned;
 
         /// <summary>Рычаг не нажимают: щелчок по нему ничего не значит, его тянут.</summary>
         public void Interact() { }
@@ -88,6 +87,7 @@ namespace Interior
             if (!Pointer(ray, out float along)) return;
             value = Mathf.Clamp01((along + grabOffset) / travel);
             Apply();
+            Push();
         }
 
         public void Drop() { }
@@ -118,6 +118,11 @@ namespace Interior
 
         /// <summary>Нижний упор в мире.</summary>
         Vector3 Zero => transform.parent == null ? home : transform.parent.TransformPoint(home);
+
+        void Push()
+        {
+            if (Wired) ControlBus.Set(port.id, value);
+        }
 
         void Apply() => transform.localPosition = home + transform.localRotation * axis.normalized * (value * travel);
     }

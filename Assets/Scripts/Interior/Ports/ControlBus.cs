@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,10 +8,13 @@ namespace Interior
     /// Щиток: кто на самом деле стоит за каждой записью перечня. Здесь живут делегаты —
     /// то единственное, что нельзя класть в ассет, потому что ассет переживает выход из Play.
     ///
-    /// Четыре вида связи, по числу того, что орган умеет сказать и услышать:
-    /// команда (сделать), ручка (щёлкнуть в плюс или минус), сигнал (да/нет) и
-    /// показание (число). Больше пока не нужно: все органы кокпита подталкивают, а не
-    /// выставляют абсолютное значение.
+    /// Пять видов связи, по числу того, что орган умеет сказать и услышать: команда
+    /// (сделать), ручка (щёлкнуть в плюс или минус), величина (выставить целиком),
+    /// сигнал (да/нет) и показание (число).
+    ///
+    /// Величина стоит особняком: это единственный случай, когда орган не подталкивает,
+    /// а называет значение. Такой у рычага тяги, у которого положение есть физический факт.
+    /// Хранит его всё равно устройство — орган только выставляет.
     ///
     /// Ключ — номер из enum, а не ассет: перечень живёт в коде, ассет только указывает на
     /// запись. Поэтому потерянная или пересозданная ссылка на ассет ничего не ломает, пока
@@ -50,8 +53,21 @@ namespace Interior
             }
         }
 
+        readonly struct Setting
+        {
+            public readonly Action<double> Set;
+            public readonly Func<bool> Available;
+
+            public Setting(Action<double> set, Func<bool> available)
+            {
+                Set = set;
+                Available = available;
+            }
+        }
+
         static readonly Dictionary<CommandId, Command> commands = new();
         static readonly Dictionary<StepId, Step> steps = new();
+        static readonly Dictionary<SettingId, Setting> settings = new();
         static readonly Dictionary<SignalId, Func<bool>> signals = new();
         static readonly Dictionary<ReadingId, Func<double>> readings = new();
 
@@ -69,6 +85,7 @@ namespace Interior
         {
             commands.Clear();
             steps.Clear();
+            settings.Clear();
             signals.Clear();
             readings.Clear();
         }
@@ -83,6 +100,12 @@ namespace Interior
         {
             if (!Check(id, id == StepId.None, steps.ContainsKey(id))) return;
             steps[id] = new Step(turn, available);
+        }
+
+        public static void Bind(SettingId id, Action<double> set, Func<bool> available = null)
+        {
+            if (!Check(id, id == SettingId.None, settings.ContainsKey(id))) return;
+            settings[id] = new Setting(set, available);
         }
 
         public static void Bind(SignalId id, Func<bool> read)
@@ -116,6 +139,8 @@ namespace Interior
 
         public static void Unbind(StepId id) => steps.Remove(id);
 
+        public static void Unbind(SettingId id) => settings.Remove(id);
+
         public static void Unbind(SignalId id) => signals.Remove(id);
 
         public static void Unbind(ReadingId id) => readings.Remove(id);
@@ -131,6 +156,12 @@ namespace Interior
         {
             if (!steps.TryGetValue(id, out Step step)) return false;
             return step.Turn != null && (step.Available == null || step.Available());
+        }
+
+        public static bool Available(SettingId id)
+        {
+            if (!settings.TryGetValue(id, out Setting setting)) return false;
+            return setting.Set != null && (setting.Available == null || setting.Available());
         }
 
         public static void Invoke(CommandId id)
@@ -149,6 +180,16 @@ namespace Interior
             if (steps.TryGetValue(id, out Step step))
             {
                 step.Turn?.Invoke(direction);
+                return;
+            }
+            Debug.LogWarning($"ControlBus: «{id}» есть в перечне, но ни одно устройство её не взяло.");
+        }
+
+        public static void Set(SettingId id, double value)
+        {
+            if (settings.TryGetValue(id, out Setting setting))
+            {
+                setting.Set?.Invoke(value);
                 return;
             }
             Debug.LogWarning($"ControlBus: «{id}» есть в перечне, но ни одно устройство её не взяло.");

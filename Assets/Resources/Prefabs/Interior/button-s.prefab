@@ -50,6 +50,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::Interior.PanelButton
   port: {fileID: 0}
   label: 
+  labelPrefab: {fileID: 5708344210541740479, guid: 654045ed80f4743e8ab8961880e6659d, type: 3}
+  labelOffset: {x: 0, y: 0, z: 0.0081}
+  labelAngles: {x: 0, y: 180, z: 90}
 --- !u!33 &4361201850118005227
 MeshFilter:
   m_ObjectHideFlags: 0

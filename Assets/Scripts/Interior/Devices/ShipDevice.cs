@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
@@ -29,6 +29,7 @@ namespace Interior
     {
         readonly List<CommandId> boundCommands = new();
         readonly List<StepId> boundSteps = new();
+        readonly List<SettingId> boundSettings = new();
         readonly List<SignalId> boundSignals = new();
         readonly List<ReadingId> boundReadings = new();
 
@@ -56,6 +57,7 @@ namespace Interior
         {
             foreach (CommandId id in boundCommands) ControlBus.Unbind(id);
             foreach (StepId id in boundSteps) ControlBus.Unbind(id);
+            foreach (SettingId id in boundSettings) ControlBus.Unbind(id);
             foreach (SignalId id in boundSignals) ControlBus.Unbind(id);
             foreach (ReadingId id in boundReadings) ControlBus.Unbind(id);
             Forget();
@@ -65,6 +67,7 @@ namespace Interior
         {
             boundCommands.Clear();
             boundSteps.Clear();
+            boundSettings.Clear();
             boundSignals.Clear();
             boundReadings.Clear();
         }
@@ -83,6 +86,17 @@ namespace Interior
         {
             ControlBus.Bind(id, turn, () => Operational && (available == null || available()));
             boundSteps.Add(id);
+        }
+
+        /// <summary>
+        /// Величину устройство принимает, а хранит у себя: орган её только выставляет.
+        /// Поэтому снятый или сломанный рычаг не уносит тягу с собой — она остаётся такой,
+        /// какой была в последний раз.
+        /// </summary>
+        protected void Bind(SettingId id, Action<double> set, Func<bool> available = null)
+        {
+            ControlBus.Bind(id, set, () => Operational && (available == null || available()));
+            boundSettings.Add(id);
         }
 
         protected void Bind(SignalId id, Func<bool> read)
