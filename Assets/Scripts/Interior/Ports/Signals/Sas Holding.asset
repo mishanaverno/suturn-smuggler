@@ -9,9 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 173c3605e15404a3d80a50bacc0047eb, type: 3}
-  m_Name: Sas Dir Plus
-  m_EditorClassIdentifier: Game::Interior.CommandPort
+  m_Script: {fileID: 11500000, guid: 023bebeef21284d5ea38cea34bc7e0e6, type: 3}
+  m_Name: Sas Holding
+  m_EditorClassIdentifier: Game::Interior.SignalPort
   displayName: 
   note: 
-  id: 305
+  id: 301

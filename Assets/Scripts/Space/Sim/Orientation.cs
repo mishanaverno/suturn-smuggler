@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 
 namespace OuterSpace.Sim
 {
@@ -9,6 +9,7 @@ namespace OuterSpace.Sim
         RadialOut, RadialIn,
         Target, AntiTarget,
         Maneuver,
+        Hold,
         Free
     }
 
@@ -16,7 +17,7 @@ namespace OuterSpace.Sim
     /// Направление тяги корабля в инерциальной (RELATIVE) системе центрального тела.
     ///
     /// Нулевой вектор здесь значит «направления нет»: режим требует цели или манёвра, которых
-    /// сейчас не существует, либо это Free. Корабль в таком случае удерживает прежнее
+    /// сейчас не существует, либо это Free или Hold. Корабль в таком случае удерживает прежнее
     /// направление — разворачивать его в произвольную сторону из-за снятой цели нельзя.
     /// </summary>
     public static class Orientation

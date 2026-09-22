@@ -259,8 +259,8 @@ namespace OuterSpace.Sim.Objects
 
         /// <summary>
         /// Разворот идёт по симуляционному времени. В режиме Free корабль слушает ручку, в
-        /// остальных автопилот сам ведёт продольную ось в направление режима: это и есть
-        /// разница между «держать направление» и «лететь как летится».
+        /// Hold гасит вращение и этим стоит на месте, в остальных автопилот сам ведёт
+        /// продольную ось в направление режима.
         /// </summary>
         void UpdateAttitude()
         {
@@ -270,6 +270,7 @@ namespace OuterSpace.Sim.Objects
             if (dt <= 0.0) return;
 
             if (orientation == ShipOrientation.Free) attitude.Rotate(rotationCommand, dt);
+            else if (orientation == ShipOrientation.Hold) attitude.Damp(dt);
             else attitude.AlignTo(dir, dt);
         }
 

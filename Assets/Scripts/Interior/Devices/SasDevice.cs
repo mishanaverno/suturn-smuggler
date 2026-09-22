@@ -1,54 +1,130 @@
-using OuterSpace.Sim;
+﻿using OuterSpace.Sim;
 
 namespace Interior
 {
     /// <summary>
-    /// Система ориентации: куда автопилот держит нос корабля.
+    /// Система ориентации: куда автопилот держит нос корабля и держит ли вообще.
     ///
-    /// Режим набирается двумя органами — осью и знаком, — а не отдельной кнопкой на каждый:
-    /// режимы парные, и пара «ось + знак» ложится на две галеты вместо десяти кнопок.
-    /// Ось и знак хранятся здесь, а не в корабле: это положение ручек, а корабль знает
-    /// только итоговый режим.
+    /// Режим набирается двумя галетами по три положения — строка и столбец. Девять режимов
+    /// ложатся на девять клеток без единой пустой; схема «ось и знак» оставляла бы дырку,
+    /// потому что у манёвра обратной стороны нет.
     ///
-    /// Оси — связанные оси корабля в режиме програды: X — вперёд по скорости, Y — нормаль,
-    /// Z — радиально наружу. T и M осями не являются, это «цель» и «манёвр»; минус у M —
-    /// свободный режим, потому что антиманёвр никому не нужен.
+    /// Галеты подписаны буквами, а не делом: клетка — это пересечение, и назвать её на самой
+    /// ручке нечем. Что включает каждая пара, читают с таблички на панели. Пульт приходится
+    /// один раз изучить — зато на нём нет ни одного положения, которое ничего не делает.
+    ///
+    /// Выбор и включение разделены: галеты только выбирают, за выбранное берётся отдельная
+    /// кнопка. Иначе нельзя выставить режим заранее, не дёрнув корабль. Уже ведущий автопилот
+    /// перенаводится сразу — щёлкнуть галетой при включённом автомате и значит «теперь туда».
+    ///
+    /// Своего «ведёт или нет» устройство не держит, а смотрит в корабль: режим снимает не
+    /// только эта панель — взятая ручка пилота бросает автопилот, и вторая копия состояния
+    /// разошлась бы с кораблём в тот же миг.
     /// </summary>
     public class SasDevice : ShipDevice
     {
-        enum Axis { X, Y, Z, T, M }
+        /// <summary>
+        /// Раскладка галет: первый индекс — строка X, Y, Z, второй — столбец A, B, C.
+        ///
+        /// Правило покрывает две трети таблицы: строка — ось орбитальной системы (скорость,
+        /// нормаль, радиус), столбец A — по оси, B — против. Столбец C выпадает из него:
+        /// там опоры, которых может не быть вовсе, — цель, антицель и манёвр.
+        ///
+        /// Табличка на панели набрана руками и повторяет эту раскладку. Она не собирается
+        /// отсюда, поэтому поправивший таблицу обязан поправить и её — копия лежит ниже
+        /// ровно в том виде, в каком стоит на панели:
+        ///
+        /// <code>
+        /// ┌───┬─────┬─────┬─────┐
+        /// │   │  A  │  B  │  C  │
+        /// ├───┼─────┼─────┼─────┤
+        /// │ X │ PRO │ RET │ TGT │
+        /// │ Y │ NML │ ANM │ ATG │
+        /// │ Z │ RDO │ RDI │ MNV │
+        /// └───┴─────┴─────┴─────┘
+        /// </code>
+        /// </summary>
+        static readonly ShipOrientation[,] Modes =
+        {
+            { ShipOrientation.Prograde, ShipOrientation.Retrograde, ShipOrientation.Target },
+            { ShipOrientation.Normal, ShipOrientation.Antinormal, ShipOrientation.AntiTarget },
+            { ShipOrientation.RadialOut, ShipOrientation.RadialIn, ShipOrientation.Maneuver },
+        };
 
-        // Ставятся так, чтобы вместе давать Free: корабль стартует без автопилота.
-        Axis axis = Axis.M;
-        bool plus;
+        int row;
+        int column;
 
         protected override void Wire()
         {
-            Bind(CommandId.SasAxisX, () => Set(Axis.X, plus), HasShip);
-            Bind(CommandId.SasAxisY, () => Set(Axis.Y, plus), HasShip);
-            Bind(CommandId.SasAxisZ, () => Set(Axis.Z, plus), HasShip);
-            Bind(CommandId.SasAxisT, () => Set(Axis.T, plus), HasShip);
-            Bind(CommandId.SasAxisM, () => Set(Axis.M, plus), HasShip);
-            Bind(CommandId.SasDirPlus, () => Set(axis, true), HasShip);
-            Bind(CommandId.SasDirMinus, () => Set(axis, false), HasShip);
+            Bind(CommandId.SasRowX, () => SetRow(0), () => CanRow(0));
+            Bind(CommandId.SasRowY, () => SetRow(1), () => CanRow(1));
+            Bind(CommandId.SasRowZ, () => SetRow(2), () => CanRow(2));
+
+            Bind(CommandId.SasColumnA, () => SetColumn(0), () => CanColumn(0));
+            Bind(CommandId.SasColumnB, () => SetColumn(1), () => CanColumn(1));
+            Bind(CommandId.SasColumnC, () => SetColumn(2), () => CanColumn(2));
+
+            Bind(CommandId.SasToggle, Toggle, () => Reachable(Aim));
+            Bind(CommandId.SasHold, Hold, HasShip);
+
+            Bind(SignalId.SasEngaged, Engaged);
+            Bind(SignalId.SasHolding, Holding);
         }
+
+        /// <summary>Выбранное галетами. Не обязательно то, чем корабль занят сейчас.</summary>
+        ShipOrientation Aim => Modes[row, column];
 
         static bool HasShip() => Ship != null;
 
-        void Set(Axis newAxis, bool newPlus)
+        static bool HasTarget() => Ship != null && SimMono.target != null;
+
+        static bool HasPlan() => Ship != null && Ship.GetNextManeuver() != null;
+
+        /// <summary>
+        /// Есть ли куда наводиться. Клетки столбца C держатся на цели и плане: убрали цель —
+        /// галета туда не доворачивается, вернули — оживает сама.
+        /// </summary>
+        static bool Reachable(ShipOrientation mode) => mode switch
         {
-            axis = newAxis;
-            plus = newPlus;
-            Ship.orientation = Mode();
+            ShipOrientation.Target or ShipOrientation.AntiTarget => HasTarget(),
+            ShipOrientation.Maneuver => HasPlan(),
+            _ => HasShip(),
+        };
+
+        /// <summary>Автопилот ведёт. Стабилизация сюда не входит: она никуда не наводит.</summary>
+        static bool Engaged() => Ship != null
+            && Ship.orientation != ShipOrientation.Free
+            && Ship.orientation != ShipOrientation.Hold;
+
+        static bool Holding() => Ship != null && Ship.orientation == ShipOrientation.Hold;
+
+        bool CanRow(int index) => Reachable(Modes[index, column]);
+
+        bool CanColumn(int index) => Reachable(Modes[row, index]);
+
+        void SetRow(int index)
+        {
+            row = index;
+            Follow();
         }
 
-        ShipOrientation Mode() => axis switch
+        void SetColumn(int index)
         {
-            Axis.X => plus ? ShipOrientation.Prograde : ShipOrientation.Retrograde,
-            Axis.Y => plus ? ShipOrientation.Normal : ShipOrientation.Antinormal,
-            Axis.Z => plus ? ShipOrientation.RadialOut : ShipOrientation.RadialIn,
-            Axis.T => plus ? ShipOrientation.Target : ShipOrientation.AntiTarget,
-            _ => plus ? ShipOrientation.Maneuver : ShipOrientation.Free,
-        };
+            column = index;
+            Follow();
+        }
+
+        void Follow()
+        {
+            if (Engaged()) Ship.orientation = Aim;
+        }
+
+        void Toggle() => Ship.orientation = Engaged() ? ShipOrientation.Free : Aim;
+
+        /// <summary>
+        /// Стабилизация и наведение — одна рука: включённая, она бросает автопилот, потому
+        /// что гасить вращение и одновременно разворачиваться нельзя.
+        /// </summary>
+        static void Hold() => Ship.orientation = Holding() ? ShipOrientation.Free : ShipOrientation.Hold;
     }
 }

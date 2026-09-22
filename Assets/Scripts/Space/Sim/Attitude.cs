@@ -1,4 +1,4 @@
-using DoublePrecision;
+﻿using DoublePrecision;
 
 namespace OuterSpace.Sim
 {
@@ -70,6 +70,21 @@ namespace OuterSpace.Sim
             double budget = RcsAcceleration * dt;
             if (change.magnitude > budget) change = change.normalized * budget;
             angularVelocity += change;
+            Integrate(dt);
+        }
+
+        /// <summary>
+        /// Стабилизация: погасить вращение и этим остановить корабль там, где он сейчас.
+        /// Отдельного удержания направления не нужно — возмущений в модели нет, и корабль
+        /// с нулевой угловой скоростью смотрит в одну сторону сколько угодно долго.
+        /// </summary>
+        public void Damp(double dt)
+        {
+            dt = Mathd.Min(dt, MaxStep);
+            double rate = angularVelocity.magnitude;
+            if (rate <= 0.0) return;
+            double budget = RcsAcceleration * dt;
+            angularVelocity = rate > budget ? angularVelocity - angularVelocity / rate * budget : Vector3d.zero;
             Integrate(dt);
         }
 

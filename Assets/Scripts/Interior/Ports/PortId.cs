@@ -49,13 +49,16 @@
         FitView = 219,
 
         // Система ориентации — 300
-        SasAxisX = 300,
-        SasAxisY = 301,
-        SasAxisZ = 302,
-        SasAxisT = 303,
-        SasAxisM = 304,
-        SasDirPlus = 305,
-        SasDirMinus = 306,
+        SasRowX = 300,
+        SasRowY = 301,
+        SasRowZ = 302,
+        // 303-306 занимали ось цели, ось манёвра и знак «плюс-минус». Галеты стали
+        // таблицей, и эти номера остаются дырками.
+        SasColumnA = 307,
+        SasColumnB = 308,
+        SasColumnC = 309,
+        SasHold = 310,
+        SasToggle = 311,
     }
 
     /// <summary>
@@ -77,6 +80,10 @@
         Maneuver2Created = 204,
         Maneuver3Created = 205,
         ManeuverLocked = 206,
+
+        // Система ориентации — 300
+        SasEngaged = 300,
+        SasHolding = 301,
     }
 
     /// <summary>
