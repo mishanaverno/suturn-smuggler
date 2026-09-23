@@ -98,6 +98,10 @@ namespace Interior
                 if (GameInput.Click.WasReleasedThisFrame()) hand.Drop();
                 float wheel = GameInput.Scroll.ReadValue<float>();
                 if (Mathf.Abs(wheel) > 0.01f) hand.Scroll(wheel > 0f ? 1 : -1);
+                for (int set = 0; set < GameInput.Grip.Length; set++)
+                {
+                    if (GameInput.Grip[set].WasPerformedThisFrame()) hand.Grip(set);
+                }
             }
             if (GameInput.Leave.WasPressedThisFrame()) Release();
         }

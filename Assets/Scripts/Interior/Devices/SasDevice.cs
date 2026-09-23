@@ -67,6 +67,12 @@ namespace Interior
             Bind(CommandId.SasToggle, Toggle, () => Reachable(Aim));
             Bind(CommandId.SasHold, Hold, HasShip);
 
+            // Связанные оси корабля: X — вперёд, Y — влево, Z — вверх. Стик от себя — нос
+            // вниз, вправо — нос вправо, поворот рукояти вправо — крен вправо.
+            Bind(SettingId.Pitch, value => Steer(ref Ship.rotationCommand.y, value), HasShip);
+            Bind(SettingId.Yaw, value => Steer(ref Ship.rotationCommand.z, -value), HasShip);
+            Bind(SettingId.Roll, value => Steer(ref Ship.rotationCommand.x, value), HasShip);
+
             Bind(SignalId.SasEngaged, Engaged);
             Bind(SignalId.SasHolding, Holding);
         }
@@ -120,6 +126,17 @@ namespace Interior
         }
 
         void Toggle() => Ship.orientation = Engaged() ? ShipOrientation.Free : Aim;
+
+        /// <summary>
+        /// Стик задаёт вращение, а не положение: отклонённый — раскручивает, отпущенный —
+        /// оставляет как есть. Отклонённый стик снимает режим: иначе пилот и автопилот тянули
+        /// бы корабль в разные стороны, и на органах это выглядело бы как заедание, а не как спор.
+        /// </summary>
+        static void Steer(ref double axis, double value)
+        {
+            axis = value;
+            if (value != 0.0) Ship.orientation = ShipOrientation.Free;
+        }
 
         /// <summary>
         /// Стабилизация и наведение — одна рука: включённая, она бросает автопилот, потому

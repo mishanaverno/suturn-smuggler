@@ -49,9 +49,16 @@ namespace Controls
         public static InputAction Scroll { get; private set; }
         /// <summary>Поворот головы. Клавишами, а не мышью: мышь занята курсором.</summary>
         public static InputAction View { get; private set; }
-        /// <summary>Ручка ориентации: X — рыскание, Y — тангаж. Нажатие задаёт вращение, а не угол.</summary>
-        public static InputAction Rotate { get; private set; }
-        public static InputAction Roll { get; private set; }
+        /// <summary>
+        /// Двойной щелчок по стику: левой кнопкой — взять его первым набором клавиш, правой —
+        /// вторым. Индекс — номер набора в Stick.
+        /// </summary>
+        public static InputAction[] Grip { get; private set; }
+        /// <summary>
+        /// Два набора по три оси: WS, AD, QE и IK, JL, UO. Набор ничего не вращает сам —
+        /// он отклоняет тот стик, которым его взяли, а что делает стик, решают его разъёмы.
+        /// </summary>
+        public static InputAction[][] Stick { get; private set; }
         public static InputAction Thrust { get; private set; }
         public static InputAction ManeuverCreate { get; private set; }
         public static InputAction ManeuverDelete { get; private set; }
@@ -103,13 +110,26 @@ namespace Controls
                 .With("Down", "<Keyboard>/downArrow")
                 .With("Left", "<Keyboard>/leftArrow")
                 .With("Right", "<Keyboard>/rightArrow");
-            Rotate = cockpit.AddAction("Rotate", InputActionType.Value);
-            Rotate.AddCompositeBinding("2DVector")
-                .With("Up", "<Keyboard>/w")
-                .With("Down", "<Keyboard>/s")
-                .With("Left", "<Keyboard>/a")
-                .With("Right", "<Keyboard>/d");
-            Roll = Axis(cockpit, "Roll", "<Keyboard>/q", "<Keyboard>/e");
+            Grip = new[]
+            {
+                cockpit.AddAction("GripFirst", InputActionType.Button, "<Mouse>/leftButton", "multiTap"),
+                cockpit.AddAction("GripSecond", InputActionType.Button, "<Mouse>/rightButton", "multiTap"),
+            };
+            Stick = new[]
+            {
+                new[]
+                {
+                    Axis(cockpit, "Stick1Axis1", "<Keyboard>/s", "<Keyboard>/w"),
+                    Axis(cockpit, "Stick1Axis2", "<Keyboard>/a", "<Keyboard>/d"),
+                    Axis(cockpit, "Stick1Axis3", "<Keyboard>/q", "<Keyboard>/e"),
+                },
+                new[]
+                {
+                    Axis(cockpit, "Stick2Axis1", "<Keyboard>/k", "<Keyboard>/i"),
+                    Axis(cockpit, "Stick2Axis2", "<Keyboard>/j", "<Keyboard>/l"),
+                    Axis(cockpit, "Stick2Axis3", "<Keyboard>/u", "<Keyboard>/o"),
+                },
+            };
             Thrust = cockpit.AddAction("Thrust", InputActionType.Button, "<Keyboard>/space");
             ManeuverCreate = cockpit.AddAction("ManeuverCreate", InputActionType.Button, "<Keyboard>/m");
             ManeuverDelete = cockpit.AddAction("ManeuverDelete", InputActionType.Button, "<Keyboard>/r");
@@ -119,7 +139,7 @@ namespace Controls
             CycleTarget = cockpit.AddAction("CycleTarget", InputActionType.Button, "<Keyboard>/t");
             TimeWarp = Axis(cockpit, "TimeWarp", "<Keyboard>/comma", "<Keyboard>/period");
             Decade = cockpit.AddAction("Decade", InputActionType.Button, "<Keyboard>/leftShift");
-            ObjectInfo = cockpit.AddAction("ObjectInfo", InputActionType.Button, "<Keyboard>/i");
+            ObjectInfo = cockpit.AddAction("ObjectInfo", InputActionType.Button, "<Keyboard>/p");
 
             string[] digits = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
             Orientation = new InputAction[digits.Length];

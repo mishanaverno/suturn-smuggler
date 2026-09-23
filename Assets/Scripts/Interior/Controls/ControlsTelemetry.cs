@@ -25,6 +25,7 @@ namespace Interior
             foreach (PanelSwitcher switcher in All<PanelSwitcher>()) Check(switcher, null, switcher.Wired, "Переключатель");
             foreach (PanelLamp lamp in All<PanelLamp>()) Check(lamp, lamp.port, lamp.Wired, "Лампа");
             foreach (PanelLever lever in All<PanelLever>()) Check(lever, lever.port, lever.Wired, "Рычаг");
+            foreach (PanelStick stick in All<PanelStick>()) Check(stick, null, stick.Wired, "Стик");
 
             foreach (PanelReading reading in All<PanelReading>())
             {
