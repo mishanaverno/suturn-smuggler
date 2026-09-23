@@ -127,6 +127,12 @@
         Pitch = 300,
         Yaw = 301,
         Roll = 302,
+
+        // РСУ — 400
+        RcsForward = 400,
+        RcsRight = 401,
+        RcsUp = 402,
+        RcsThrottle = 403,
     }
 
     /// <summary>
@@ -163,5 +169,8 @@
         ShipOrbitInclination = 210,
         ShipOrbitLongitudeOfAscendingNode = 211,
         ShipOrbitArgumentOfPeriapsis = 212,
+
+        // РСУ — 400
+        RcsThrottle = 400,
     }
 }

@@ -30,8 +30,11 @@ namespace Game
         public void SetLocked(bool locked)
         {
             this.locked = locked;
-            if (locked && _index > RealTimeIndex) Shift(RealTimeIndex - _index);
+            if (locked) RealTime();
         }
+
+        /// <summary>Включение любой тяги ставит 1×, даже с паузы: включил — значит, хочешь видеть, как она работает.</summary>
+        public void RealTime() => Shift(RealTimeIndex - _index);
 
         public TimeToggler Shift(int steps)
         {

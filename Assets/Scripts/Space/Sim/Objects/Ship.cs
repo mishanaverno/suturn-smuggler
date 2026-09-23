@@ -35,6 +35,7 @@ namespace OuterSpace.Sim.Objects
         // дожечь сверх плана было бы нечем, а решение «продолжать ли» остаётся за игроком.
         bool cutoffArmed;
         double burnEpoch;
+        double rcsEpoch;
         public override bool TracksSOITransitions => true;
         public double mass;
         /// <summary>
@@ -46,6 +47,13 @@ namespace OuterSpace.Sim.Objects
         public const double DesignAcceleration = 50.0;
         /// <summary>Тяга двигателя, Н. Считается от массы: двигатель подбирают под корабль.</summary>
         public double thrust;
+        /// <summary>
+        /// Расчётное ускорение от РСУ, м/с². На порядки меньше маршевого: РСУ нужна, чтобы
+        /// подойти и встать рядом, а не чтобы менять орбиту. Число временное, как и у маршевого.
+        /// </summary>
+        public const double RcsDesignAcceleration = 0.5;
+        /// <summary>Тяга РСУ по любой оси, Н. Фиксированная: сопло либо работает, либо нет.</summary>
+        public double rcsThrust;
         public readonly TrajectoryCache trajectory = new();
         static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
         static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
@@ -64,6 +72,10 @@ namespace OuterSpace.Sim.Objects
         public readonly Attitude attitude = new();
         /// <summary>Команда ручного вращения по связанным осям: крен, тангаж, рыскание, каждая в [-1, 1].</summary>
         public Vector3d rotationCommand;
+        /// <summary>Команда РСУ по связанным осям: вперёд, влево, вверх, каждая в [-1, 1].</summary>
+        public Vector3d translationCommand;
+        /// <summary>Доля тяги РСУ, 0…1: положение её рычага. Общая на все оси.</summary>
+        public double rcsThrottle = 1.0;
         /// <summary>
         /// Множитель шага настройки, выставляемый пультом: грубо, точно или как есть. Модель
         /// его не выводит из клавиш — она вообще не знает, что клавиши существуют.
@@ -105,6 +117,7 @@ namespace OuterSpace.Sim.Objects
         {
             this.mass = mass;
             thrust = mass * DesignAcceleration;
+            rcsThrust = mass * RcsDesignAcceleration;
         }
         public Maneuver GetManeuver()
         {
@@ -375,6 +388,7 @@ namespace OuterSpace.Sim.Objects
             UpdateDirection();
             UpdateAttitude();
             if (thrusting) ApplyThrust();
+            ApplyRcs();
             base.FixedUpdate();
         }
 
@@ -402,6 +416,27 @@ namespace OuterSpace.Sim.Objects
             trajectory.Invalidate();
 
             if (cutoffArmed && RemainingDeltaV <= 0.0) SetThrust(false);
+        }
+
+        /// <summary>
+        /// Импульс РСУ считается так же, как маршевый, но в сожжённое по манёвру не идёт:
+        /// план исполняет маршевый двигатель, а РСУ — подруливание мимо плана.
+        ///
+        /// Эпоха отмечается и на холостом тике: иначе первое включение после паузы получило бы
+        /// всё время с прошлого включения разом.
+        /// </summary>
+        void ApplyRcs()
+        {
+            double epoch = GameMono.instance.Epoch;
+            double dt = epoch - rcsEpoch;
+            rcsEpoch = epoch;
+            if (dt <= 0.0 || translationCommand.sqrMagnitude == 0.0) return;
+
+            Vector3d local = translationCommand;
+            Vector3d direction = attitude.Forward * local.x + attitude.Left * local.y + attitude.Up * local.z;
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + direction * (rcsThrust * Mathd.Clamp01(rcsThrottle) / mass * dt), centralBody.MU, epoch);
+            trajectory.Invalidate();
         }
     }
 }
