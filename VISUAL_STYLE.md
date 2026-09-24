@@ -89,6 +89,13 @@ limb is drawn outside the disk and thins toward the night side, where only the d
 Saturn fill lights it.
 `ExteriorView` supplies the direction to Saturn per Titan renderer.
 
+The noise fields depend only on the point of the sphere and the shape parameters, so at
+runtime `TitanFieldBake` renders them once into two cubemaps (fields 1024² half-float,
+relief 512²) and the shader only samples them: about a fifth of the per-pixel cost of
+computing them live. A cubic B-spline lookup keeps thresholded cloud edges smooth between
+texels. Changing a shape parameter in play mode rebakes; colours and lighting never need
+it. Without a bake, for example in editor previews, the shader computes the fields live.
+
 Material controls: **Weather system scale**, **Longitude stretch**, **Zonal belts**, **Cloud density threshold**, **Cloud detail**,
 **Thin cloud depth**, and the rim width. The shape is static in object space.
 

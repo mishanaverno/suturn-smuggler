@@ -42,16 +42,20 @@ Shader "Suturn/Icy Moon"
 
             // Nearest crater around p: x = distance from its center in crater radii,
             // yzw = direction from the crater center to p.
+            // Centers sit 0.15..0.85 into their cell and radii reach 0.55, so a crater from
+            // the cell beyond the far side of p is at least 0.65 away and never covers it:
+            // eight cells toward p give the same result as the full 27.
             float4 Crater(float3 p, float scale, float coverage)
             {
                 float3 q = p * scale;
                 float3 c = floor(q), f = frac(q);
+                float3 side = step(0.5, f) * 2.0 - 1.0;
                 float4 best = float4(2, 0, 0, 0);
-                [unroll] for (int z = -1; z <= 1; z++)
-                [unroll] for (int y = -1; y <= 1; y++)
-                [unroll] for (int x = -1; x <= 1; x++)
+                [unroll] for (int z = 0; z <= 1; z++)
+                [unroll] for (int y = 0; y <= 1; y++)
+                [unroll] for (int x = 0; x <= 1; x++)
                 {
-                    float3 o = float3(x, y, z);
+                    float3 o = float3(x, y, z) * side;
                     float3 h = Hash33(c + o);
                     float3 offset = f - (o + 0.15 + 0.7 * h);
                     float radius = lerp(0.2, 0.55, h.x * h.x);

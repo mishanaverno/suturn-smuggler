@@ -67,6 +67,7 @@ namespace OuterSpace
         Transform titanView;
         Renderer titanRenderer;
         MaterialPropertyBlock titanProperties;
+        readonly TitanFieldBake titanFields = new();
         readonly List<(SpaceObject body, Transform view, Renderer renderer, bool locked)> moons = new();
         MaterialPropertyBlock moonProperties;
         static readonly int LeadingId = Shader.PropertyToID("_Leading");
@@ -185,12 +186,11 @@ namespace OuterSpace
             if (titanRenderer != null && titanView != null)
             {
                 Vector3 toSaturn = views[0].view.localPosition - titanView.localPosition;
+                titanRenderer.GetPropertyBlock(titanProperties);
+                titanFields.Apply(titanRenderer.sharedMaterial, titanProperties);
                 if (toSaturn.sqrMagnitude > 0f)
-                {
-                    titanRenderer.GetPropertyBlock(titanProperties);
                     titanProperties.SetVector(SaturnDirectionId, root.TransformDirection(toSaturn.normalized));
-                    titanRenderer.SetPropertyBlock(titanProperties);
-                }
+                titanRenderer.SetPropertyBlock(titanProperties);
             }
             // Захваченная луна смотрит на Сатурн одной стороной, поэтому её рисунок держится
             // за направление на Сатурн, а шейдеру нужно ещё и направление движения по орбите.
@@ -217,6 +217,8 @@ namespace OuterSpace
                 sky.SetVector(SkyZId, root.rotation * ToHull(toShip * Vector3d.forward));
             }
         }
+
+        void OnDestroy() => titanFields.Dispose();
 
         /// <summary>Связанные оси корабля (X вперёд, Y влево, Z вверх, правая) в оси Unity корпуса.</summary>
         static Vector3 ToHull(Vector3d v) => new((float)-v.y, (float)v.z, (float)v.x);
