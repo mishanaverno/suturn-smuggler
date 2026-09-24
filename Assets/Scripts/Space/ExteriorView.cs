@@ -26,17 +26,41 @@ namespace OuterSpace
         const float Near = 0.1f;
         // 30 млн км: Феба с противоположной стороны системы.
         const float Far = 3e7f;
+        const double SunRadius = 6.957e8;
 
         [Tooltip("Оси корабля в интерьере: forward — продольная ось, куда смотрит тяга; up — над головой пилота.")]
         public Transform hull;
         [Tooltip("Образец тела: сфера диаметром 1 с материалом. Масштаб выставляется под размер тела.")]
         public GameObject bodyTemplate;
+        [Header("Exterior style")]
+        [Tooltip("Материал Сатурна за иллюминатором.")]
+        public Material saturnMaterial;
+        [Tooltip("Общий материал ледяных лун за иллюминатором.")]
+        public Material moonMaterial;
+        [Tooltip("Тёплый материал Титана за иллюминатором.")]
+        public Material titanMaterial;
+        [Tooltip("Отдельные материалы колец A–G Сатурна.")]
+        public RingStyleSet rings = new();
         [Tooltip("Солнце: направленный свет, который видит только слой Exterior. Поворачивается само.")]
         public Light sun;
+        [Tooltip("Звёздное небо и солнечный диск — фон внешней камеры.")]
+        public Material skyMaterial;
 
         Transform root;
         Camera cam;
+        Camera skyCam;
         readonly List<(SpaceObject body, Transform view)> views = new();
+        static readonly int SaturnDirectionId = Shader.PropertyToID("_SaturnDirection");
+        Transform titanView;
+        Renderer titanRenderer;
+        MaterialPropertyBlock titanProperties;
+        // Копия skyMaterial: направления меняются каждый кадр и не должны писаться в ассет.
+        Material sky;
+        static readonly int SunDirectionId = Shader.PropertyToID("_SunDirection");
+        static readonly int SunAngularRadiusId = Shader.PropertyToID("_SunAngularRadius");
+        static readonly int SkyXId = Shader.PropertyToID("_SkyX");
+        static readonly int SkyYId = Shader.PropertyToID("_SkyY");
+        static readonly int SkyZId = Shader.PropertyToID("_SkyZ");
 
         void Awake()
         {
@@ -66,6 +90,17 @@ namespace OuterSpace
             cam.cullingMask = 1 << layer;
             cam.nearClipPlane = Near;
             cam.farClipPlane = Far;
+            if (skyMaterial == null) return;
+            // Небо — отдельной камерой под внешней. Skybox рисуется после тел с проверкой
+            // глубины, а при таком разбросе near/far далёкие тела по глубине неотличимы от неба.
+            GameObject skyObject = new("SkyCamera") { layer = layer };
+            skyObject.transform.SetParent(root, false);
+            skyCam = skyObject.AddComponent<Camera>();
+            skyCam.clearFlags = CameraClearFlags.Skybox;
+            skyCam.cullingMask = 0;
+            sky = new Material(skyMaterial);
+            skyObject.AddComponent<Skybox>().material = sky;
+            cam.clearFlags = CameraClearFlags.Depth;
         }
 
         // Тела заводятся в первом кадре, а не в Start: SimMono строит систему в своём Start,
@@ -81,6 +116,20 @@ namespace OuterSpace
             GameObject view = Instantiate(bodyTemplate, root, false);
             view.name = body.GameObject.name;
             foreach (Transform part in view.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = root.gameObject.layer;
+            Material style = body.IsRoot ? saturnMaterial :
+                view.name == "Titan" ? titanMaterial : moonMaterial;
+            if (style != null)
+            {
+                foreach (Renderer renderer in view.GetComponentsInChildren<Renderer>(true))
+                    renderer.sharedMaterial = style;
+            }
+            if (view.name == "Titan")
+            {
+                titanView = view.transform;
+                titanRenderer = view.GetComponentInChildren<Renderer>();
+                titanProperties = new MaterialPropertyBlock();
+            }
+            if (body.IsRoot) StylizedRing.Create(view.transform, (float)(body.radius / 1000.0), rings);
             return view.transform;
         }
 
@@ -93,6 +142,7 @@ namespace OuterSpace
             if (eye == null)
             {
                 cam.enabled = false;
+                if (skyCam != null) skyCam.enabled = false;
                 return;
             }
             Follow(eye);
@@ -100,15 +150,37 @@ namespace OuterSpace
             root.SetPositionAndRotation(Vector3.zero, hull.rotation);
             Quaterniond toShip = Quaterniond.Inverse(ship.attitude.rotation);
             Vector3d origin = ship.simTransform.GLOBAL_R;
+            // Локальная ось Y тел — полюс Сатурна (ось Z симуляции, плоскость его экватора —
+            // опорная для орбит), поэтому кольца лежат в экваторе и не крутятся вслед за кораблём.
+            Quaternion bodyRotation = Quaternion.LookRotation(ToHull(toShip * Vector3d.right), ToHull(toShip * Vector3d.forward));
             foreach ((SpaceObject body, Transform view) in views)
             {
+                view.localRotation = bodyRotation;
                 view.localPosition = ToHull(toShip * (body.simTransform.GLOBAL_R - origin) / Scale);
                 view.localScale = Vector3.one * (float)(2.0 * body.radius / Scale);
             }
-            if (sun != null)
+            if (titanRenderer != null && titanView != null)
             {
-                Vector3 toSun = ToHull(toShip * GameMono.instance.gameData.system.sunDirection);
-                sun.transform.rotation = root.rotation * Quaternion.LookRotation(-toSun);
+                Vector3 toSaturn = views[0].view.localPosition - titanView.localPosition;
+                if (toSaturn.sqrMagnitude > 0f)
+                {
+                    titanRenderer.GetPropertyBlock(titanProperties);
+                    titanProperties.SetVector(SaturnDirectionId, root.TransformDirection(toSaturn.normalized));
+                    titanRenderer.SetPropertyBlock(titanProperties);
+                }
+            }
+            SystemData system = GameMono.instance.gameData.system;
+            Vector3 toSun = ToHull(toShip * system.sunDirection);
+            if (sun != null) sun.transform.rotation = root.rotation * Quaternion.LookRotation(-toSun);
+            if (sky != null)
+            {
+                // Звёзды неподвижны в инерциальных осях симуляции, поэтому небу передаются
+                // эти оси в мировых координатах, а не поворот корпуса.
+                sky.SetVector(SunDirectionId, root.rotation * toSun.normalized);
+                sky.SetFloat(SunAngularRadiusId, (float)(SunRadius / system.sunDistance));
+                sky.SetVector(SkyXId, root.rotation * ToHull(toShip * Vector3d.right));
+                sky.SetVector(SkyYId, root.rotation * ToHull(toShip * Vector3d.up));
+                sky.SetVector(SkyZId, root.rotation * ToHull(toShip * Vector3d.forward));
             }
         }
 
@@ -133,6 +205,13 @@ namespace OuterSpace
             cam.transform.rotation = eye.transform.rotation;
             cam.fieldOfView = eye.fieldOfView;
             cam.depth = eye.depth - 1f;
+            if (skyCam != null)
+            {
+                skyCam.enabled = true;
+                skyCam.transform.rotation = eye.transform.rotation;
+                skyCam.fieldOfView = eye.fieldOfView;
+                skyCam.depth = eye.depth - 2f;
+            }
             eye.clearFlags = CameraClearFlags.Depth;
             eye.cullingMask &= ~cam.cullingMask;
         }

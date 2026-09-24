@@ -67,7 +67,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 7ca904a39fcfb4927bcb382cd82ac14e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -256,6 +256,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6033764057045331845, guid: 9de7bbf055219440db566c55f3fa681e, type: 3}
+      propertyPath: m_sharedMaterial
+      value:
+      objectReference: {fileID: -2147689004361280272, guid: 5e876a011a45141308d3c4a5d2bce9ef, type: 2}
+    - target: {fileID: 6033764057045331845, guid: 9de7bbf055219440db566c55f3fa681e, type: 3}
       propertyPath: m_TextWrappingMode
       value: 0
       objectReference: {fileID: 0}
@@ -299,6 +303,10 @@ PrefabInstance:
       propertyPath: m_DynamicOccludee
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6746581966026587391, guid: 9de7bbf055219440db566c55f3fa681e, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value:
+      objectReference: {fileID: -2147689004361280272, guid: 5e876a011a45141308d3c4a5d2bce9ef, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

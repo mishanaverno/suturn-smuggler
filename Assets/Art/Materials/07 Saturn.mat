@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 07 Saturn
+  m_Shader: {fileID: 4800000, guid: 1f6e7c878c03e4fc4ae0023053bea3c5, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BandStrength: 0.82
+    - _Edge: 0.06
+    - _RimPixels: 1.5
+    - _RingShadow: 0.85
+    - _Softness: 0.1
+    - _Streaks: 0.07
+    - _Turbulence: 0.018
+    m_Colors:
+    - _BandColor: {r: 0.5764706, g: 0.47843137, b: 0.3764706, a: 1}
+    - _Color: {r: 0.7882353, g: 0.7137255, b: 0.5764706, a: 1}
+    - _Cream: {r: 0.855, g: 0.769, b: 0.58, a: 1}
+    - _Hexagon: {r: 0.42, g: 0.475, b: 0.478, a: 1}
+    - _MidTint: {r: 0.8, g: 0.7, b: 0.6, a: 1}
+    - _NightTint: {r: 0.1, g: 0.11, b: 0.14, a: 1}
+    - _Ochre: {r: 0.612, g: 0.478, b: 0.306, a: 1}
+    - _Pale: {r: 0.925, g: 0.867, b: 0.706, a: 1}
+    - _Polar: {r: 0.557, g: 0.588, b: 0.561, a: 1}
+    - _RimColor: {r: 0.91, g: 0.851, b: 0.69, a: 1}
+    - _ShadeColor: {r: 0.06666667, g: 0.08627451, b: 0.11372549, a: 1}
+    - _Tan: {r: 0.749, g: 0.616, b: 0.42, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -58,19 +58,39 @@ namespace OuterSpace.Sim
         /// <summary>
         /// Автопилот: развернуть тягу в заданное направление и остановиться на нём. Целевая
         /// скорость берётся из тормозного пути — sqrt(2·a·θ), — поэтому разворот выходит на
-        /// потолок скорости и гасится ровно к цели, без раскачки вокруг неё.
+        /// потолок скорости и гасится ровно к цели. Вблизи цели у корня бесконечная крутизна,
+        /// и шаг перелетал бы направление то в одну, то в другую сторону; поэтому скорость
+        /// не больше той, что закрывает остаток ровно за шаг.
         /// </summary>
         public void AlignTo(Vector3d forward, double dt)
         {
             if (forward.sqrMagnitude <= 0.0) return;
             dt = Mathd.Min(dt, MaxStep);
             Error(forward, out Vector3d axis, out double angle);
-            Vector3d wanted = axis * Mathd.Min(MaxRate, Mathd.Sqrt(2.0 * RcsAcceleration * angle));
+            Vector3d wanted = axis * Mathd.Min(Mathd.Min(MaxRate, Mathd.Sqrt(2.0 * RcsAcceleration * angle)), angle / dt);
             Vector3d change = wanted - angularVelocity;
             double budget = RcsAcceleration * dt;
             if (change.magnitude > budget) change = change.normalized * budget;
             angularVelocity += change;
             Integrate(dt);
+        }
+
+        /// <summary>
+        /// Перенести корабль вместе с опорным направлением, повернувшимся с from на to.
+        /// Разворот к опоре меряется относительно неё, поэтому угловая скорость поворачивается
+        /// вместе с кораблём.
+        /// </summary>
+        public void Carry(Vector3d from, Vector3d to)
+        {
+            from = from.normalized;
+            to = to.normalized;
+            Vector3d axis = Vector3d.Cross(from, to);
+            double sin = axis.magnitude;
+            if (sin <= 0.0) return;
+            double angle = Mathd.Atan2(sin, Vector3d.Dot(from, to));
+            Quaterniond turn = Quaterniond.AngleAxis(angle * Mathd.Rad2Deg, axis / sin);
+            rotation = turn * rotation;
+            angularVelocity = turn * angularVelocity;
         }
 
         /// <summary>

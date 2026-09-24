@@ -280,7 +280,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 7ca904a39fcfb4927bcb382cd82ac14e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -355,6 +355,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::Interior.PanelButton
   port: {fileID: 11400000, guid: ed3b0cff3ef7c4eac92b2c59b50bcbcb, type: 2}
   label: IGN
+  labelPrefab: {fileID: 0}
+  fontSize: 0
+  labelOffset: {x: 0, y: 0, z: 0}
+  labelAngles: {x: 0, y: 0, z: 0}
 --- !u!114 &127617884980345176
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -404,7 +408,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 018b36904e41d45f1affcbc4f777041a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

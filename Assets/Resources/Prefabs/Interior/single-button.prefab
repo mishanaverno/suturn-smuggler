@@ -84,6 +84,7 @@ MonoBehaviour:
   port: {fileID: 0}
   label: 
   labelPrefab: {fileID: 0}
+  fontSize: 0
   labelOffset: {x: 0, y: 0, z: 0.009}
   labelAngles: {x: 0, y: 180, z: 0}
 --- !u!114 &7106714115597143757
@@ -135,7 +136,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 018b36904e41d45f1affcbc4f777041a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -246,7 +247,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 7ca904a39fcfb4927bcb382cd82ac14e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

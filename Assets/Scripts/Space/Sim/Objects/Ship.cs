@@ -24,12 +24,17 @@ namespace OuterSpace.Sim.Objects
         public const double CoarseFactor = 10.0;
         public const double FineFactor = 0.1;
         public const int MaxManeuvers = 3;
+        /// <summary>Наибольший поворот опоры за тик, который автопилот считает её движением, °.</summary>
+        const double CarryLimit = 10.0;
         Maneuver maneuver;
         // Направление, которое требует режим ориентации. Куда корабль смотрит на самом деле,
         // знает attitude: разворот занимает время, и на коротком прожиге тяга уходит не туда,
         // куда её планировали, пока корабль не довернулся.
         Vector3d dir = Vector3d.right;
         double attitudeEpoch;
+        // Режим и направление прошлого тика: по ним автопилот переносит корабль вслед опоре.
+        ShipOrientation trackedMode = ShipOrientation.Free;
+        Vector3d trackedDir;
         bool thrusting;
         // Отсечка взводится при включении двигателя и снимается на нуле остатка: иначе
         // дожечь сверх плана было бы нечем, а решение «продолжать ли» остаётся за игроком.
@@ -272,7 +277,7 @@ namespace OuterSpace.Sim.Objects
 
         /// <summary>
         /// Разворот идёт по симуляционному времени. В режиме Free корабль слушает ручку, в
-        /// Hold гасит вращение и этим стоит на месте, в остальных автопилот сам ведёт
+        /// Hold гасит вращение и этим стоит на месте, пока ручка не отклонена, в остальных автопилот сам ведёт
         /// продольную ось в направление режима.
         /// </summary>
         void UpdateAttitude()
@@ -283,8 +288,24 @@ namespace OuterSpace.Sim.Objects
             if (dt <= 0.0) return;
 
             if (orientation == ShipOrientation.Free) attitude.Rotate(rotationCommand, dt);
-            else if (orientation == ShipOrientation.Hold) attitude.Damp(dt);
-            else attitude.AlignTo(dir, dt);
+            else if (orientation == ShipOrientation.Hold)
+            {
+                if (rotationCommand.sqrMagnitude > 0.0) attitude.Rotate(rotationCommand, dt);
+                else attitude.Damp(dt);
+            }
+            else
+            {
+                // Направление режима движется вместе с орбитой. Корабль переносится вслед ему
+                // целиком, а регулятор доводит только остаток: шаг разворота ограничен, и на
+                // перемотке, где за тик опора уходит дальше шага, отставание скакало бы вслед
+                // за длительностью кадра. Скачок опоры — смена режима или цели — это новый
+                // разворот, а не движение, и переносом не проходится.
+                if (trackedMode == orientation && Vector3d.Angle(trackedDir, dir) < CarryLimit)
+                    attitude.Carry(trackedDir, dir);
+                attitude.AlignTo(dir, dt);
+            }
+            trackedMode = orientation;
+            trackedDir = dir;
         }
 
         public static double StepScale(bool coarse, bool fine) => coarse ? CoarseFactor : fine ? FineFactor : 1.0;
@@ -419,8 +440,10 @@ namespace OuterSpace.Sim.Objects
         }
 
         /// <summary>
-        /// Импульс РСУ считается так же, как маршевый, но в сожжённое по манёвру не идёт:
-        /// план исполняет маршевый двигатель, а РСУ — подруливание мимо плана.
+        /// Импульс РСУ считается так же, как маршевый. В сожжённое по манёвру идёт его проекция
+        /// на план: доводка вдоль плана уменьшает остаток, против — увеличивает, вбок — не
+        /// трогает. Сопла смотрят куда угодно, и засчитать модуль значило бы считать
+        /// исполненным то, что увело корабль мимо плана.
         ///
         /// Эпоха отмечается и на холостом тике: иначе первое включение после паузы получило бы
         /// всё время с прошлого включения разом.
@@ -435,8 +458,11 @@ namespace OuterSpace.Sim.Objects
             Vector3d local = translationCommand;
             Vector3d direction = attitude.Forward * local.x + attitude.Left * local.y + attitude.Up * local.z;
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
-            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + direction * (rcsThrust * Mathd.Clamp01(rcsThrottle) / mass * dt), centralBody.MU, epoch);
+            Vector3d impulse = direction * (rcsThrust * Mathd.Clamp01(rcsThrottle) / mass * dt);
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
             trajectory.Invalidate();
+            if (GetNextManeuver() is Maneuver next && next.PlannedMagnitude > 0.0)
+                BurnedDeltaV += Vector3d.Dot(impulse, next.PlannedDeltaV) / next.PlannedMagnitude;
         }
     }
 }
