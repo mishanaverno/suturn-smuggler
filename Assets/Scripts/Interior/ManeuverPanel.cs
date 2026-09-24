@@ -214,7 +214,7 @@ namespace Interior
 
         /// <summary>Высота над поверхностью центрального тела. У незамкнутой орбиты апоцентра нет.</summary>
         static string Apoapsis(OrbitElements orbit, double bodyRadius) =>
-            orbit.eccentricity >= 1.0 ? "-" : Km(AstroDynamic.GetPeriapsisAndApoapsis(orbit).apoapsis - bodyRadius);
+            orbit.eccentricity >= 1.0 ? "—" : Km(AstroDynamic.GetPeriapsisAndApoapsis(orbit).apoapsis - bodyRadius);
 
         static string Periapsis(OrbitElements orbit, double bodyRadius) =>
             Km(AstroDynamic.GetPeriapsisAndApoapsis(orbit).periapsis - bodyRadius);
@@ -225,7 +225,7 @@ namespace Interior
         /// </summary>
         static string Node(OrbitElements orbit, double offset) =>
             orbit.inclination < MinNodeInclination || orbit.inclination > 180.0 - MinNodeInclination
-                ? "-"
+                ? "—"
                 : $"{((orbit.longitudeOfAscendingNode + offset) % 360.0 + 360.0) % 360.0:F1}°";
 
         /// <summary>Наклонение, ниже которого узлы не показываются, °.</summary>
