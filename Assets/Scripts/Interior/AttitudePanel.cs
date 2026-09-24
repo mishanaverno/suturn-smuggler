@@ -476,7 +476,7 @@ namespace Interior
             double roll = Mathd.Atan2(
                 Vector3d.Dot(Vector3d.Cross(upward, shipUp), forward),
                 Vector3d.Dot(upward, shipUp)) * Mathd.Rad2Deg;
-            double rate = attitude.angularVelocity.magnitude * Mathd.Rad2Deg;
+            double rate = attitude.Rate.magnitude * Mathd.Rad2Deg;
 
             string content = $"P{pitch,6:+0.0;-0.0} Y{yaw,6:+0.0;-0.0} R{roll,6:+0.0;-0.0} {rate:0.00}/s";
             string title = ship.orientation.ToString().ToUpperInvariant();

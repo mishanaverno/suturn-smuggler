@@ -25,7 +25,14 @@ Source: <https://wsn.spaceflight.esa.int/docs/EUG2LGPr3/EUG2LGPr3-7-ISS.pdf>, §
 ## Materials and lighting
 
 - `Suturn/Stylized Matte`: two broad light bands, no specular highlights. Used for cabin hardware.
-- `Suturn/Stylized Body`: a distinct day/night edge, optional latitude bands. Used by the icy moons.
+- `Suturn/Stylized Body`: a distinct day/night edge, optional latitude bands. Fallback for
+  moons without their own style.
+- `Suturn/Icy Moon`: ray-cast airless disc with flat craters (dark floor, bright rim, shadowed
+  sunward wall) at two scales. Each moon has its own material with one recognisable trait:
+  Herschel on Mimas, south polar stripes on Enceladus, Odysseus on Tethys, darker trailing
+  hemispheres on Dione and Rhea, a sponge-cratered tan Hyperion, Iapetus's dark leading
+  hemisphere, and a dark Phoebe. `ExteriorView` keeps tidally locked moons facing Saturn and
+  passes each moon its direction of motion, so leading and trailing hemispheres stay put.
 - `Suturn/Saturn`: flat-stepped latitude belts with longitude-warped edges, band streaks,
   a grey-blue polar cap and the north polar hexagon. Hard light zones, ring shadows on the
   planet, and a thin haze limb. Like Titan, the sphere is ray-cast on an inflated proxy mesh.

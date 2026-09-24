@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DoublePrecision;
 using Game;
@@ -8,6 +9,16 @@ using UnityEngine;
 
 namespace OuterSpace
 {
+    [Serializable]
+    public class MoonStyle
+    {
+        [Tooltip("Имя тела в системе, как в saturn.json.")]
+        public string body;
+        public Material material;
+        [Tooltip("Повёрнута к Сатурну одной стороной. У Гипериона и Фебы вращение своё.")]
+        public bool tidallyLocked = true;
+    }
+
     /// <summary>
     /// Космос за иллюминаторами. Отдельная сцена на слое Exterior, которую своя камера рисует
     /// фоном под глазом пилота или тела; интерьер поверх неё только дописывает глубину.
@@ -35,8 +46,10 @@ namespace OuterSpace
         [Header("Exterior style")]
         [Tooltip("Материал Сатурна за иллюминатором.")]
         public Material saturnMaterial;
-        [Tooltip("Общий материал ледяных лун за иллюминатором.")]
+        [Tooltip("Материал ледяных лун, у которых нет своего стиля.")]
         public Material moonMaterial;
+        [Tooltip("Свой материал для отдельных лун.")]
+        public MoonStyle[] moonStyles = Array.Empty<MoonStyle>();
         [Tooltip("Тёплый материал Титана за иллюминатором.")]
         public Material titanMaterial;
         [Tooltip("Отдельные материалы колец A–G Сатурна.")]
@@ -54,6 +67,9 @@ namespace OuterSpace
         Transform titanView;
         Renderer titanRenderer;
         MaterialPropertyBlock titanProperties;
+        readonly List<(SpaceObject body, Transform view, Renderer renderer, bool locked)> moons = new();
+        MaterialPropertyBlock moonProperties;
+        static readonly int LeadingId = Shader.PropertyToID("_Leading");
         // Копия skyMaterial: направления меняются каждый кадр и не должны писаться в ассет.
         Material sky;
         static readonly int SunDirectionId = Shader.PropertyToID("_SunDirection");
@@ -116,8 +132,9 @@ namespace OuterSpace
             GameObject view = Instantiate(bodyTemplate, root, false);
             view.name = body.GameObject.name;
             foreach (Transform part in view.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = root.gameObject.layer;
+            MoonStyle moonStyle = Array.Find(moonStyles, s => s.body == view.name);
             Material style = body.IsRoot ? saturnMaterial :
-                view.name == "Titan" ? titanMaterial : moonMaterial;
+                view.name == "Titan" ? titanMaterial : moonStyle?.material ?? moonMaterial;
             if (style != null)
             {
                 foreach (Renderer renderer in view.GetComponentsInChildren<Renderer>(true))
@@ -128,6 +145,11 @@ namespace OuterSpace
                 titanView = view.transform;
                 titanRenderer = view.GetComponentInChildren<Renderer>();
                 titanProperties = new MaterialPropertyBlock();
+            }
+            if (moonStyle != null)
+            {
+                moons.Add((body, view.transform, view.GetComponentInChildren<Renderer>(), moonStyle.tidallyLocked));
+                moonProperties ??= new MaterialPropertyBlock();
             }
             if (body.IsRoot) StylizedRing.Create(view.transform, (float)(body.radius / 1000.0), rings);
             return view.transform;
@@ -152,7 +174,8 @@ namespace OuterSpace
             Vector3d origin = ship.simTransform.GLOBAL_R;
             // Локальная ось Y тел — полюс Сатурна (ось Z симуляции, плоскость его экватора —
             // опорная для орбит), поэтому кольца лежат в экваторе и не крутятся вслед за кораблём.
-            Quaternion bodyRotation = Quaternion.LookRotation(ToHull(toShip * Vector3d.right), ToHull(toShip * Vector3d.forward));
+            Vector3 pole = ToHull(toShip * Vector3d.forward);
+            Quaternion bodyRotation = Quaternion.LookRotation(ToHull(toShip * Vector3d.right), pole);
             foreach ((SpaceObject body, Transform view) in views)
             {
                 view.localRotation = bodyRotation;
@@ -168,6 +191,17 @@ namespace OuterSpace
                     titanProperties.SetVector(SaturnDirectionId, root.TransformDirection(toSaturn.normalized));
                     titanRenderer.SetPropertyBlock(titanProperties);
                 }
+            }
+            // Захваченная луна смотрит на Сатурн одной стороной, поэтому её рисунок держится
+            // за направление на Сатурн, а шейдеру нужно ещё и направление движения по орбите.
+            Vector3 saturn = views[0].view.localPosition;
+            foreach ((SpaceObject body, Transform view, Renderer renderer, bool locked) in moons)
+            {
+                if (locked) view.localRotation = Quaternion.LookRotation(saturn - view.localPosition, pole);
+                Vector3 leading = ToHull(toShip * (body.simTransform.GLOBAL_V - SimMono.root.simTransform.GLOBAL_V));
+                renderer.GetPropertyBlock(moonProperties);
+                moonProperties.SetVector(LeadingId, root.rotation * leading.normalized);
+                renderer.SetPropertyBlock(moonProperties);
             }
             SystemData system = GameMono.instance.gameData.system;
             Vector3 toSun = ToHull(toShip * system.sunDirection);

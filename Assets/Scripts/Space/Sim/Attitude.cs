@@ -29,6 +29,14 @@ namespace OuterSpace.Sim
         public Quaterniond rotation = Quaterniond.identity;
         /// <summary>Угловая скорость в инерциальных осях, рад/с.</summary>
         public Vector3d angularVelocity;
+        /// <summary>
+        /// Вращение, с которым автопилот переносит корабль вслед движущейся опоре. Держится
+        /// отдельно от angularVelocity: регулятор ведёт только остаток до опоры.
+        /// </summary>
+        Vector3d trackingVelocity;
+
+        /// <summary>Полная угловая скорость корабля, рад/с: своя и переносная.</summary>
+        public Vector3d Rate => angularVelocity + trackingVelocity;
 
         /// <summary>Продольная ось корабля: направление тяги.</summary>
         public Vector3d Forward => rotation * Vector3d.right;
@@ -80,17 +88,32 @@ namespace OuterSpace.Sim
         /// Разворот к опоре меряется относительно неё, поэтому угловая скорость поворачивается
         /// вместе с кораблём.
         /// </summary>
-        public void Carry(Vector3d from, Vector3d to)
+        public void Carry(Vector3d from, Vector3d to, double dt)
         {
             from = from.normalized;
             to = to.normalized;
             Vector3d axis = Vector3d.Cross(from, to);
             double sin = axis.magnitude;
-            if (sin <= 0.0) return;
+            if (sin <= 0.0)
+            {
+                trackingVelocity = Vector3d.zero;
+                return;
+            }
             double angle = Mathd.Atan2(sin, Vector3d.Dot(from, to));
             Quaterniond turn = Quaterniond.AngleAxis(angle * Mathd.Rad2Deg, axis / sin);
             rotation = turn * rotation;
             angularVelocity = turn * angularVelocity;
+            trackingVelocity = axis / sin * (angle / dt);
+        }
+
+        /// <summary>
+        /// Перенос кончился: корабль и дальше вращается так, как его вели, — вращение
+        /// не пропадает оттого, что автопилот перестал за ним следить.
+        /// </summary>
+        public void Release()
+        {
+            angularVelocity = ClampRate(angularVelocity + trackingVelocity);
+            trackingVelocity = Vector3d.zero;
         }
 
         /// <summary>

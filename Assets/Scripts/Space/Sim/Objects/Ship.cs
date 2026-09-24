@@ -26,6 +26,8 @@ namespace OuterSpace.Sim.Objects
         public const int MaxManeuvers = 3;
         /// <summary>Наибольший поворот опоры за тик, который автопилот считает её движением, °.</summary>
         const double CarryLimit = 10.0;
+        /// <summary>Относительная скорость, ниже которой у TGT и ATGT нет направления, м/с.</summary>
+        const double MinClosingSpeed = 0.1;
         Maneuver maneuver;
         // Направление, которое требует режим ориентации. Куда корабль смотрит на самом деле,
         // знает attitude: разворот занимает время, и на коротком прожиге тяга уходит не туда,
@@ -267,6 +269,10 @@ namespace OuterSpace.Sim.Objects
             Vector3d closing = SimMono.target == null
                 ? Vector3d.zero
                 : simTransform.GLOBAL_V - SimMono.target.simTransform.GLOBAL_V;
+            // Почти погашенная относительная скорость направления не задаёт: при гашении она
+            // проходит через ноль и разворачивается, и корабль метался бы за ней. Нулевой
+            // вектор значит «направления нет» — корабль держит прежнее.
+            if (closing.magnitude < MinClosingSpeed) closing = Vector3d.zero;
             Maneuver next = GetNextManeuver();
             Vector3d planned = next == null ? Vector3d.zero : next.PlannedDeltaV;
             return Orientation.Direction(mode, r, v, closing, planned);
@@ -287,6 +293,10 @@ namespace OuterSpace.Sim.Objects
             attitudeEpoch = epoch;
             if (dt <= 0.0) return;
 
+            bool tracking = orientation != ShipOrientation.Free && orientation != ShipOrientation.Hold;
+            bool carry = tracking && trackedMode == orientation && Vector3d.Angle(trackedDir, dir) < CarryLimit;
+            if (!carry) attitude.Release();
+
             if (orientation == ShipOrientation.Free) attitude.Rotate(rotationCommand, dt);
             else if (orientation == ShipOrientation.Hold)
             {
@@ -300,8 +310,7 @@ namespace OuterSpace.Sim.Objects
                 // перемотке, где за тик опора уходит дальше шага, отставание скакало бы вслед
                 // за длительностью кадра. Скачок опоры — смена режима или цели — это новый
                 // разворот, а не движение, и переносом не проходится.
-                if (trackedMode == orientation && Vector3d.Angle(trackedDir, dir) < CarryLimit)
-                    attitude.Carry(trackedDir, dir);
+                if (carry) attitude.Carry(trackedDir, dir, dt);
                 attitude.AlignTo(dir, dt);
             }
             trackedMode = orientation;
@@ -430,20 +439,17 @@ namespace OuterSpace.Sim.Objects
             burnEpoch = epoch;
             if (dt <= 0.0) return;
 
-            double dv = Acceleration * Mathd.Clamp01(throttle) * dt;
-            BurnedDeltaV += dv;
+            Vector3d impulse = attitude.Forward * (Acceleration * Mathd.Clamp01(throttle) * dt);
+            CountTowardPlan(impulse);
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
-            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + attitude.Forward * dv, centralBody.MU, epoch);
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
             trajectory.Invalidate();
 
             if (cutoffArmed && RemainingDeltaV <= 0.0) SetThrust(false);
         }
 
         /// <summary>
-        /// Импульс РСУ считается так же, как маршевый. В сожжённое по манёвру идёт его проекция
-        /// на план: доводка вдоль плана уменьшает остаток, против — увеличивает, вбок — не
-        /// трогает. Сопла смотрят куда угодно, и засчитать модуль значило бы считать
-        /// исполненным то, что увело корабль мимо плана.
+        /// Импульс РСУ считается так же, как маршевый, и так же засчитывается по плану.
         ///
         /// Эпоха отмечается и на холостом тике: иначе первое включение после паузы получило бы
         /// всё время с прошлого включения разом.
@@ -461,6 +467,17 @@ namespace OuterSpace.Sim.Objects
             Vector3d impulse = direction * (rcsThrust * Mathd.Clamp01(rcsThrottle) / mass * dt);
             orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
             trajectory.Invalidate();
+            CountTowardPlan(impulse);
+        }
+
+        /// <summary>
+        /// В сожжённое по манёвру идёт проекция импульса на план: тяга вдоль плана уменьшает
+        /// остаток, против — увеличивает, вбок — не трогает. Засчитать модуль значило бы
+        /// считать исполненным то, что увело корабль мимо плана: недовёрнутым маршевым или
+        /// соплами РСУ, которые смотрят куда угодно.
+        /// </summary>
+        void CountTowardPlan(Vector3d impulse)
+        {
             if (GetNextManeuver() is Maneuver next && next.PlannedMagnitude > 0.0)
                 BurnedDeltaV += Vector3d.Dot(impulse, next.PlannedDeltaV) / next.PlannedMagnitude;
         }

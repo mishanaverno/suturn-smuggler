@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using Game;
+using OuterSpace;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
 using TMPro;
@@ -151,15 +152,17 @@ namespace Interior
             string nodeLine = $"NODE {TrajectoryRenderer.Countdown(maneuver.startEpoch - epoch)}";
             string dvLine = $"DV {maneuver.PlannedMagnitude - ship.BurnedDeltaV:F1}/{maneuver.PlannedMagnitude:F1} m/s";
 
-            (double curPe, double curAp) = AstroDynamic.GetPeriapsisAndApoapsis(ship.orbitParams);
-            (double tgtPe, double tgtAp) = AstroDynamic.GetPeriapsisAndApoapsis(maneuver.newOrbitParams);
+            OrbitElements current = ship.orbitParams;
+            OrbitElements target = maneuver.newOrbitParams;
+            double currentRadius = ship.centralBody.radius;
+            double targetRadius = maneuver.CentralBody.radius;
             string[] header = { "", "CURRENT", "TARGET" };
             List<string[]> rows = new()
             {
-                new[] { "PE", Km(curPe), Km(tgtPe) },
-                new[] { "AP", Km(curAp), Km(tgtAp) },
-                new[] { "E", $"{ship.orbitParams.eccentricity:F4}", $"{maneuver.newOrbitParams.eccentricity:F4}" },
-                new[] { "I", $"{ship.orbitParams.inclination:F2}°", $"{maneuver.newOrbitParams.inclination:F2}°" },
+                new[] { "AP", Apoapsis(current, currentRadius), Apoapsis(target, targetRadius) },
+                new[] { "PE", Periapsis(current, currentRadius), Periapsis(target, targetRadius) },
+                new[] { "AN", Node(current, 0.0), Node(target, 0.0) },
+                new[] { "AD", Node(current, 180.0), Node(target, 180.0) },
             };
 
             int[] colWidth = new int[header.Length];
@@ -208,5 +211,24 @@ namespace Interior
         }
 
         static string Km(double meters) => $"{meters / 1000.0:N0} km";
+
+        /// <summary>Высота над поверхностью центрального тела. У незамкнутой орбиты апоцентра нет.</summary>
+        static string Apoapsis(OrbitElements orbit, double bodyRadius) =>
+            orbit.eccentricity >= 1.0 ? "-" : Km(AstroDynamic.GetPeriapsisAndApoapsis(orbit).apoapsis - bodyRadius);
+
+        static string Periapsis(OrbitElements orbit, double bodyRadius) =>
+            Km(AstroDynamic.GetPeriapsisAndApoapsis(orbit).periapsis - bodyRadius);
+
+        /// <summary>
+        /// Долгота узла на экваторе центрального тела: восходящий — Ω, нисходящий — напротив.
+        /// У орбиты в самой плоскости экватора узлов нет, и Ω там ничего не значит.
+        /// </summary>
+        static string Node(OrbitElements orbit, double offset) =>
+            orbit.inclination < MinNodeInclination || orbit.inclination > 180.0 - MinNodeInclination
+                ? "-"
+                : $"{((orbit.longitudeOfAscendingNode + offset) % 360.0 + 360.0) % 360.0:F1}°";
+
+        /// <summary>Наклонение, ниже которого узлы не показываются, °.</summary>
+        const double MinNodeInclination = 0.01;
     }
 }

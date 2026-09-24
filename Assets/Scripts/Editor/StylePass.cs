@@ -19,6 +19,7 @@ namespace InteriorEditor
         static Material shell, panel, recess, grip, accent, indicator;
         static Material saturn, moon, titan, sky;
         static RingStyleSet ringStyles;
+        static MoonStyle[] moonStyles;
 
         [MenuItem("Cockpit/Style: apply first pass")]
         public static void Apply()
@@ -33,7 +34,8 @@ namespace InteriorEditor
             Shader rings = Shader.Find("Suturn/Stylized Ring");
             Shader skyShader = Shader.Find("Suturn/Space Sky");
             Shader saturnShader = Shader.Find("Suturn/Saturn");
-            if (matte == null || body == null || titanShader == null || lamp == null || rings == null || skyShader == null || saturnShader == null)
+            Shader moonShader = Shader.Find("Suturn/Icy Moon");
+            if (matte == null || body == null || titanShader == null || lamp == null || rings == null || skyShader == null || saturnShader == null || moonShader == null)
                 throw new InvalidOperationException("StylePass: stylized shaders have not imported.");
 
             shell = Matte("01 Shell Warm White", matte, "#C8CBC4", "#555D5B", .50f);
@@ -65,6 +67,7 @@ namespace InteriorEditor
             titan.SetColor("_RimColor", Hex("#F7D56A"));
             titan.SetColor("_SaturnColor", new Color(.38f, .29f, .12f));
             sky = Material("17 Space Sky", skyShader);
+            moonStyles = MoonStyles(moonShader);
             ringStyles = new RingStyleSet
             {
                 A = RingMaterial("10 Ring A", rings, "#D4C7AA", .46f),
@@ -108,6 +111,7 @@ namespace InteriorEditor
                 exteriorView.moonMaterial = moon;
                 exteriorView.titanMaterial = titan;
                 exteriorView.skyMaterial = sky;
+                exteriorView.moonStyles = moonStyles;
                 exteriorView.rings = ringStyles;
                 EditorUtility.SetDirty(exteriorView);
             }
@@ -311,6 +315,52 @@ namespace InteriorEditor
             material.SetFloat("_BandStrength", strength);
             material.SetFloat("_Edge", .06f);
             material.SetFloat("_Softness", .1f);
+            return material;
+        }
+
+        /// <summary>
+        /// У каждой луны одна узнаваемая черта: Гершель у Мимаса, трещины у Энцелада,
+        /// Одиссей у Тефии, тёмное ведущее полушарие Япета, более тёмное заднее у Дионы и Реи.
+        /// </summary>
+        static MoonStyle[] MoonStyles(Shader shader)
+        {
+            Material mimas = Moon("18 Mimas", shader, "#BDBDB8", "#8E8E8A", 6f, .75f);
+            mimas.SetVector("_BigCrater", new Vector4(0f, .1f, -1f, .38f));
+            Material enceladus = Moon("19 Enceladus", shader, "#EEF2F2", "#C8D3D6", 5f, .3f);
+            enceladus.SetFloat("_Stripes", 1f);
+            Material tethys = Moon("20 Tethys", shader, "#D6D6D2", "#A9A9A4", 5f, .6f);
+            tethys.SetVector("_BigCrater", new Vector4(-.6f, .4f, -.7f, .45f));
+            Material dione = Moon("21 Dione", shader, "#C8C8C4", "#9A9A96", 5f, .55f);
+            dione.SetFloat("_Hemisphere", -.35f);
+            dione.SetColor("_HemisphereColor", Hex("#86898C"));
+            Material rhea = Moon("22 Rhea", shader, "#C4C2BE", "#969490", 6f, .75f);
+            rhea.SetFloat("_Hemisphere", -.25f);
+            rhea.SetColor("_HemisphereColor", Hex("#8C8B88"));
+            Material hyperion = Moon("23 Hyperion", shader, "#B8A792", "#6E5F4C", 8f, .95f);
+            Material iapetus = Moon("24 Iapetus", shader, "#D8D2C4", "#A8A294", 5f, .6f);
+            iapetus.SetFloat("_Hemisphere", 1f);
+            iapetus.SetColor("_HemisphereColor", Hex("#3A2A1E"));
+            Material phoebe = Moon("25 Phoebe", shader, "#4A4540", "#2E2A26", 6f, .7f);
+            return new[]
+            {
+                new MoonStyle { body = "Mimas", material = mimas },
+                new MoonStyle { body = "Enceladus", material = enceladus },
+                new MoonStyle { body = "Tethys", material = tethys },
+                new MoonStyle { body = "Dione", material = dione },
+                new MoonStyle { body = "Rhea", material = rhea },
+                new MoonStyle { body = "Hyperion", material = hyperion, tidallyLocked = false },
+                new MoonStyle { body = "Iapetus", material = iapetus },
+                new MoonStyle { body = "Phoebe", material = phoebe, tidallyLocked = false },
+            };
+        }
+
+        static Material Moon(string name, Shader shader, string surface, string crater, float scale, float coverage)
+        {
+            Material material = Material(name, shader);
+            material.SetColor("_Base", Hex(surface));
+            material.SetColor("_Dark", Hex(crater));
+            material.SetFloat("_CraterScale", scale);
+            material.SetFloat("_CraterCoverage", coverage);
             return material;
         }
 
