@@ -7,14 +7,14 @@ namespace Game
         // Шаг «1-2-5» на декаду: числа остаются круглыми, игрок знает, во сколько раз ускорился,
         // и провала между 1× и 100× больше нет — при 1× на трёхчасовой орбите не происходит
         // ничего, при 100× виток пролетает за 108 секунд.
-        static readonly uint[] Speeds = { 0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000 };
+        static readonly uint[] Speeds = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000 };
         // Шестнадцать ступеней перещёлкивать долго, поэтому прыжок на декаду — модификатором.
         public const int StepsPerDecade = 3;
 
         // Ступень, выше которой не пустит работающий двигатель.
-        const int RealTimeIndex = 1;
+        const int RealTimeIndex = 0;
 
-        private int _index = 1;
+        private int _index = RealTimeIndex;
         bool locked;
 
         public static System.Collections.Generic.IReadOnlyList<uint> Ladder => Speeds;
@@ -25,7 +25,7 @@ namespace Game
         /// <summary>
         /// Прожиг считается по симуляционному времени, и на перемотке шаг интегрирования
         /// становится длиннее самого прожига. Поэтому на время работы двигателя перемотка
-        /// сбрасывается в 1× и выше не поднимается — пауза и 1× остаются доступны.
+        /// сбрасывается в 1× и выше не поднимается.
         /// </summary>
         public void SetLocked(bool locked)
         {
@@ -33,7 +33,7 @@ namespace Game
             if (locked) RealTime();
         }
 
-        /// <summary>Включение любой тяги ставит 1×, даже с паузы: включил — значит, хочешь видеть, как она работает.</summary>
+        /// <summary>Включение любой тяги ставит 1×: включил — значит, хочешь видеть, как она работает.</summary>
         public void RealTime() => Shift(RealTimeIndex - _index);
 
         public TimeToggler Shift(int steps)

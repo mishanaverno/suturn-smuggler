@@ -64,7 +64,9 @@ namespace Interior
             Bind(CommandId.SasColumnB, () => SetColumn(1), () => CanColumn(1));
             Bind(CommandId.SasColumnC, () => SetColumn(2), () => CanColumn(2));
 
-            Bind(CommandId.SasToggle, Toggle, () => Reachable(Aim));
+            // Выключить ведущий автопилот можно всегда: его опору — манёвр или цель — могли
+            // убрать уже после включения, и кнопка, погасшая вместе с ней, заперла бы режим.
+            Bind(CommandId.SasToggle, Toggle, () => Engaged() || Reachable(Aim));
             Bind(CommandId.SasHold, Hold, HasShip);
 
             // Связанные оси корабля: X — вперёд, Y — влево, Z — вверх. Стик от себя — нос
