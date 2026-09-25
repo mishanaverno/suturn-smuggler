@@ -55,6 +55,12 @@ namespace Controls
         /// </summary>
         public static InputAction[] Grip { get; private set; }
         /// <summary>
+        /// Присмотреться: нажатие переводит взгляд туда, куда указывает курсор, удержание ещё и
+        /// сужает его. С двойным щелчком правой (Grip) не спорит — тот ловит два коротких
+        /// нажатия, этот держит.
+        /// </summary>
+        public static InputAction Focus { get; private set; }
+        /// <summary>
         /// Два набора по три оси: WS, AD, QE и IK, JL, UO. Набор ничего не вращает сам —
         /// он отклоняет тот стик, которым его взяли, а что делает стик, решают его разъёмы.
         /// </summary>
@@ -115,6 +121,7 @@ namespace Controls
                 cockpit.AddAction("GripFirst", InputActionType.Button, "<Mouse>/leftButton", "multiTap"),
                 cockpit.AddAction("GripSecond", InputActionType.Button, "<Mouse>/rightButton", "multiTap"),
             };
+            Focus = cockpit.AddAction("Focus", InputActionType.Button, "<Mouse>/rightButton");
             Stick = new[]
             {
                 new[]

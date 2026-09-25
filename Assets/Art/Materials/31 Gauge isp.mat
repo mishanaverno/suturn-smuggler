@@ -7,9 +7,9 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 02 Panel Grey
-  m_Shader: {fileID: 4800000, guid: 4e39c5efcc1cf498cadbcc0c3520b6e4, type: 3}
-  m_Parent: {fileID: 2100000, guid: 5ef56570eb3404cbf9799d5d81e75818, type: 2}
+  m_Name: 31 Gauge isp
+  m_Shader: {fileID: 10752, guid: 0000000000000000f000000000000000, type: 0}
+  m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []
@@ -22,12 +22,13 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: c83ecab22241f491182c495bac93418c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats:
-    - _ShadowLevel: 0.42
-    m_Colors:
-    - _Color: {r: 0.52156866, g: 0.56078434, b: 0.54901963, a: 1}
-    - _ShadeColor: {r: 0.19607843, g: 0.23529412, b: 0.24705882, a: 1}
+    m_Floats: []
+    m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

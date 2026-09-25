@@ -1,5 +1,6 @@
 ﻿using Controls;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Interior
 {
@@ -25,6 +26,10 @@ namespace Interior
         public float yawLimit = 120f;
         public float pitchLimit = 55f;
         public float reach = 1.6f;
+        [Tooltip("Поле зрения, пока зажата правая кнопка, °: разглядеть дальний прибор или точку за окном.")]
+        public float zoomFieldOfView = 20f;
+        [Tooltip("За сколько взгляд доходит до точки под курсором по правому щелчку, с — примерно, поворот плавный.")]
+        public float focusTime = 0.15f;
         /// <summary>Куда встаёт тело, когда игрок уходит с места.</summary>
         public Transform exit;
         [Tooltip("Начинать игру на месте пилота, а не телом в невесомости.")]
@@ -41,8 +46,13 @@ namespace Interior
         public Vector2 LabelPosition => GameInput.Point.ReadValue<Vector2>();
 
         AudioListener ear;
+        float normalFieldOfView;
         float yaw;
         float pitch;
+        // Куда переводится взгляд, в осях кресла. Хранится направление, а не углы: курсор
+        // едет вслед за этой точкой, и её экранное положение считается заново каждый кадр.
+        Vector3 focus;
+        bool focusing;
 
         void Awake()
         {
@@ -68,6 +78,7 @@ namespace Interior
                 return false;
             }
             ear = eye.GetComponent<AudioListener>();
+            normalFieldOfView = eye.fieldOfView;
             if (hand == null) hand = eye.GetComponent<Interactor>();
             int simulation = LayerMask.NameToLayer("Simulation");
             if (simulation >= 0 && (eye.cullingMask & (1 << simulation)) != 0)
@@ -87,10 +98,22 @@ namespace Interior
         {
             if (!Active) return;
 
+            if (GameInput.Focus.WasPressedThisFrame())
+            {
+                focus = Seat * Ray.direction;
+                focusing = true;
+            }
             Vector2 turn = GameInput.View.ReadValue<Vector2>();
+            if (turn != Vector2.zero) focusing = false;
+            if (focusing) TurnToFocus();
             yaw = Mathf.Clamp(yaw + turn.x * turnSpeed * Time.deltaTime, -yawLimit, yawLimit);
             pitch = Mathf.Clamp(pitch - turn.y * turnSpeed * Time.deltaTime, -pitchLimit, pitchLimit);
             eye.transform.localRotation = Quaternion.Euler(pitch, yaw, 0f);
+            eye.fieldOfView = GameInput.Focus.IsPressed() ? zoomFieldOfView : normalFieldOfView;
+            // Курсор едет вместе с точкой, на которую указал: иначе после поворота он
+            // показывал бы на что-то другое, а он — рука пилота на органах управления.
+            if (focusing && Mouse.current != null)
+                Mouse.current.WarpCursorPosition(eye.WorldToScreenPoint(eye.transform.position + Quaternion.Inverse(Seat) * focus));
 
             if (hand != null)
             {
@@ -104,6 +127,23 @@ namespace Interior
                 }
             }
             if (GameInput.Leave.WasPressedThisFrame()) Release();
+        }
+
+        /// <summary>Поворот из мира в оси кресла — родителя глаза.</summary>
+        Quaternion Seat => eye.transform.parent == null ? Quaternion.identity : Quaternion.Inverse(eye.transform.parent.rotation);
+
+        /// <summary>
+        /// Шаг к точке фокуса: доля оставшегося угла за кадр, так что поворот резкий в начале
+        /// и мягкий в конце. За пределы разворота кресла голова не идёт — там и остановится.
+        /// </summary>
+        void TurnToFocus()
+        {
+            float targetYaw = Mathf.Clamp(Mathf.Atan2(focus.x, focus.z) * Mathf.Rad2Deg, -yawLimit, yawLimit);
+            float targetPitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(focus.y, -1f, 1f)) * Mathf.Rad2Deg, -pitchLimit, pitchLimit);
+            float k = 1f - Mathf.Exp(-3f * Time.deltaTime / Mathf.Max(focusTime, 1e-3f));
+            yaw = Mathf.Lerp(yaw, targetYaw, k);
+            pitch = Mathf.Lerp(pitch, targetPitch, k);
+            if (Mathf.Abs(yaw - targetYaw) < 0.05f && Mathf.Abs(pitch - targetPitch) < 0.05f) focusing = false;
         }
 
         public void TakeOver()
@@ -134,7 +174,12 @@ namespace Interior
             // идёт молча, без Interactor молча же, но руками. Переключение занятий не должно
             // падать ни в одном из этих случаев: раньше код создавал всё сам и привык, что
             // всё всегда на месте.
-            if (eye != null) eye.enabled = active;
+            focusing = false;
+            if (eye != null)
+            {
+                eye.enabled = active;
+                eye.fieldOfView = normalFieldOfView;
+            }
             // Слух и рука необязательны: без AudioListener игра идёт молча, без Interactor —
             // молча же, но руками. Раньше их создавал код и они были всегда; теперь их
             // ставят в сцене, и отсутствие не должно валить переключение занятий.
