@@ -53,6 +53,14 @@ namespace OuterSpace.Sim.Objects
         public PortData rightPort;
         public bool rightPortActive;
         public PortData ActivePort => rightPortActive ? rightPort : leftPort;
+        /// <summary>Узел корабля относительно узла станции-цели; пусто, если цель не станция.</summary>
+        public DockingState? Docking { get; private set; }
+        public bool BeaconLocked { get; private set; }
+        /// <summary>
+        /// Автопилот держит узел корабля против узла станции. Держит только углы: подход по
+        /// глиссаде — РСУ пилота.
+        /// </summary>
+        public bool BeaconHolding { get; private set; }
         static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
         static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
@@ -275,6 +283,15 @@ namespace OuterSpace.Sim.Objects
             return Orientation.Direction(mode, r, v, closing, planned);
         }
 
+        public void SetBeaconHold(bool on) => BeaconHolding = on && BeaconLocked;
+
+        void UpdateDocking()
+        {
+            Station station = SimMono.target as Station;
+            Docking = station == null ? null : DockingGeometry.Measure(this, station);
+            BeaconLocked = Docking is DockingState state && station.Beacon(state);
+        }
+
         /// <summary>Мгновенно совместить тягу с направлением режима, без разворота.</summary>
         public void AlignInstantly() => attitude.Snap(dir);
 
@@ -289,6 +306,21 @@ namespace OuterSpace.Sim.Objects
             double dt = epoch - attitudeEpoch;
             attitudeEpoch = epoch;
             if (dt <= 0.0) return;
+
+            if (BeaconHolding)
+            {
+                // Потерянный маяк или взятая ручка прерывают удержание, как ручка — Hold:
+                // корабль гасит набранное вращение и встаёт там, где его оставили.
+                if (BeaconLocked && rotationCommand.sqrMagnitude == 0.0)
+                {
+                    attitude.Release();
+                    // Станция не вращается: цель неподвижна, переносить к ней корабль не нужно.
+                    attitude.AlignTo(DockingGeometry.Aligned(ActivePort, ((Station)SimMono.target).port), dt);
+                    return;
+                }
+                BeaconHolding = false;
+                orientation = ShipOrientation.Hold;
+            }
 
             bool tracking = orientation != ShipOrientation.Free && orientation != ShipOrientation.Hold;
             bool carry = tracking && trackedMode == orientation && Vector3d.Angle(trackedDir, dir) < CarryLimit;
@@ -418,6 +450,7 @@ namespace OuterSpace.Sim.Objects
             if (thrusting) ApplyThrust();
             ApplyRcs();
             base.FixedUpdate();
+            UpdateDocking();
         }
 
         /// <summary>

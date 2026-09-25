@@ -59,7 +59,14 @@ namespace Game
     public class StationData : ObjectData
     {
         public PortData port;
+        public BeaconData beacon;
         public List<string> sells = new();   // "methane", "lox"
+    }
+    /// <summary>Глиссадный маяк узла: ловится в конусе вокруг его оси.</summary>
+    public class BeaconData
+    {
+        public double range;                // м
+        public double cone;                 // полуугол, градусы
     }
     /// <summary>Стыковочный узел: у станции в осях симуляции, у корабля — в связанных.</summary>
     public class PortData

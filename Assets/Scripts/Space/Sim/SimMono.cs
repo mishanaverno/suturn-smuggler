@@ -62,7 +62,7 @@ namespace OuterSpace.Sim
 
             foreach (StationData stationData in data.system.stations)
             {
-                Station station = Place(new Station(stationData.port, stationData.sells, Prefab(stationData)), stationData);
+                Station station = Place(new Station(stationData.port, stationData.beacon, stationData.sells, Prefab(stationData)), stationData);
                 station.SetCentralBody(byId[stationData.parent]);
                 station.SetOrbit(ToElements(stationData.orbit, station.centralBody.MU));
                 stations.Add(station);

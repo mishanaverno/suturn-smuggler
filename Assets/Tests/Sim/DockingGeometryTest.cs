@@ -29,6 +29,44 @@ public class DockingGeometryTest
         DockingGeometry.Measure(shipR, shipV, rotation, Vector3d.zero, ShipPort, Vector3d.zero, Vector3d.zero, StationPort);
 
     [Test]
+    public void Aligned_GivesNoMisalignment_ForPortOnEitherSide()
+    {
+        PortData right = new() { position = new Vector3d(0, -2.5, 0), axis = new Vector3d(0, -1, 0), up = new Vector3d(0, 0, 1) };
+        foreach (PortData port in new[] { ShipPort, right })
+        {
+            DockingState state = DockingGeometry.Measure(AlignedShip, Vector3d.zero, DockingGeometry.Aligned(port, StationPort),
+                Vector3d.zero, port, Vector3d.zero, Vector3d.zero, StationPort);
+            Assert.AreEqual(0.0, state.Roll, 1e-9, "крен");
+            Assert.AreEqual(0.0, state.Pitch, 1e-9, "тангаж");
+            Assert.AreEqual(0.0, state.Yaw, 1e-9, "рысканье");
+        }
+    }
+
+    /// <summary>
+    /// Удержание по полной ориентации сводит все три угла, включая крен, который наведение
+    /// по направлению не держит. Проскок у цели — свойство закона торможения на шаге, у
+    /// наведения по направлению он тот же (~0.04°); допуск стыковки — градусы.
+    /// </summary>
+    [Test]
+    public void FullAlign_ConvergesInAllAxes_WithoutOvershoot()
+    {
+        Quaterniond target = DockingGeometry.Aligned(ShipPort, StationPort);
+        Attitude attitude = new() { rotation = Quaterniond.AngleAxis(40.0, new Vector3d(1, 2, 3).normalized) * target };
+        double previous = double.PositiveInfinity;
+        double worstRebound = 0.0;
+        for (int i = 0; i < 2000; i++)
+        {
+            attitude.AlignTo(target, 0.02);
+            double angle = Quaterniond.Angle(attitude.rotation, target);
+            if (angle < 1.0) worstRebound = System.Math.Max(worstRebound, angle - previous);
+            previous = angle;
+        }
+        Assert.Less(Quaterniond.Angle(attitude.rotation, target), 1e-3, "не сошлось");
+        Assert.LessOrEqual(worstRebound, 0.1, "перелёт у цели");
+        Assert.Less(attitude.angularVelocity.magnitude, 1e-6, "не остановился");
+    }
+
+    [Test]
     public void Coaxial_GivesRangeAndNoMisalignment()
     {
         DockingState state = Measure(AlignedShip, Quaterniond.identity);

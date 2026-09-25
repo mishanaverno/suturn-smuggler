@@ -73,8 +73,33 @@ namespace OuterSpace.Sim
         public void AlignTo(Vector3d forward, double dt)
         {
             if (forward.sqrMagnitude <= 0.0) return;
-            dt = Mathd.Min(dt, MaxStep);
             Error(forward, out Vector3d axis, out double angle);
+            Steer(axis, angle, dt);
+        }
+
+        /// <summary>
+        /// Автопилот по полной ориентации — нос, верх и крен сразу. Нужен стыковке: у узла
+        /// значим и поворот вокруг оси, а наведение по направлению его не держит.
+        /// </summary>
+        public void AlignTo(Quaterniond target, double dt)
+        {
+            Quaterniond error = target * Quaterniond.Inverse(rotation);
+            // q и -q — один поворот; короткий путь тот, у которого w неотрицательна.
+            double sign = error.w < 0.0 ? -1.0 : 1.0;
+            Vector3d vector = new Vector3d(error.x, error.y, error.z) * sign;
+            double sin = vector.magnitude;
+            if (sin <= 0.0)
+            {
+                Steer(Vector3d.right, 0.0, dt);
+                return;
+            }
+            // Через atan2, а не acos(w): у малых углов, где и работает удержание, acos теряет точность.
+            Steer(vector / sin, 2.0 * Mathd.Atan2(sin, error.w * sign), dt);
+        }
+
+        void Steer(Vector3d axis, double angle, double dt)
+        {
+            dt = Mathd.Min(dt, MaxStep);
             Vector3d wanted = axis * Mathd.Min(Mathd.Min(MaxRate, Mathd.Sqrt(2.0 * RcsAcceleration * angle)), angle / dt);
             Vector3d change = wanted - angularVelocity;
             double budget = RcsAcceleration * dt;

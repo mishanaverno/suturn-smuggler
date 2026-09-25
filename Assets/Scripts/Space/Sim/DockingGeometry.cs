@@ -84,6 +84,11 @@ namespace OuterSpace.Sim
                 Degrees(Vector3d.Dot(facing, side), Vector3d.Dot(facing, axis)));
         }
 
+        /// <summary>Ориентация корабля, в которой его узел смотрит в узел станции и верх к верху.</summary>
+        public static Quaterniond Aligned(PortData shipPort, PortData stationPort) =>
+            Quaterniond.LookRotation(-stationPort.axis, stationPort.up)
+            * Quaterniond.Inverse(Quaterniond.LookRotation(shipPort.axis, shipPort.up));
+
         static double Degrees(double y, double x) => Mathd.Atan2(y, x) * Mathd.Rad2Deg;
     }
 }
