@@ -48,6 +48,9 @@ namespace Game
         public double methane;              // кг, начальный запас
         public double lox;                  // кг, начальный запас
         public Propulsion propulsion;
+        // Стыковочные узлы по бортам, в связанных осях корабля (X вперёд, Y влево, Z вверх).
+        public PortData leftPort;
+        public PortData rightPort;
     }
     /// <summary>
     /// Станция не вращается: её оси совпадают с осями симуляции, поэтому узел задан прямо в
@@ -58,6 +61,7 @@ namespace Game
         public PortData port;
         public List<string> sells = new();   // "methane", "lox"
     }
+    /// <summary>Стыковочный узел: у станции в осях симуляции, у корабля — в связанных.</summary>
     public class PortData
     {
         public Vector3d position;           // м

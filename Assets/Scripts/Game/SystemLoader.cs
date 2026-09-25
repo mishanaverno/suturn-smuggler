@@ -50,6 +50,8 @@ namespace Game
                 throw new SystemDataException($"Корабль {ship.id}: сухая масса должна быть положительной, получено {ship.dryMass}");
             if (ship.methane < 0 || ship.lox < 0)
                 throw new SystemDataException($"Корабль {ship.id}: запасы топлива не могут быть отрицательными");
+            ValidatePort(ship.id, ship.leftPort);
+            ValidatePort(ship.id, ship.rightPort);
             ValidateEngine(ship, "nuclear", ship.propulsion?.nuclear);
             ValidateEngine(ship, "nuclearLox", ship.propulsion?.nuclearLox);
             ValidateEngine(ship, "chemical", ship.propulsion?.chemical);
@@ -129,13 +131,13 @@ namespace Game
         /// <summary>Ось и верх нормируются здесь: по ним считаются углы стыковки.</summary>
         static void ValidatePort(string id, PortData port)
         {
-            if (port == null) throw new SystemDataException($"Станция {id}: не задан стыковочный узел");
+            if (port == null) throw new SystemDataException($"Объект {id}: не задан стыковочный узел");
             if (port.axis.sqrMagnitude <= 0 || port.up.sqrMagnitude <= 0)
-                throw new SystemDataException($"Станция {id}: у узла должны быть заданы ось и верх");
+                throw new SystemDataException($"Объект {id}: у узла должны быть заданы ось и верх");
             port.axis = port.axis.normalized;
             port.up = port.up.normalized;
             if (Mathd.Abs(Vector3d.Dot(port.axis, port.up)) > 1e-6)
-                throw new SystemDataException($"Станция {id}: верх узла не перпендикулярен его оси");
+                throw new SystemDataException($"Объект {id}: верх узла не перпендикулярен его оси");
         }
 
         static void ValidateOrbit(string id, OrbitData orbit)

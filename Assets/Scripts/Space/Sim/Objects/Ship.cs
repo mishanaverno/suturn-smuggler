@@ -49,6 +49,10 @@ namespace OuterSpace.Sim.Objects
         public readonly PropulsionUnit engine;
         public readonly RcsUnit rcs;
         public readonly TrajectoryCache trajectory = new();
+        public PortData leftPort;
+        public PortData rightPort;
+        public bool rightPortActive;
+        public PortData ActivePort => rightPortActive ? rightPort : leftPort;
         static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
         static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены

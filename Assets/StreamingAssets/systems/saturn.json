@@ -232,6 +232,17 @@
         "rcs":        { "thrust": 3.75e4, "isp": 110,  "oxidizerRatio": 0 },
         "reactor":    { "idleTemperature": 5000, "fullTemperature": 25000, "spoolTime": 10 }
       },
+      // Узлы по бортам: к станции корабль подходит боком, нос и сопло остаются свободными.
+      "leftPort": {
+        "position": { "x": 0, "y": 2.5, "z": 0 },
+        "axis": { "x": 0, "y": 1, "z": 0 },
+        "up": { "x": 0, "y": 0, "z": 1 }
+      },
+      "rightPort": {
+        "position": { "x": 0, "y": -2.5, "z": 0 },
+        "axis": { "x": 0, "y": -1, "z": 0 },
+        "up": { "x": 0, "y": 0, "z": 1 }
+      },
       "radius": 50,
       "simPrefab": "PlayerShip",
       "orbit": {
