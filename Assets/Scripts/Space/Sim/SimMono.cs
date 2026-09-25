@@ -72,6 +72,8 @@ namespace OuterSpace.Sim
             Ship ship = Place(new Ship(shipData.dryMass, shipData.methane, shipData.lox, shipData.propulsion, Prefab(shipData)), shipData);
             ship.leftPort = shipData.leftPort;
             ship.rightPort = shipData.rightPort;
+            ship.tanks.methaneCapacity = shipData.methaneCapacity;
+            ship.tanks.loxCapacity = shipData.loxCapacity;
             playerShip = ship;
             playerShip.SetCentralBody(byId[shipData.parent]);
             playerShip.SetOrbit(ToElements(shipData.orbit, playerShip.centralBody.MU));

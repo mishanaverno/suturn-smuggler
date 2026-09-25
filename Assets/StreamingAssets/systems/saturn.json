@@ -229,6 +229,8 @@
       "dryMass": 20000,
       "methane": 40000,
       "lox": 15000,
+      "methaneCapacity": 40000,
+      "loxCapacity": 15000,
       "propulsion": {
         "nuclear":    { "thrust": 1.1e6,  "isp": 1500, "oxidizerRatio": 0 },
         "nuclearLox": { "thrust": 2.75e6, "isp": 900,  "oxidizerRatio": 1 },

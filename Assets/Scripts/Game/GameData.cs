@@ -47,6 +47,8 @@ namespace Game
         public double dryMass;              // кг
         public double methane;              // кг, начальный запас
         public double lox;                  // кг, начальный запас
+        public double methaneCapacity;      // кг
+        public double loxCapacity;          // кг
         public Propulsion propulsion;
         // Стыковочные узлы по бортам, в связанных осях корабля (X вперёд, Y влево, Z вверх).
         public PortData leftPort;

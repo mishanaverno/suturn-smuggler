@@ -78,6 +78,8 @@ namespace Controls
         public static InputAction TimeWarp { get; private set; }
         public static InputAction Decade { get; private set; }
         public static InputAction ObjectInfo { get; private set; }
+        /// <summary>Меню станции, у которой корабль стоит. Открывается и само — при захвате.</summary>
+        public static InputAction StationMenu { get; private set; }
         /// <summary>
         /// Десять режимов ориентации — десять действий, а не перебор по кругу: перебор из
         /// десяти пунктов хуже десяти клавиш. Индекс соответствует цифре на клавиатуре,
@@ -147,6 +149,7 @@ namespace Controls
             TimeWarp = Axis(cockpit, "TimeWarp", "<Keyboard>/comma", "<Keyboard>/period");
             Decade = cockpit.AddAction("Decade", InputActionType.Button, "<Keyboard>/leftShift");
             ObjectInfo = cockpit.AddAction("ObjectInfo", InputActionType.Button, "<Keyboard>/p");
+            StationMenu = cockpit.AddAction("StationMenu", InputActionType.Button, "<Keyboard>/b");
 
             string[] digits = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
             Orientation = new InputAction[digits.Length];

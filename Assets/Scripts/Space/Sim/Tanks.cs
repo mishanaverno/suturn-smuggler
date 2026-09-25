@@ -8,8 +8,18 @@ namespace OuterSpace.Sim
         /// <summary>Запасы, кг.</summary>
         public double methane;
         public double lox;
+        /// <summary>Ёмкости, кг.</summary>
+        public double methaneCapacity;
+        public double loxCapacity;
 
         public double Mass => methane + lox;
+
+        /// <summary>Долить, кг. Сверх ёмкости не входит.</summary>
+        public void Refill(double addMethane, double addLox)
+        {
+            methane = Mathd.Min(methane + addMethane, methaneCapacity);
+            lox = Mathd.Min(lox + addLox, loxCapacity);
+        }
 
         /// <summary>Сколько топлива можно сжечь до того, как кончится метан или кислород, кг.</summary>
         public double Usable(double loxShare)

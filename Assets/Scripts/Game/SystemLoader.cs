@@ -50,6 +50,8 @@ namespace Game
                 throw new SystemDataException($"Корабль {ship.id}: сухая масса должна быть положительной, получено {ship.dryMass}");
             if (ship.methane < 0 || ship.lox < 0)
                 throw new SystemDataException($"Корабль {ship.id}: запасы топлива не могут быть отрицательными");
+            if (ship.methane > ship.methaneCapacity || ship.lox > ship.loxCapacity)
+                throw new SystemDataException($"Корабль {ship.id}: начальный запас больше ёмкости бака");
             ValidatePort(ship.id, ship.leftPort);
             ValidatePort(ship.id, ship.rightPort);
             ValidateEngine(ship, "nuclear", ship.propulsion?.nuclear);

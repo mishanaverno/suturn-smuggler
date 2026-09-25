@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="StationMenu.uss" />
+    <ui:VisualElement name="root" class="station-menu station-menu--hidden">
+        <ui:VisualElement class="station-menu__panel">
+            <ui:Label name="stationName" class="station-menu__title" text="STATION" />
+            <ui:Label class="station-menu__section" text="REFUEL" />
+            <ui:VisualElement name="methaneRow" class="station-menu__row">
+                <ui:Label class="station-menu__label" text="CH4" />
+                <ui:Label name="methaneLevel" class="station-menu__value" text="0 / 0 kg" />
+                <ui:Button name="methaneFill" class="station-menu__button" text="FILL" />
+            </ui:VisualElement>
+            <ui:VisualElement name="loxRow" class="station-menu__row">
+                <ui:Label class="station-menu__label" text="LOX" />
+                <ui:Label name="loxLevel" class="station-menu__value" text="0 / 0 kg" />
+                <ui:Button name="loxFill" class="station-menu__button" text="FILL" />
+            </ui:VisualElement>
+            <ui:VisualElement class="station-menu__actions">
+                <ui:Button name="undockButton" class="station-menu__button" text="UNDOCK" />
+                <ui:Button name="closeButton" class="station-menu__button" text="CLOSE" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
