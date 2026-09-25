@@ -38,11 +38,18 @@ namespace OuterSpace
         // 30 млн км: Феба с противоположной стороны системы.
         const float Far = 3e7f;
         const double SunRadius = 6.957e8;
+        // Ближний план — станции и всё, к чему подходят, — отдельной сценой в метрах: в
+        // километровой станция в 50 м короче ближней плоскости, а опустить её нельзя, не
+        // потеряв точность глубины на тридцати миллионах километров.
+        const float ProximityNear = 0.1f;
+        const float ProximityFar = 5e4f;
 
         [Tooltip("Оси корабля в интерьере: forward — продольная ось, куда смотрит тяга; up — над головой пилота.")]
         public Transform hull;
         [Tooltip("Образец тела: сфера диаметром 1 с материалом. Масштаб выставляется под размер тела.")]
         public GameObject bodyTemplate;
+        [Tooltip("Образец станции в метрах, оси — как у корпуса: Z — ось X симуляции, Y — ось Z.")]
+        public GameObject stationTemplate;
         [Header("Exterior style")]
         [Tooltip("Материал Сатурна за иллюминатором.")]
         public Material saturnMaterial;
@@ -62,6 +69,9 @@ namespace OuterSpace
         Transform root;
         Camera cam;
         Camera skyCam;
+        Transform proximityRoot;
+        Camera proximityCam;
+        readonly List<(Station station, Transform view)> stationViews = new();
         readonly List<(SpaceObject body, Transform view)> views = new();
         static readonly int SaturnDirectionId = Shader.PropertyToID("_SaturnDirection");
         Transform titanView;
@@ -81,9 +91,10 @@ namespace OuterSpace
 
         void Awake()
         {
-            if (hull == null || bodyTemplate == null || LayerMask.NameToLayer("Exterior") < 0)
+            if (hull == null || bodyTemplate == null || stationTemplate == null
+                || LayerMask.NameToLayer("Exterior") < 0 || LayerMask.NameToLayer("Proximity") < 0)
             {
-                Debug.LogError($"{GetType().Name} на «{name}»: нужны hull, bodyTemplate и слой Exterior.", this);
+                Debug.LogError($"{GetType().Name} на «{name}»: нужны hull, bodyTemplate, stationTemplate и слои Exterior, Proximity.", this);
                 enabled = false;
                 return;
             }
@@ -91,6 +102,25 @@ namespace OuterSpace
             root = new GameObject("Exterior") { layer = layer }.transform;
             root.SetParent(transform, false);
             CreateCamera(layer);
+            CreateProximity(LayerMask.NameToLayer("Proximity"));
+        }
+
+        /// <summary>
+        /// Ближний план рисуется поверх дальнего со своей глубиной. Солнце светит и ему:
+        /// станция освещена тем же светом, что и луна за ней.
+        /// </summary>
+        void CreateProximity(int layer)
+        {
+            proximityRoot = new GameObject("Proximity") { layer = layer }.transform;
+            proximityRoot.SetParent(transform, false);
+            GameObject camObject = new("ProximityCamera") { layer = layer };
+            camObject.transform.SetParent(proximityRoot, false);
+            proximityCam = camObject.AddComponent<Camera>();
+            proximityCam.clearFlags = CameraClearFlags.Depth;
+            proximityCam.cullingMask = 1 << layer;
+            proximityCam.nearClipPlane = ProximityNear;
+            proximityCam.farClipPlane = ProximityFar;
+            if (sun != null) sun.cullingMask |= 1 << layer;
         }
 
         /// <summary>
@@ -126,6 +156,13 @@ namespace OuterSpace
         {
             views.Add((SimMono.root, CreateView(SimMono.root)));
             foreach (SpaceObject body in SimMono.bodies) views.Add((body, CreateView(body)));
+            foreach (Station station in SimMono.stations)
+            {
+                GameObject view = Instantiate(stationTemplate, proximityRoot, false);
+                view.name = station.GameObject.name;
+                foreach (Transform part in view.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = proximityRoot.gameObject.layer;
+                stationViews.Add((station, view.transform));
+            }
         }
 
         Transform CreateView(SpaceObject body)
@@ -165,6 +202,7 @@ namespace OuterSpace
             if (eye == null)
             {
                 cam.enabled = false;
+                proximityCam.enabled = false;
                 if (skyCam != null) skyCam.enabled = false;
                 return;
             }
@@ -182,6 +220,13 @@ namespace OuterSpace
                 view.localRotation = bodyRotation;
                 view.localPosition = ToHull(toShip * (body.simTransform.GLOBAL_R - origin) / Scale);
                 view.localScale = Vector3.one * (float)(2.0 * body.radius / Scale);
+            }
+            proximityRoot.SetPositionAndRotation(Vector3.zero, hull.rotation);
+            foreach ((Station station, Transform view) in stationViews)
+            {
+                // Станция не вращается: её оси — оси симуляции, как у тел.
+                view.localRotation = bodyRotation;
+                view.localPosition = ToHull(toShip * (station.simTransform.GLOBAL_R - origin));
             }
             if (titanRenderer != null && titanView != null)
             {
@@ -241,6 +286,10 @@ namespace OuterSpace
             cam.transform.rotation = eye.transform.rotation;
             cam.fieldOfView = eye.fieldOfView;
             cam.depth = eye.depth - 1f;
+            proximityCam.enabled = true;
+            proximityCam.transform.rotation = eye.transform.rotation;
+            proximityCam.fieldOfView = eye.fieldOfView;
+            proximityCam.depth = eye.depth - 0.5f;
             if (skyCam != null)
             {
                 skyCam.enabled = true;
@@ -249,7 +298,7 @@ namespace OuterSpace
                 skyCam.depth = eye.depth - 2f;
             }
             eye.clearFlags = CameraClearFlags.Depth;
-            eye.cullingMask &= ~cam.cullingMask;
+            eye.cullingMask &= ~(cam.cullingMask | proximityCam.cullingMask);
         }
     }
 }

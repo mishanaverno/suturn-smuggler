@@ -4396,6 +4396,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game::OuterSpace.ExteriorView
   hull: {fileID: 1903000002}
   bodyTemplate: {fileID: 4081861434649121554, guid: e459514d6fd7040f6b56b2179d20aafb, type: 3}
+  stationTemplate: {fileID: 644544644769490457, guid: b56e3f687566c48c4bbf94627bc552be, type: 3}
   saturnMaterial: {fileID: 2100000, guid: fda3cdee99bcf47528e6aa4c502277a2, type: 2}
   moonMaterial: {fileID: 2100000, guid: 0c53807b5969b4f16a57a090b9c7112e, type: 2}
   moonStyles:
