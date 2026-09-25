@@ -133,9 +133,26 @@ public class SaturnSystemTest
     }
 
     [Test]
+    public void Stations_OrbitInsideParentSOI_AboveSurface()
+    {
+        Assert.IsNotEmpty(data.system.stations);
+        foreach (StationData station in data.system.stations)
+        {
+            ObjectData parent = data.system.objects.Find(o => o.id == station.parent);
+            Assert.NotNull(parent, $"{station.id}: родитель {station.parent} не найден");
+
+            double periapsis = station.orbit.semiMajorAxis * (1.0 - station.orbit.eccentricity);
+            double apoapsis = station.orbit.semiMajorAxis * (1.0 + station.orbit.eccentricity);
+            Assert.Greater(periapsis, parent.radius, $"{station.id}: под поверхностью");
+            Assert.Less(apoapsis, SOI(parent, root), $"{station.id}: вне сферы влияния родителя");
+        }
+    }
+
+    [Test]
     public void EveryObject_KnownFromDatabase_AfterLoad()
     {
         List<ObjectData> all = new(data.system.objects) { data.system.playerShip };
+        all.AddRange(data.system.stations);
         foreach (ObjectData obj in all)
             Assert.AreEqual(KnowledgeSource.Database, obj.knowledge, $"{obj.id}: источник знания");
     }

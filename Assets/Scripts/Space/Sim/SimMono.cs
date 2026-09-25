@@ -12,6 +12,9 @@ namespace OuterSpace.Sim
         public static SimMono instance;
         public static SpaceObject root { get; private set; }
         public static List<SpaceObject> bodies { get; private set; } = new();
+        // Станции отдельно от тел: у них нет сферы влияния, и в переходах, прогнозе и
+        // ограничении перемотки им делать нечего.
+        public static List<Station> stations { get; private set; } = new();
         public static SpaceObject playerShip { get; private set; }
         // Цель прицеливания: объект, к которому игрок сводит траекторию. Своей сферы влияния
         // у неё может и не быть — это точка встречи, а не будущее центральное тело.
@@ -35,6 +38,7 @@ namespace OuterSpace.Sim
         {
             // Списки статические и переживают выгрузку сцены.
             bodies.Clear();
+            stations.Clear();
             updateOrder.Clear();
             target = null;
 
@@ -54,6 +58,14 @@ namespace OuterSpace.Sim
                 body.SetOrbit(ToElements(objData.orbit, body.centralBody.MU));
                 byId.Add(objData.id, body);
                 bodies.Add(body);
+            }
+
+            foreach (StationData stationData in data.system.stations)
+            {
+                Station station = Place(new Station(stationData.port, stationData.sells, Prefab(stationData)), stationData);
+                station.SetCentralBody(byId[stationData.parent]);
+                station.SetOrbit(ToElements(stationData.orbit, station.centralBody.MU));
+                stations.Add(station);
             }
 
             PlayerShip shipData = data.system.playerShip;
@@ -91,6 +103,7 @@ namespace OuterSpace.Sim
         {
             List<SpaceObject> all = new() { root };
             all.AddRange(bodies);
+            all.AddRange(stations);
             all.Add(playerShip);
             updateOrder = all.OrderBy(Depth).ToList();
         }

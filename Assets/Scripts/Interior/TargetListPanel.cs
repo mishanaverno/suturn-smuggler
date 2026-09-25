@@ -299,6 +299,11 @@ namespace Interior
                     entries.Add(new ListEntry(body.GameObject.name.ToUpperInvariant(), body.simTransform,
                         NavPalette.For(body), body));
                 }
+                foreach (Station station in SimMono.stations)
+                {
+                    entries.Add(new ListEntry(station.GameObject.name.ToUpperInvariant(), station.simTransform,
+                        NavPalette.For(station), station));
+                }
                 return;
             }
 

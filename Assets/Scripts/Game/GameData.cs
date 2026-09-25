@@ -17,6 +17,7 @@ namespace Game
         public double sunDistance;
         // После загрузки — обходом иерархии от корня: родитель всегда раньше ребёнка.
         public List<ObjectData> objects;
+        public List<StationData> stations = new();
         public PlayerShip playerShip;
     }
     public class ObjectData
@@ -47,5 +48,20 @@ namespace Game
         public double methane;              // кг, начальный запас
         public double lox;                  // кг, начальный запас
         public Propulsion propulsion;
+    }
+    /// <summary>
+    /// Станция не вращается: её оси совпадают с осями симуляции, поэтому узел задан прямо в
+    /// них, смещением от центра станции.
+    /// </summary>
+    public class StationData : ObjectData
+    {
+        public PortData port;
+        public List<string> sells = new();   // "methane", "lox"
+    }
+    public class PortData
+    {
+        public Vector3d position;           // м
+        public Vector3d axis;               // наружу из узла, единичный
+        public Vector3d up;                 // задаёт крен, перпендикулярен оси
     }
 }

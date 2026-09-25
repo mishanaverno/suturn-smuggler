@@ -58,6 +58,8 @@ namespace OuterSpace
                 trajectory.markNodes = true;
                 glyph.ringSegments = 3;
             }
+            // Квадрат: станция не тело, и круглая метка выдавала бы её за луну.
+            if (Object is Station) glyph.ringSegments = 4;
         }
         // Start is called before the first frame update
         private void Update()

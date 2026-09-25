@@ -58,10 +58,31 @@ namespace Game
             if (reactor == null || reactor.spoolTime <= 0 || reactor.idleTemperature <= 0 || reactor.fullTemperature < reactor.idleTemperature)
                 throw new SystemDataException($"Корабль {ship.id}: у реактора должны быть положительные время выхода на мощность и температуры, полная не ниже холостой");
 
+            data.system.stations ??= new();
+            HashSet<string> stationIds = new();
+            foreach (StationData station in data.system.stations)
+            {
+                if (string.IsNullOrEmpty(station.id)) throw new SystemDataException("У одной из станций пустой id");
+                if (byId.ContainsKey(station.id) || !stationIds.Add(station.id))
+                    throw new SystemDataException($"Идентификатор станции повторяется: {station.id}");
+                ValidateOrbiting(station, byId);
+                if (station.radius <= 0)
+                    throw new SystemDataException($"Станция {station.id}: габарит должен быть положительным, получено {station.radius}");
+                ValidatePort(station.id, station.port);
+                foreach (string good in station.sells)
+                    if (good != "methane" && good != "lox")
+                        throw new SystemDataException($"Станция {station.id}: неизвестный товар {good}");
+            }
+
             foreach (ObjectData obj in data.system.objects)
             {
                 ToRadians(obj.orbit);
                 obj.knowledge = KnowledgeSource.Database;
+            }
+            foreach (StationData station in data.system.stations)
+            {
+                ToRadians(station.orbit);
+                station.knowledge = KnowledgeSource.Database;
             }
             ToRadians(ship.orbit);
             ship.knowledge = KnowledgeSource.Database;
@@ -103,6 +124,18 @@ namespace Game
             if (!byId.ContainsKey(obj.parent))
                 throw new SystemDataException($"Объект {obj.id}: центральное тело {obj.parent} не найдено");
             ValidateOrbit(obj.id, obj.orbit);
+        }
+
+        /// <summary>Ось и верх нормируются здесь: по ним считаются углы стыковки.</summary>
+        static void ValidatePort(string id, PortData port)
+        {
+            if (port == null) throw new SystemDataException($"Станция {id}: не задан стыковочный узел");
+            if (port.axis.sqrMagnitude <= 0 || port.up.sqrMagnitude <= 0)
+                throw new SystemDataException($"Станция {id}: у узла должны быть заданы ось и верх");
+            port.axis = port.axis.normalized;
+            port.up = port.up.normalized;
+            if (Mathd.Abs(Vector3d.Dot(port.axis, port.up)) > 1e-6)
+                throw new SystemDataException($"Станция {id}: верх узла не перпендикулярен его оси");
         }
 
         static void ValidateOrbit(string id, OrbitData orbit)
