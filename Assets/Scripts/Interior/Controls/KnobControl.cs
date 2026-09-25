@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Interior
@@ -30,12 +30,38 @@ namespace Interior
     /// мелкий шаг, не отрывая руки. Поэтому отдельного «точного режима» органу не нужно.
     ///
     /// Величины крутилка не знает: она отдаёт знак, а насколько сдвинуть — решает устройство.
-    /// Что получилось, человек читает на табло рядом (PanelReading), а не по положению ручки.
+    /// Что получилось, человек читает на табло рядом, а не по положению ручки: «правильного»
+    /// положения у ручки нет, она считает щелчки.
+    ///
+    /// Компонент живёт на корне органа, вращаемая деталь — в поле part. Щелчок настоящей
+    /// ручки — рывок с доводкой, поэтому поворот идёт по кривой, а не с одной скоростью;
+    /// пружинку с перелётом рисуют той же кривой, уходящей выше единицы.
     /// </summary>
-    public class PanelKnob : MonoBehaviour, IInteractable, IScrollable
+    public class KnobControl : MonoBehaviour, IInteractable, IScrollable
     {
         [Tooltip("Что эта крутилка крутит. Ассет из папки разъёмов.")]
         public StepPort port;
+
+        [Tooltip("Вращаемая деталь.")]
+        public Transform part;
+
+        [Tooltip("Вокруг чего вращается, в местных осях детали. Нормализуется.")]
+        public Vector3 axis = Vector3.up;
+
+        [Tooltip("Градусов за один щелчок.")]
+        public float degreesPerStep = 24f;
+
+        [Tooltip("За сколько секунд отрабатывается один щелчок.")]
+        public float stepTime = 0.09f;
+
+        [Tooltip("Как идёт поворот внутри щелчка: 0 — начало, 1 — конец. Выше единицы — перелёт с возвратом.")]
+        public AnimationCurve motion = new(new Keyframe(0f, 0f, 0f, 3f), new Keyframe(1f, 1f, 0f, 0f));
+
+        [Tooltip("Ограничить поворот. Ручка с упорами не крутится дальше края, даже если щелчки идут.")]
+        public bool limited;
+
+        public float minAngle = -120f;
+        public float maxAngle = 120f;
 
         [Tooltip("Подпись для старой проводки по имени. При заполненном разъёме не используется.")]
         public string label = "";
@@ -56,8 +82,35 @@ namespace Interior
         int run;
         int lastDirection;
         float lastTime;
+        Quaternion home;
+        float from;
+        float target;
+        float angle;
+        float phase = -1f;
 
-        void Awake() => responses = GetComponents<ControlResponse>();
+        void Awake()
+        {
+            responses = GetComponents<ControlResponse>();
+            home = part.localRotation;
+        }
+
+        void Update()
+        {
+            if (phase < 0f) return;
+
+            float span = Mathf.Max(stepTime, 0.0001f);
+            phase += Time.deltaTime;
+            if (phase >= span)
+            {
+                phase = -1f;
+                angle = target;
+            }
+            else
+            {
+                angle = Mathf.LerpUnclamped(from, target, motion.Evaluate(phase / span));
+            }
+            part.localRotation = home * Quaternion.AngleAxis(angle, axis.normalized);
+        }
 
         public string Prompt => port != null ? port.Title : label;
 
@@ -81,7 +134,13 @@ namespace Interior
             else onStep(step);
 
             // Ручка поворачивается на один щелчок независимо от разгона: крутанули один раз —
-            // видно один раз, а насколько это оказалось много, читается на табло.
+            // видно один раз, а насколько это оказалось много, читается на табло. Щелчок
+            // начинается с того места, где ручка сейчас, а не с прошлой цели: иначе быстрая
+            // серия щелчков рвала бы движение.
+            from = angle;
+            target += degreesPerStep * sign;
+            if (limited) target = Mathf.Clamp(target, minAngle, maxAngle);
+            phase = 0f;
             foreach (ControlResponse response in responses) response.Play(sign);
         }
 

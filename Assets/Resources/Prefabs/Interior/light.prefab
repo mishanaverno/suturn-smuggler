@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3556541359060528457}
-  - component: {fileID: 1427298629954466120}
   - component: {fileID: 6420646393001273967}
   - component: {fileID: 4491482024594999721}
   m_Layer: 0
@@ -34,22 +33,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2478316273596917633}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1427298629954466120
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4765880555892431401}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2dca91ff1a8124aea8edf7d3f4937d79, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelLamp
-  port: {fileID: 0}
-  on: {r: 0.41568628, g: 0.8235294, b: 0.6666667, a: 1}
-  off: {r: 0.12156863, g: 0.1882353, b: 0.18431373, a: 1}
-  everyFrames: 5
 --- !u!33 &6420646393001273967
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -206,6 +189,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2478316273596917633}
+  - component: {fileID: 2752776624219079210}
   m_Layer: 0
   m_Name: light
   m_TagString: Untagged
@@ -230,3 +214,20 @@ Transform:
   - {fileID: 3556541359060528457}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2752776624219079210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6784502577501584451}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dca91ff1a8124aea8edf7d3f4937d79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.LampIndicator
+  port: {fileID: 0}
+  part: {fileID: 4491482024594999721}
+  on: {r: 0.41568628, g: 0.8235294, b: 0.6666667, a: 1}
+  off: {r: 0.12156863, g: 0.1882353, b: 0.18431373, a: 1}
+  everyFrames: 5

@@ -99,8 +99,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6093324195133404583}
-  - component: {fileID: 7866451264040448305}
-  - component: {fileID: 4510578108076934557}
   - component: {fileID: 1402396395474513777}
   - component: {fileID: 1314144194201243737}
   - component: {fileID: 3915559119311031706}
@@ -126,68 +124,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 5958178819471980923}
   m_LocalEulerAnglesHint: {x: -90, y: 0, z: 310}
---- !u!114 &7866451264040448305
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5341241913917334775}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dfda3ed273e8e47e1a2ceaebfa67c04f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelSwitcher
-  ports:
-  - {fileID: 11400000, guid: eb88fd7476c0b4ccbac4d26e19422876, type: 2}
-  - {fileID: 11400000, guid: 017b45d4465bf45f69945dd27a9b4f78, type: 2}
-  - {fileID: 11400000, guid: 19587180da2314b188f4417abf9e6ab8, type: 2}
-  - {fileID: 11400000, guid: 40907a7e71af14ab6bd9b3a2492adf8a, type: 2}
-  - {fileID: 11400000, guid: 4ed5e60cfb8ff41daaf5124fe383b1a2, type: 2}
---- !u!114 &4510578108076934557
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5341241913917334775}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d591b8fef5801402ba41429e879e87c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.SwitchTurn
-  axis: {x: 0, y: 0, z: 1}
-  angles:
-  - 90
-  - 130
-  - 220
-  - 270
-  - 310
-  stepTime: 0.09
-  motion:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 3
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
 --- !u!33 &1402396395474513777
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -275,6 +211,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5958178819471980923}
+  - component: {fileID: 8792037743957418417}
   m_Layer: 0
   m_Name: switcher
   m_TagString: Untagged
@@ -300,6 +237,57 @@ Transform:
   - {fileID: 6093324195133404583}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
+--- !u!114 &8792037743957418417
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5804319214772045685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfda3ed273e8e47e1a2ceaebfa67c04f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.SwitcherControl
+  ports:
+  - {fileID: 11400000, guid: eb88fd7476c0b4ccbac4d26e19422876, type: 2}
+  - {fileID: 11400000, guid: 017b45d4465bf45f69945dd27a9b4f78, type: 2}
+  - {fileID: 11400000, guid: 19587180da2314b188f4417abf9e6ab8, type: 2}
+  - {fileID: 11400000, guid: 40907a7e71af14ab6bd9b3a2492adf8a, type: 2}
+  - {fileID: 11400000, guid: 4ed5e60cfb8ff41daaf5124fe383b1a2, type: 2}
+  part: {fileID: 6093324195133404583}
+  axis: {x: 0, y: 0, z: 1}
+  angles:
+  - 90
+  - 130
+  - 220
+  - 270
+  - 310
+  stepTime: 0.09
+  motion:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 3
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1001 &8602719100880845532
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -350,7 +338,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7511558181221131132, guid: f8423bdd3e4aa4bf7a221d0f9afeac9e, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
-      value:
+      value: 
       objectReference: {fileID: 2100000, guid: 7ca904a39fcfb4927bcb382cd82ac14e, type: 2}
     - target: {fileID: 919132149155446097, guid: f8423bdd3e4aa4bf7a221d0f9afeac9e, type: 3}
       propertyPath: m_Name

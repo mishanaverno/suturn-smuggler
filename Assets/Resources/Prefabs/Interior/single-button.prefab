@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 695661161481901846}
+  - component: {fileID: 6066108289683381058}
   m_Layer: 0
   m_Name: single-button
   m_TagString: Untagged
@@ -33,6 +34,29 @@ Transform:
   - {fileID: 5091599490353725090}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6066108289683381058
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4849249930018371942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06c697491b18c467392da0f39eda4777, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.ButtonControl
+  port: {fileID: 0}
+  part: {fileID: 5091599490353725090}
+  axis: {x: 0, y: -1, z: 0}
+  depth: 0.004
+  downTime: 0.04
+  upTime: 0.12
+  label: 
+  labelPrefab: {fileID: 0}
+  fontSize: 0
+  labelOffset: {x: 0, y: 0, z: 0.009}
+  labelAngles: {x: 0, y: 180, z: 0}
 --- !u!1 &6194275980416991006
 GameObject:
   m_ObjectHideFlags: 0
@@ -42,8 +66,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5091599490353725090}
-  - component: {fileID: 8606087149625778838}
-  - component: {fileID: 7106714115597143757}
   - component: {fileID: 5491975148787604046}
   - component: {fileID: 3492225356818062032}
   - component: {fileID: 34582805815547182}
@@ -69,40 +91,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 695661161481901846}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8606087149625778838
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6194275980416991006}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 06c697491b18c467392da0f39eda4777, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelButton
-  port: {fileID: 0}
-  label: 
-  labelPrefab: {fileID: 0}
-  fontSize: 0
-  labelOffset: {x: 0, y: 0, z: 0.009}
-  labelAngles: {x: 0, y: 180, z: 0}
---- !u!114 &7106714115597143757
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6194275980416991006}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee01d94bfbeec4497a5264468512a5e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.ButtonTravel
-  axis: {x: 0, y: -1, z: 0}
-  depth: 0.004
-  downTime: 0.04
-  upTime: 0.12
 --- !u!33 &5491975148787604046
 MeshFilter:
   m_ObjectHideFlags: 0

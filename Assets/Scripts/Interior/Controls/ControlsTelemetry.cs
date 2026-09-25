@@ -20,25 +20,29 @@ namespace Interior
     {
         void Start()
         {
-            foreach (PanelButton button in All<PanelButton>()) Check(button, button.port, button.Wired, "Кнопка");
-            foreach (PanelKnob knob in All<PanelKnob>()) Check(knob, knob.port, knob.Wired, "Крутилка");
-            foreach (PanelSwitcher switcher in All<PanelSwitcher>()) Check(switcher, null, switcher.Wired, "Переключатель");
-            foreach (PanelLamp lamp in All<PanelLamp>()) Check(lamp, lamp.port, lamp.Wired, "Лампа");
-            foreach (PanelLever lever in All<PanelLever>()) Check(lever, lever.port, lever.Wired, "Рычаг");
-            foreach (PanelStick stick in All<PanelStick>()) Check(stick, null, stick.Wired, "Стик");
+            foreach (ButtonControl button in All<ButtonControl>()) Check(button, button.port, button.Wired, button.part, "Кнопка");
+            foreach (KnobControl knob in All<KnobControl>()) Check(knob, knob.port, knob.Wired, knob.part, "Крутилка");
+            foreach (SwitcherControl switcher in All<SwitcherControl>()) Check(switcher, null, switcher.Wired, switcher.part, "Переключатель");
+            foreach (LeverControl lever in All<LeverControl>()) Check(lever, lever.port, lever.Wired, lever.part, "Рычаг");
+            foreach (StickControl stick in All<StickControl>()) Check(stick, null, stick.Wired, stick.part, "Стик");
+            foreach (LampIndicator lamp in All<LampIndicator>()) Check(lamp, lamp.port, lamp.Wired, lamp.part, "Лампа");
+            foreach (GaugeIndicator gauge in All<GaugeIndicator>()) CheckReading(gauge, gauge.port, gauge.part, "Прибор");
+            foreach (ReadoutIndicator readout in All<ReadoutIndicator>()) CheckReading(readout, readout.port, readout.part, "Табло");
+        }
 
-            foreach (PanelReading reading in All<PanelReading>())
-            {
-                if (reading.port == null) Debug.LogWarning($"Табло «{reading.name}»: не выбран разъём.", reading);
-                else if (!reading.port.Assigned) Debug.LogWarning($"Табло «{reading.name}»: разъём «{reading.port.name}» не привязан — прогоните меню Cockpit → Разъёмы.", reading);
-            }
+        static void CheckReading(Component organ, ReadingPort port, Object part, string kind)
+        {
+            if (port == null) Debug.LogWarning($"{kind} «{organ.name}»: не выбран разъём.", organ);
+            else if (!port.Assigned) Debug.LogWarning($"{kind} «{organ.name}»: разъём «{port.name}» не привязан — прогоните меню Cockpit → Разъёмы.", organ);
+            if (part == null) Debug.LogError($"{kind} «{organ.name}»: не задана деталь (part).", organ);
         }
 
         static T[] All<T>() where T : Component
             => FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-        static void Check(Component organ, ControlPort port, bool wired, string kind)
+        static void Check(Component organ, ControlPort port, bool wired, Object part, string kind)
         {
+            if (part == null) Debug.LogError($"{kind} «{organ.name}»: не задана деталь (part).", organ);
             if (port != null && !port.Assigned)
             {
                 Debug.LogWarning($"{kind} «{organ.name}»: разъём «{port.name}» не привязан к делу — " +

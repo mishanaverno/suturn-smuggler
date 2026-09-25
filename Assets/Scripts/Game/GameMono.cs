@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Game
 {
+    // Раньше всех: SimMono строит мир в своём Awake из данных, загруженных здесь.
+    [DefaultExecutionOrder(-100)]
     public class GameMono : MonoBehaviour
     {
         public const string SystemFile = "systems/saturn.json";

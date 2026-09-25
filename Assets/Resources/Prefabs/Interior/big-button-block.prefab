@@ -9,8 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8791988047583963041}
-  - component: {fileID: 3444422339904708543}
-  - component: {fileID: 520335403086292805}
   - component: {fileID: 2077812506478945955}
   - component: {fileID: 6546181874147971800}
   - component: {fileID: 426301549756654455}
@@ -36,40 +34,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7978588740016424338}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3444422339904708543
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 140376392584152113}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 06c697491b18c467392da0f39eda4777, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelButton
-  port: {fileID: 0}
-  label: 
-  labelPrefab: {fileID: 0}
-  fontSize: 0
-  labelOffset: {x: 0, y: 0, z: 0}
-  labelAngles: {x: 0, y: 0, z: 0}
---- !u!114 &520335403086292805
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 140376392584152113}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee01d94bfbeec4497a5264468512a5e6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.ButtonTravel
-  axis: {x: 0, y: -1, z: 0}
-  depth: 0.004
-  downTime: 0.04
-  upTime: 0.12
 --- !u!33 &2077812506478945955
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -157,6 +121,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7978588740016424338}
+  - component: {fileID: 2835226385840813507}
+  - component: {fileID: 7134977735751099002}
   m_Layer: 0
   m_Name: big-button-block
   m_TagString: Untagged
@@ -182,6 +148,46 @@ Transform:
   - {fileID: 1921945540169530736}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2835226385840813507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4760020131840629340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06c697491b18c467392da0f39eda4777, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.ButtonControl
+  port: {fileID: 0}
+  part: {fileID: 8791988047583963041}
+  axis: {x: 0, y: -1, z: 0}
+  depth: 0.004
+  downTime: 0.04
+  upTime: 0.12
+  label: 
+  labelPrefab: {fileID: 0}
+  fontSize: 0
+  labelOffset: {x: 0, y: 0, z: 0}
+  labelAngles: {x: 0, y: 0, z: 0}
+--- !u!114 &7134977735751099002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4760020131840629340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dca91ff1a8124aea8edf7d3f4937d79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.LampIndicator
+  port: {fileID: 0}
+  part: {fileID: 7533713621111883490}
+  on: {r: 0.41568628, g: 0.8235294, b: 0.6666667, a: 1}
+  off: {r: 0.12156863, g: 0.1882353, b: 0.18431373, a: 1}
+  everyFrames: 5
 --- !u!1 &6148963438953448379
 GameObject:
   m_ObjectHideFlags: 0
@@ -191,7 +197,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1921945540169530736}
-  - component: {fileID: 1644048336869862722}
   - component: {fileID: 2161120764719378896}
   - component: {fileID: 7533713621111883490}
   m_Layer: 0
@@ -216,22 +221,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7978588740016424338}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1644048336869862722
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6148963438953448379}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2dca91ff1a8124aea8edf7d3f4937d79, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelLamp
-  port: {fileID: 0}
-  on: {r: 0.41568628, g: 0.8235294, b: 0.6666667, a: 1}
-  off: {r: 0.12156863, g: 0.1882353, b: 0.18431373, a: 1}
-  everyFrames: 5
 --- !u!33 &2161120764719378896
 MeshFilter:
   m_ObjectHideFlags: 0

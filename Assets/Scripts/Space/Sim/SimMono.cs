@@ -21,12 +21,14 @@ namespace OuterSpace.Sim
         // обязан обновиться раньше ребёнка в том же тике.
         public static List<SpaceObject> updateOrder { get; private set; } = new();
 
+        /// <summary>
+        /// Мир строится в Awake, а не в Start: органы кокпита отдают начальные положения в
+        /// своих Start, и корабль к этому моменту должен уже существовать — иначе положение
+        /// рычага терялось, а корабль жил со значениями по умолчанию.
+        /// </summary>
         void Awake()
         {
             instance = this;
-        }
-        private void Start()
-        {
             CreateSim(GameMono.instance.gameData);
         }
         private void CreateSim(GameData data)

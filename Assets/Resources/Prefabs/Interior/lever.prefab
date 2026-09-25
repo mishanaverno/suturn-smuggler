@@ -190,6 +190,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2125855182165976537}
+  - component: {fileID: 3418765856659639483}
   m_Layer: 0
   m_Name: lever
   m_TagString: Untagged
@@ -215,6 +216,24 @@ Transform:
   - {fileID: 8507864486446020887}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
+--- !u!114 &3418765856659639483
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2278390363023203953}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4ff9813ca60641b082f2779eadf539e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.LeverControl
+  port: {fileID: 0}
+  follow: {fileID: 0}
+  part: {fileID: 8142233023309104721}
+  axis: {x: 0, y: 1, z: 0}
+  travel: 0.12
+  start: 0
 --- !u!1 &8844996542089316999
 GameObject:
   m_ObjectHideFlags: 0
@@ -224,7 +243,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8142233023309104721}
-  - component: {fileID: 2276653706211636221}
   - component: {fileID: 4831137550677613055}
   - component: {fileID: 6671773019846863746}
   - component: {fileID: 3494024745615617303}
@@ -250,23 +268,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2125855182165976537}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2276653706211636221
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8844996542089316999}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4ff9813ca60641b082f2779eadf539e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelLever
-  port: {fileID: 0}
-  follow: {fileID: 0}
-  axis: {x: 0, y: 1, z: 0}
-  travel: 0.12
-  start: 0
 --- !u!33 &4831137550677613055
 MeshFilter:
   m_ObjectHideFlags: 0

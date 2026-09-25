@@ -99,6 +99,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3604699293281387245}
+  - component: {fileID: 7650979039542258294}
   m_Layer: 0
   m_Name: light-qarter
   m_TagString: Untagged
@@ -123,6 +124,23 @@ Transform:
   - {fileID: 97484464859740158}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &7650979039542258294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3427590499022086366}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dca91ff1a8124aea8edf7d3f4937d79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.LampIndicator
+  port: {fileID: 0}
+  part: {fileID: 5660938265766004344}
+  on: {r: 0.41568628, g: 0.8235294, b: 0.6666667, a: 1}
+  off: {r: 0.12156863, g: 0.1882353, b: 0.18431373, a: 1}
+  everyFrames: 5
 --- !u!1 &5062660115972775266
 GameObject:
   m_ObjectHideFlags: 0
@@ -132,7 +150,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 97484464859740158}
-  - component: {fileID: 7238429567543849974}
   - component: {fileID: 1335256597503797220}
   - component: {fileID: 5660938265766004344}
   m_Layer: 0
@@ -157,22 +174,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 3604699293281387245}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7238429567543849974
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5062660115972775266}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2dca91ff1a8124aea8edf7d3f4937d79, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelLamp
-  port: {fileID: 0}
-  on: {r: 0.41568628, g: 0.8235294, b: 0.6666667, a: 1}
-  off: {r: 0.12156863, g: 0.1882353, b: 0.18431373, a: 1}
-  everyFrames: 5
 --- !u!33 &1335256597503797220
 MeshFilter:
   m_ObjectHideFlags: 0

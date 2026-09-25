@@ -99,8 +99,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4385844381711280130}
-  - component: {fileID: 4078344064825359029}
-  - component: {fileID: 8503205179012618740}
   - component: {fileID: 154710583592914903}
   - component: {fileID: 4562202071148465211}
   - component: {fileID: 2013699199474228830}
@@ -126,65 +124,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 4310751808490483098}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
---- !u!114 &4078344064825359029
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4223212853840209680}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f500a9e07bf3d45bcb4d8d5df40c9e0e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelKnob
-  port: {fileID: 11400000, guid: 1c595235ff1114ff49c46ac12f5d36e5, type: 2}
-  label: 
-  stepsPerDecade: 5
-  maxScale: 50
-  resetDelay: 0.5
---- !u!114 &8503205179012618740
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4223212853840209680}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0cb5fc5a4142e433dbeb63b5f655434d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.KnobTurn
-  axis: {x: 0, y: 0, z: 1}
-  degreesPerStep: 24
-  stepTime: 0.09
-  motion:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 3
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  limited: 0
-  minAngle: -120
-  maxAngle: 120
 --- !u!33 &154710583592914903
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -272,6 +211,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4310751808490483098}
+  - component: {fileID: 4050131206892527981}
   m_Layer: 0
   m_Name: wheel
   m_TagString: Untagged
@@ -296,3 +236,51 @@ Transform:
   - {fileID: 4385844381711280130}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4050131206892527981
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4283781804123946193}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f500a9e07bf3d45bcb4d8d5df40c9e0e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.KnobControl
+  port: {fileID: 11400000, guid: 1c595235ff1114ff49c46ac12f5d36e5, type: 2}
+  part: {fileID: 4385844381711280130}
+  axis: {x: 0, y: 0, z: 1}
+  degreesPerStep: 24
+  stepTime: 0.09
+  motion:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 3
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  limited: 0
+  minAngle: -120
+  maxAngle: 120
+  label: 
+  stepsPerDecade: 5
+  maxScale: 50
+  resetDelay: 0.5

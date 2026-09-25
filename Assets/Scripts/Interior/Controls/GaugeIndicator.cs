@@ -1,4 +1,5 @@
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Interior
 {
@@ -10,14 +11,17 @@ namespace Interior
     /// масштаб разъёма, поэтому для мощности реактора в процентах шкала — 0…100, а не 0…1.
     /// За пределами диапазона стрелка лежит на упоре. Нет показания — стрелка на нуле шкалы:
     /// обесточенный прибор так и выглядит.
+    ///
+    /// Компонент живёт на корне органа, стрелка — в поле part.
     /// </summary>
-    public class PanelGauge : MonoBehaviour
+    public class GaugeIndicator : MonoBehaviour
     {
         [Tooltip("Что показываем. Ассет из папки разъёмов.")]
         public ReadingPort port;
 
-        [Tooltip("Стрелка. Пивот — в центре циферблата. Пусто — ищется дочерний «arrow».")]
-        public Transform needle;
+        [Tooltip("Стрелка. Пивот — в центре циферблата.")]
+        [FormerlySerializedAs("needle")]
+        public Transform part;
 
         [Tooltip("Ось вращения стрелки в её местных осях: нормаль циферблата.")]
         public Vector3 axis = Vector3.forward;
@@ -27,22 +31,12 @@ namespace Interior
         public float max = 100f;
 
         [Tooltip("Угол стрелки в начале и на конце шкалы, от положения в модели, °.")]
-        public float minAngle;
-        public float maxAngle = -270f;
+        public float minAngle = -45f;
+        public float maxAngle = 225f;
 
         Quaternion rest;
 
-        void Awake()
-        {
-            if (needle == null) needle = transform.Find("arrow");
-            if (needle == null)
-            {
-                Debug.LogError($"PanelGauge на «{name}»: нет стрелки — положите её в поле needle.", this);
-                enabled = false;
-                return;
-            }
-            rest = needle.localRotation;
-        }
+        void Awake() => rest = part.localRotation;
 
         void Update()
         {
@@ -50,7 +44,7 @@ namespace Interior
             if (port != null && ControlBus.TryRead(port.id, out double value) && !double.IsNaN(value))
                 t = Mathf.InverseLerp(min, max, (float)(value * port.scale));
 
-            needle.localRotation = rest * Quaternion.AngleAxis(Mathf.Lerp(minAngle, maxAngle, t), axis);
+            part.localRotation = rest * Quaternion.AngleAxis(Mathf.Lerp(minAngle, maxAngle, t), axis);
         }
     }
 }

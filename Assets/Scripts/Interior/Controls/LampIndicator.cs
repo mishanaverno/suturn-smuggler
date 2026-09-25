@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Interior
@@ -12,13 +12,17 @@ namespace Interior
     /// объекте, две ссылки. И поэтому же индикатор может показывать не факт нажатия, а факт
     /// работы — они расходятся при выходе на режим и при автоотсечке.
     ///
+    /// Компонент живёт на корне органа, светящаяся деталь — в поле part.
+    ///
     /// Поле lit — старая проводка по имени объекта. Разъём, если он есть, главнее.
     /// </summary>
-    [RequireComponent(typeof(Renderer))]
-    public class PanelLamp : MonoBehaviour
+    public class LampIndicator : MonoBehaviour
     {
         [Tooltip("Что показывает эта лампа. Ассет из папки разъёмов.")]
         public SignalPort port;
+
+        [Tooltip("Светящаяся деталь.")]
+        public Renderer part;
 
         public Color on = new(1f, 0.35f, 0.3f);
         public Color off = new(0.18f, 0.08f, 0.08f);
@@ -28,14 +32,12 @@ namespace Interior
 
         [HideInInspector] public Func<bool> lit;
 
-        Renderer surface;
         bool state;
 
         public bool Wired => (port != null && port.Assigned) || lit != null;
 
         void Awake()
         {
-            surface = GetComponent<Renderer>();
             Apply(false);
         }
 
@@ -53,6 +55,6 @@ namespace Interior
         /// анимация — это наследник, а не второй разъём и не правка проводки. Учёт состояния
         /// ведёт база, наследнику остаётся только показать.
         /// </summary>
-        protected virtual void Apply(bool value) => surface.material.color = value ? on : off;
+        protected virtual void Apply(bool value) => part.material.color = value ? on : off;
     }
 }

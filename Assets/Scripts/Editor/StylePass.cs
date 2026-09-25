@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using Interior;
 using OuterSpace;
@@ -422,7 +422,7 @@ namespace InteriorEditor
                 EditorUtility.SetDirty(renderer);
                 changed = true;
             }
-            foreach (PanelLamp lamp in root.GetComponentsInChildren<PanelLamp>(true))
+            foreach (LampIndicator lamp in root.GetComponentsInChildren<LampIndicator>(true))
             {
                 Color on = Hex("#6AD2AA"), off = Hex("#1F302F");
                 if (lamp.on == on && lamp.off == off) continue;
@@ -434,12 +434,21 @@ namespace InteriorEditor
             return changed;
         }
 
+        static bool IsLamp(Renderer renderer)
+        {
+            foreach (LampIndicator lamp in renderer.GetComponentsInParent<LampIndicator>(true))
+            {
+                if (lamp.part == renderer) return true;
+            }
+            return false;
+        }
+
         static Material Choose(MeshRenderer renderer)
         {
             string name = renderer.name.ToLowerInvariant();
             if (name.Contains("screen") || name.Contains("label") || name.Contains("readout") ||
                 name.Contains("table") || renderer.GetComponent("TextMeshPro") != null) return null;
-            if (renderer.GetComponent<PanelLamp>() != null || name.StartsWith("light")) return indicator;
+            if (IsLamp(renderer) || name.StartsWith("light")) return indicator;
             if (name.Contains("cabin")) return shell;
             if (name.Contains("floor") || name.Contains("seat")) return recess;
             if (name.Contains("button")) return accent;

@@ -77,7 +77,7 @@ namespace Interior
         /// <summary>Двойной щелчок: взять стик под курсором набором клавиш номер set.</summary>
         public void Grip(int set)
         {
-            if (aimed is PanelStick stick) stick.Take(set);
+            if (aimed is StickControl stick) stick.Take(set);
         }
 
         /// <summary>Щелчок колеса по тому, на что наведён курсор.</summary>

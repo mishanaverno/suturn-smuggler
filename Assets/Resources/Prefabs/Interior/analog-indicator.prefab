@@ -138,7 +138,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game::Interior.PanelGauge
   port: {fileID: 11400000, guid: 8b16b0d08ed7241038938cf831432332, type: 2}
-  needle: {fileID: 4114729750738803151}
+  part: {fileID: 4114729750738803151}
   axis: {x: 0, y: 0, z: 1}
   min: 0
   max: 30

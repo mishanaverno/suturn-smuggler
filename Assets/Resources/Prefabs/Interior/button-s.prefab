@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5548484494883533830}
-  - component: {fileID: 6921256565074837632}
   - component: {fileID: 4361201850118005227}
   - component: {fileID: 6303588503698290295}
   - component: {fileID: 3020150610387043861}
@@ -35,24 +34,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 6662053143443457435}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6921256565074837632
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2521924356352135026}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 06c697491b18c467392da0f39eda4777, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game::Interior.PanelButton
-  port: {fileID: 0}
-  label: 
-  labelPrefab: {fileID: 5708344210541740479, guid: 654045ed80f4743e8ab8961880e6659d, type: 3}
-  fontSize: 0
-  labelOffset: {x: 0, y: 0, z: 0.0081}
-  labelAngles: {x: 0, y: 180, z: 90}
 --- !u!33 &4361201850118005227
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -230,6 +211,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6662053143443457435}
+  - component: {fileID: 2780812380765838025}
   m_Layer: 0
   m_Name: button-s
   m_TagString: Untagged
@@ -254,3 +236,26 @@ Transform:
   - {fileID: 5548484494883533830}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2780812380765838025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7663338979965875006}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06c697491b18c467392da0f39eda4777, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.ButtonControl
+  port: {fileID: 0}
+  part: {fileID: 5548484494883533830}
+  axis: {x: 0, y: -1, z: 0}
+  depth: 0
+  downTime: 0.04
+  upTime: 0.12
+  label: 
+  labelPrefab: {fileID: 5708344210541740479, guid: 654045ed80f4743e8ab8961880e6659d, type: 3}
+  fontSize: 0
+  labelOffset: {x: 0, y: 0, z: 0.0081}
+  labelAngles: {x: 0, y: 180, z: 90}

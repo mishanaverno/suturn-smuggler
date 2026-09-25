@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Controls;
 using UnityEngine;
 
@@ -17,16 +17,19 @@ namespace Interior
     /// крутить, решает устройство. Отдаёт он его только при изменении — соседний орган на той
     /// же величине не должен каждый кадр перебиваться стоящим стиком.
     ///
-    /// Трансформ стик двигает сам, как рычаг: отклонение и есть величина.
+    /// Компонент живёт на корне органа, рукоять — в поле part.
     /// </summary>
-    public class PanelStick : MonoBehaviour, IInteractable
+    public class StickControl : MonoBehaviour, IInteractable
     {
         const int Axes = 3;
 
-        static readonly PanelStick[] holders = new PanelStick[2];
+        static readonly StickControl[] holders = new StickControl[2];
 
         [Tooltip("Величины осей по порядку: от себя/на себя, вбок, поворот рукояти. Пустой разъём — ось не работает.")]
         public SettingPort[] ports = new SettingPort[Axes];
+
+        [Tooltip("Рукоять, которая наклоняется.")]
+        public Transform part;
 
         [Tooltip("Наклон при полном отклонении, градусов. От себя — вокруг местной X, вбок — вокруг местной Z.")]
         public float tilt = 20f;
@@ -37,7 +40,7 @@ namespace Interior
         readonly float[] deflection = new float[Axes];
         Quaternion home;
 
-        void Awake() => home = transform.localRotation;
+        void Awake() => home = part.localRotation;
 
         void OnValidate()
         {
@@ -72,7 +75,7 @@ namespace Interior
         /// <summary>Взять стик набором клавиш. Прежний стик этого набора отпускается.</summary>
         public void Take(int set)
         {
-            PanelStick previous = holders[set];
+            StickControl previous = holders[set];
             holders[set] = this;
             if (previous != null && previous != this) previous.Deflect(previous.Read());
         }
@@ -109,7 +112,7 @@ namespace Interior
                 if (port != null && port.Assigned && ControlBus.Available(port.id)) ControlBus.Set(port.id, input[axis]);
             }
             if (!moved) return;
-            transform.localRotation = home * Quaternion.Euler(deflection[0] * tilt, deflection[2] * twist, -deflection[1] * tilt);
+            part.localRotation = home * Quaternion.Euler(deflection[0] * tilt, deflection[2] * twist, -deflection[1] * tilt);
         }
     }
 }

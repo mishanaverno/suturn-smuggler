@@ -25,14 +25,14 @@ namespace Interior
     /// нужен, поэтому и берётся он рукой, а не колесом: колесо отдаёт счёт, а здесь двигают
     /// саму рукоятку.
     ///
-    /// Поэтому же рычаг двигает свой трансформ сам, а не через ControlResponse: отклик —
-    /// это то, что орган делает, сработав, а тут движение и есть величина.
+    /// Компонент живёт на корне органа, рукоятка — в поле part; у одиночной рукоятки это может
+    /// быть тот же объект.
     ///
     /// Разъём у него величины (SettingPort), а не ручки: рычаг называет значение целиком,
     /// а не щёлкает. Хранит это значение устройство — рычаг только выставляет его, когда
     /// рука его двигает. Иначе снятый или сломанный рычаг уносил бы тягу с собой.
     /// </summary>
-    public class PanelLever : MonoBehaviour, IInteractable, IDraggable
+    public class LeverControl : MonoBehaviour, IInteractable, IDraggable
     {
         [Tooltip("Куда отдаётся положение, 0…1. Ассет величины из папки разъёмов.")]
         public SettingPort port;
@@ -40,6 +40,9 @@ namespace Interior
         [Tooltip("Показание, по которому рычаг встаёт на место, пока его не держат: устройство " +
                  "может сдвинуть величину само, как сцепленные рукоятки РУД. Пусто — рычаг стоит, где поставили.")]
         public ReadingPort follow;
+
+        [Tooltip("Рукоятка, которая ходит по направляющей.")]
+        public Transform part;
 
         [Tooltip("Направление хода в местных осях объекта. Нормализуется.")]
         public Vector3 axis = Vector3.forward;
@@ -57,7 +60,7 @@ namespace Interior
 
         void Awake()
         {
-            home = transform.localPosition;
+            home = part.localPosition;
             value = Mathf.Clamp01(start);
             Apply();
         }
@@ -127,16 +130,16 @@ namespace Interior
         }
 
         /// <summary>Направляющая в мире. Поворот рычага не меняется, поэтому берётся с трансформа.</summary>
-        Vector3 Direction => transform.rotation * axis.normalized;
+        Vector3 Direction => part.rotation * axis.normalized;
 
         /// <summary>Нижний упор в мире.</summary>
-        Vector3 Zero => transform.parent == null ? home : transform.parent.TransformPoint(home);
+        Vector3 Zero => part.parent == null ? home : part.parent.TransformPoint(home);
 
         void Push()
         {
             if (Wired) ControlBus.Set(port.id, value);
         }
 
-        void Apply() => transform.localPosition = home + transform.localRotation * axis.normalized * (value * travel);
+        void Apply() => part.localPosition = home + part.localRotation * axis.normalized * (value * travel);
     }
 }
