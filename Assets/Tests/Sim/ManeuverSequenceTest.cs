@@ -343,10 +343,12 @@ public class ManeuverSequenceTest
         Maneuver second = ship.GetManeuver();
         double initialStep = ship.CurrentTimeStep;
 
-        for (int i = 0; i < 100; i++) ship.ShiftManeuverTime(initialStep);
+        // Шаг — доля дуги, так что с запасом в 10% узел должен дойти до её конца.
+        int steps = (int)(1.1 / Ship.TimeStepFraction);
+        for (int i = 0; i < steps; i++) ship.ShiftManeuverTime(initialStep);
 
         Assert.AreEqual(initialStep, ship.CurrentTimeStep, initialStep * 1e-12);
-        Assert.AreEqual(5000.0 + 100.0 * initialStep, second.startEpoch, 1e-9);
+        Assert.AreEqual(5000.0 + steps * initialStep, second.startEpoch, 1e-6);
         Assert.Greater(second.startEpoch, first.startEpoch + first.trajectory.settings.openOrbitHorizon,
             "узел должен суметь пересечь конец рассчитанной открытой дуги");
         UnityEngine.Object.DestroyImmediate(second.GameObject);
@@ -370,20 +372,21 @@ public class ManeuverSequenceTest
         Assert.AreSame(last, ship.GetManeuver(), "ручки должны редактировать последний узел");
         Assert.AreSame(first, ship.GetNextManeuver(), "автоматика должна исполнять ближайший узел");
         Assert.AreEqual(first.PlannedMagnitude, ship.RemainingDeltaV, 1e-9);
-        Assert.AreEqual(first.startEpoch - 0.5 * first.PlannedMagnitude / ship.Acceleration,
-            ship.BurnStartEpoch, 1e-9);
+        double exhaust = ship.engine.Engine.ExhaustVelocity;
+        double toHalf = ship.Mass / ship.engine.Engine.MassFlow * (1.0 - Math.Exp(-0.5 * first.PlannedMagnitude / exhaust));
+        Assert.AreEqual(first.startEpoch - toHalf, ship.BurnStartEpoch, 1e-9);
 
         ship.orientation = ShipOrientation.Maneuver;
         ship.UpdateDirection();
         Assert.Less(Vector3d.Angle(first.PlannedDeltaV, ship.CommandedDirection), 1e-5);
         ship.AlignInstantly();
-        ship.thrust = ship.mass * 10.0;
+        ship.engine.spec.nuclear.thrust = ship.Mass * 10.0;
         ship.SetThrust(true);
         world.Step(11.0, ship);
 
         Assert.IsFalse(ship.Thrusting, "отсечка должна сработать по Δv ближайшего узла");
         Assert.GreaterOrEqual(ship.BurnedDeltaV, first.PlannedMagnitude);
-        Assert.LessOrEqual(ship.BurnedDeltaV, first.PlannedMagnitude + 10.0);
+        Assert.LessOrEqual(ship.BurnedDeltaV, 11.0 * ship.Acceleration, "не больше одного тика");
         Assert.Less(ship.BurnedDeltaV, last.PlannedMagnitude);
         UnityEngine.Object.DestroyImmediate(last.GameObject);
         UnityEngine.Object.DestroyImmediate(first.GameObject);

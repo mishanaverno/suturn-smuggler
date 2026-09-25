@@ -186,7 +186,7 @@ public class SaturnSystemTest
 
     const string RootBody = "{'id':'root','name':'Root','gm':3.7931206e16,'radius':5.8232e7}";
     const string MoonBody = "{'id':'moon','name':'Moon','parent':'root','gm':8.9781371e12,'radius':2.5747e6,'orbit':{'semiMajorAxis':1.2219e9,'eccentricity':0.029,'inclination':0.3,'epoch':0}}";
-    const string ShipBody = "{'id':'player','name':'player','parent':'moon','mass':100000,'radius':50,'orbit':{'semiMajorAxis':2.9e6,'eccentricity':0,'inclination':0,'epoch':0}}";
+    const string ShipBody = "{'id':'player','name':'player','parent':'moon','dryMass':20000,'methane':40000,'lox':15000,'propulsion':{'nuclear':{'thrust':1e6,'isp':1500,'oxidizerRatio':0},'nuclearLox':{'thrust':1e6,'isp':1500,'oxidizerRatio':0},'chemical':{'thrust':1e6,'isp':1500,'oxidizerRatio':0},'rcs':{'thrust':1e6,'isp':1500,'oxidizerRatio':0},'reactor':{'idleTemperature':5000,'fullTemperature':25000,'spoolTime':10}},'radius':50,'orbit':{'semiMajorAxis':2.9e6,'eccentricity':0,'inclination':0,'epoch':0}}";
 
     [TestCase("родитель не существует", RootBody + "," + MoonBody, "'parent':'root'", "'parent':'ganymede'", "не найдено")]
     [TestCase("отрицательный GM", RootBody + "," + MoonBody, "'gm':8.9781371e12", "'gm':-8.9781371e12", "GM")]

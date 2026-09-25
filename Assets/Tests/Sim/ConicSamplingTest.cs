@@ -178,7 +178,8 @@ public class ConicSamplingTest
 
         Assert.AreEqual(orbit.semiMajorAxis * (1.0 - eccentricity), periapsis.magnitude, 1e-6);
         Assert.AreEqual(orbit.semiMajorAxis * (1.0 + eccentricity), apoapsis.magnitude, 1e-6);
-        Assert.AreEqual(180.0, Vector3d.Angle(periapsis, apoapsis), 1e-9);
+        // Не через Vector3d.Angle: acos у 180° теряет точность до ~1e-6°.
+        Assert.AreEqual(0.0, (periapsis.normalized + apoapsis.normalized).magnitude, 1e-12);
     }
 
     [Test]

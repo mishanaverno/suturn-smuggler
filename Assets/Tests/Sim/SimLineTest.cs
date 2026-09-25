@@ -15,6 +15,6 @@ public class SimLineTest
 
         Assert.IsNotNull(material, "материал линий не загрузился из Resources");
         Assert.IsNotNull(material.shader, "у материала линий нет шейдера");
-        Assert.AreEqual("Sprites/Default", material.shader.name);
+        Assert.AreEqual("Sim/InstrumentLine", material.shader.name);
     }
 }

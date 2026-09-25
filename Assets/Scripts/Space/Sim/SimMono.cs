@@ -55,7 +55,7 @@ namespace OuterSpace.Sim
             }
 
             PlayerShip shipData = data.system.playerShip;
-            playerShip = Place(new Ship(shipData.mass, Prefab(shipData)), shipData);
+            playerShip = Place(new Ship(shipData.dryMass, shipData.methane, shipData.lox, shipData.propulsion, Prefab(shipData)), shipData);
             playerShip.SetCentralBody(byId[shipData.parent]);
             playerShip.SetOrbit(ToElements(shipData.orbit, playerShip.centralBody.MU));
 
@@ -105,11 +105,17 @@ namespace OuterSpace.Sim
 
         private void FixedUpdate()
         {
+            for (int i = 0; i < updateOrder.Count; i++)
+            {
+                updateOrder[i].FixedUpdate();
+            }
+
+            // Переходы — отдельным проходом: кандидаты в центральные тела и старое тело, от
+            // которого Reframe сдвигает манёвр, должны быть уже на этом тике, а не на прошлом.
             bool orderChanged = false;
             for (int i = 0; i < updateOrder.Count; i++)
             {
                 SpaceObject obj = updateOrder[i];
-                obj.FixedUpdate();
                 if (!obj.TracksSOITransitions) continue;
 
                 SpaceObject central = SOITransition.ResolveCentralBody(obj, obj.centralBody, bodies, SOITransition.Hysteresis);

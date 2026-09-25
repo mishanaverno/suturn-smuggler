@@ -46,8 +46,17 @@ namespace Game
             PlayerShip ship = data.system.playerShip;
             if (ship == null) throw new SystemDataException("В файле системы нет корабля игрока");
             ValidateOrbiting(ship, byId);
-            if (ship.mass <= 0)
-                throw new SystemDataException($"Корабль {ship.id}: масса должна быть положительной, получено {ship.mass}");
+            if (ship.dryMass <= 0)
+                throw new SystemDataException($"Корабль {ship.id}: сухая масса должна быть положительной, получено {ship.dryMass}");
+            if (ship.methane < 0 || ship.lox < 0)
+                throw new SystemDataException($"Корабль {ship.id}: запасы топлива не могут быть отрицательными");
+            ValidateEngine(ship, "nuclear", ship.propulsion?.nuclear);
+            ValidateEngine(ship, "nuclearLox", ship.propulsion?.nuclearLox);
+            ValidateEngine(ship, "chemical", ship.propulsion?.chemical);
+            ValidateEngine(ship, "rcs", ship.propulsion?.rcs);
+            Reactor reactor = ship.propulsion.reactor;
+            if (reactor == null || reactor.spoolTime <= 0 || reactor.idleTemperature <= 0 || reactor.fullTemperature < reactor.idleTemperature)
+                throw new SystemDataException($"Корабль {ship.id}: у реактора должны быть положительные время выхода на мощность и температуры, полная не ниже холостой");
 
             foreach (ObjectData obj in data.system.objects)
             {
@@ -57,6 +66,13 @@ namespace Game
             ToRadians(ship.orbit);
             ship.knowledge = KnowledgeSource.Database;
             return data;
+        }
+
+        static void ValidateEngine(PlayerShip ship, string name, Engine engine)
+        {
+            if (engine == null) throw new SystemDataException($"Корабль {ship.id}: нет режима {name}");
+            if (engine.thrust <= 0 || engine.isp <= 0 || engine.oxidizerRatio < 0)
+                throw new SystemDataException($"Корабль {ship.id}, режим {name}: тяга и удельный импульс должны быть положительными, O/F — неотрицательным");
         }
 
         static void ToRadians(OrbitData orbit)

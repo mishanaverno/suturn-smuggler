@@ -44,23 +44,10 @@ namespace OuterSpace.Sim.Objects
         double burnEpoch;
         double rcsEpoch;
         public override bool TracksSOITransitions => true;
-        public double mass;
-        /// <summary>
-        /// Расчётное ускорение при полной тяге, м/с². Пять g — много для человека, но пока
-        /// нет ни топлива, ни перегрузок, это просто цена минуты: при 50 м/с² прожиг на
-        /// 7 км/с длится две с половиной минуты, а при одном — два часа, и проверять на таком
-        /// игру невозможно. Число временное и уедет, как только появится формула Циолковского.
-        /// </summary>
-        public const double DesignAcceleration = 50.0;
-        /// <summary>Тяга двигателя, Н. Считается от массы: двигатель подбирают под корабль.</summary>
-        public double thrust;
-        /// <summary>
-        /// Расчётное ускорение от РСУ, м/с². На порядки меньше маршевого: РСУ нужна, чтобы
-        /// подойти и встать рядом, а не чтобы менять орбиту. Число временное, как и у маршевого.
-        /// </summary>
-        public const double RcsDesignAcceleration = 0.5;
-        /// <summary>Тяга РСУ по любой оси, Н. Фиксированная: сопло либо работает, либо нет.</summary>
-        public double rcsThrust;
+        public double dryMass;
+        public readonly Tanks tanks = new();
+        public readonly PropulsionUnit engine;
+        public readonly RcsUnit rcs;
         public readonly TrajectoryCache trajectory = new();
         static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
         static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
@@ -79,52 +66,57 @@ namespace OuterSpace.Sim.Objects
         public readonly Attitude attitude = new();
         /// <summary>Команда ручного вращения по связанным осям: крен, тангаж, рыскание, каждая в [-1, 1].</summary>
         public Vector3d rotationCommand;
-        /// <summary>Команда РСУ по связанным осям: вперёд, влево, вверх, каждая в [-1, 1].</summary>
-        public Vector3d translationCommand;
-        /// <summary>Доля тяги РСУ, 0…1: положение её рычага. Общая на все оси.</summary>
-        public double rcsThrottle = 1.0;
         /// <summary>
         /// Множитель шага настройки, выставляемый пультом: грубо, точно или как есть. Модель
         /// его не выводит из клавиш — она вообще не знает, что клавиши существуют.
         /// </summary>
         public double stepScale = 1.0;
         /// <summary>
-        /// Доля полной тяги, 0…1: положение рычага на панели. Расчётное ускорение
-        /// (Acceleration) остаётся паспортным — по нему считаются длительность прожига и
-        /// момент его начала, то есть план. Дросселирование меняет исполнение плана, а не
-        /// сам план: прожиг на половине тяги уйдёт за расчётное окно, и это видно по остатку.
+        /// Галету можно переключать на ходу. Режим, в котором установку не зажечь, глушит
+        /// двигатель: IDLE или PROX с разведёнными рукоятками.
         /// </summary>
-        public double throttle = 1.0;
+        public void SetEngineMode(EngineMode mode)
+        {
+            engine.SetMode(mode);
+            if (!engine.CanIgnite) SetThrust(false);
+        }
 
         /// <summary>Направление тяги в инерциальной системе центрального тела.</summary>
         public Vector3d Direction => attitude.Forward;
         /// <summary>Направление, которого требует режим ориентации.</summary>
         public Vector3d CommandedDirection => dir;
         public bool Thrusting => thrusting;
-        public double Acceleration => thrust / mass;
+        public double Mass => dryMass + tanks.Mass;
+        /// <summary>Паспортное ускорение текущего режима на полной мощности: по нему строится план.</summary>
+        public double Acceleration => engine.Engine.thrust / Mass;
         /// <summary>Сожжено с начала прожига по текущему манёвру, м/с.</summary>
         public double BurnedDeltaV { get; private set; }
         public double RemainingDeltaV => GetNextManeuver() is Maneuver next
             ? next.PlannedMagnitude - BurnedDeltaV
             : 0.0;
-        /// <summary>Сколько осталось жечь при нынешней тяге, с.</summary>
-        public double RemainingBurnDuration => Mathd.Max(RemainingDeltaV, 0.0) / Acceleration;
+        /// <summary>Сколько осталось жечь на полной тяге, с.</summary>
+        public double RemainingBurnDuration => engine.BurnDuration(Mass, Mathd.Max(RemainingDeltaV, 0.0));
         /// <summary>
         /// Прожиг центрируется на узле: начатый в момент узла, он весь пришёлся бы на время
-        /// после него, и чем длиннее — тем сильнее результат разошёлся бы с планом.
+        /// после него, и чем длиннее — тем сильнее результат разошёлся бы с планом. Центр —
+        /// момент, когда набрана половина Δv, а не середина по времени: корабль легчает, и
+        /// вторая половина скорости набирается быстрее первой.
         /// </summary>
         public double BurnStartEpoch =>
             GetNextManeuver() is Maneuver next
-                ? next.startEpoch - 0.5 * next.PlannedMagnitude / Acceleration
+                ? next.startEpoch - engine.BurnDuration(Mass, 0.5 * next.PlannedMagnitude)
                 : 0.0;
         public double CurrentTimeStep => TimeStep(ManeuverTimeSpan(), stepScale);
         public double CurrentSpeedStep => SpeedStep(SpeedAtNode(), stepScale);
 
-        public Ship(double mass, GameObject prefab) : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.TRAJECTORY })
+        public Ship(double dryMass, double methane, double lox, Propulsion propulsion, GameObject prefab)
+            : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.TRAJECTORY })
         {
-            this.mass = mass;
-            thrust = mass * DesignAcceleration;
-            rcsThrust = mass * RcsDesignAcceleration;
+            this.dryMass = dryMass;
+            tanks.methane = methane;
+            tanks.lox = lox;
+            engine = new PropulsionUnit(propulsion, tanks);
+            rcs = new RcsUnit(propulsion.rcs, tanks);
         }
         public Maneuver GetManeuver()
         {
@@ -225,6 +217,7 @@ namespace OuterSpace.Sim.Objects
 
         public void SetThrust(bool on)
         {
+            if (on && !engine.CanIgnite) return;
             if (thrusting == on) return;
             thrusting = on;
             trajectory.settings.maxPatches = on ? 1 : DefaultMaxPatches;
@@ -417,6 +410,7 @@ namespace OuterSpace.Sim.Objects
         {
             UpdateDirection();
             UpdateAttitude();
+            engine.UpdateReactor(GameMono.instance.Epoch);
             if (thrusting) ApplyThrust();
             ApplyRcs();
             base.FixedUpdate();
@@ -439,13 +433,13 @@ namespace OuterSpace.Sim.Objects
             burnEpoch = epoch;
             if (dt <= 0.0) return;
 
-            Vector3d impulse = attitude.Forward * (Acceleration * Mathd.Clamp01(throttle) * dt);
+            Vector3d impulse = engine.Burn(attitude.Forward, Mass, dt);
             CountTowardPlan(impulse);
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
             orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
             trajectory.Invalidate();
 
-            if (cutoffArmed && RemainingDeltaV <= 0.0) SetThrust(false);
+            if (cutoffArmed && RemainingDeltaV <= 0.0 || !engine.HasPropellant) SetThrust(false);
         }
 
         /// <summary>
@@ -459,12 +453,11 @@ namespace OuterSpace.Sim.Objects
             double epoch = GameMono.instance.Epoch;
             double dt = epoch - rcsEpoch;
             rcsEpoch = epoch;
-            if (dt <= 0.0 || translationCommand.sqrMagnitude == 0.0) return;
+            if (dt <= 0.0) return;
 
-            Vector3d local = translationCommand;
-            Vector3d direction = attitude.Forward * local.x + attitude.Left * local.y + attitude.Up * local.z;
+            Vector3d impulse = rcs.Fire(attitude, Mass, dt);
+            if (impulse.sqrMagnitude == 0.0) return;
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
-            Vector3d impulse = direction * (rcsThrust * Mathd.Clamp01(rcsThrottle) / mass * dt);
             orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
             trajectory.Invalidate();
             CountTowardPlan(impulse);

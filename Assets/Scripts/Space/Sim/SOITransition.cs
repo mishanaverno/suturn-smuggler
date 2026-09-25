@@ -25,7 +25,8 @@ namespace OuterSpace.Sim
                 if (next == null) return central;
                 central = next;
             }
-            return central;
+            throw new System.InvalidOperationException(
+                $"Центральное тело не определилось за {MaxSteps} шагов, последнее — {central.GameObject.name}");
         }
 
         static SpaceObject Descend(SpaceObject obj, SpaceObject central, IReadOnlyList<SpaceObject> allBodies)

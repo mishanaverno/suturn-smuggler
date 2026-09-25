@@ -47,7 +47,10 @@ public class ManeuverExecutionTest
         Maneuver maneuver = ship.GetManeuver();
         maneuver.deltaLVLHVelocity = deltaLVLH;
         maneuver.CalcAndDraw();
-        ship.thrust = ship.mass * maneuver.PlannedMagnitude / duration;
+        // По Циолковскому: корабль легчает, и тяга под постоянное ускорение дала бы перелёт.
+        Engine engine = ship.engine.spec.nuclear;
+        double burned = ship.Mass * (1.0 - Math.Exp(-maneuver.PlannedMagnitude / engine.ExhaustVelocity));
+        engine.thrust = engine.ExhaustVelocity * burned / duration;
         return ship;
     }
 
@@ -72,9 +75,8 @@ public class ManeuverExecutionTest
     /// <summary>Прожиг, центрированный на узле: половина длительности до него, половина после.</summary>
     void BurnCentered(Ship ship, double step)
     {
-        double node = ship.GetManeuver().startEpoch;
-        double half = 0.5 * ship.RemainingDeltaV / ship.Acceleration;
-        Burn(ship, node - half, node + half, step);
+        double start = ship.BurnStartEpoch;
+        Burn(ship, start, start + ship.RemainingBurnDuration, step);
     }
 
     static void AssertRelative(double expected, double actual, double tolerance, string what) =>
@@ -168,7 +170,8 @@ public class ManeuverExecutionTest
 
         BurnCentered(ship, Step);
 
-        Assert.LessOrEqual(ship.RemainingDeltaV, 0.0);
+        // Окно прожига точно по Циолковскому: остаток доходит до нуля с точностью округления.
+        Assert.LessOrEqual(ship.RemainingDeltaV, 1e-9);
         Assert.GreaterOrEqual(ship.RemainingDeltaV, -ship.Acceleration * Step);
     }
 
@@ -206,20 +209,187 @@ public class ManeuverExecutionTest
     }
 
     [Test]
-    public void Acceleration_ScalesWithMass()
+    public void BurnedDeltaV_FollowsTsiolkovsky()
     {
-        const double Duration = 4000.0;
         const double Step = 20.0;
-        Ship light = Planned(new Vector3d(180.0, 0.0, 0.0), Duration);
-        Ship heavy = Planned(new Vector3d(180.0, 0.0, 0.0), Duration);
-        heavy.mass = 2.0 * light.mass;
-        heavy.thrust = light.thrust;
+        Ship light = Planned(new Vector3d(180.0, 0.0, 0.0), 4000.0);
+        Ship heavy = Planned(new Vector3d(180.0, 0.0, 0.0), 4000.0);
+        heavy.engine.spec.nuclear.thrust = light.engine.spec.nuclear.thrust;
+        heavy.dryMass += light.Mass;
+        double lightBefore = light.Mass;
+        double heavyBefore = heavy.Mass;
 
         double node = light.GetManeuver().startEpoch;
         Burn(light, node, node + 1000.0, Step);
         Burn(heavy, node, node + 1000.0, Step);
 
-        Assert.AreEqual(0.5 * light.BurnedDeltaV, heavy.BurnedDeltaV, 1e-9);
+        double exhaust = light.engine.Engine.ExhaustVelocity;
+        Assert.AreEqual(exhaust * Math.Log(lightBefore / light.Mass), light.BurnedDeltaV, 1e-9);
+        Assert.AreEqual(exhaust * Math.Log(heavyBefore / heavy.Mass), heavy.BurnedDeltaV, 1e-9);
+        Assert.AreEqual(lightBefore - light.Mass, heavyBefore - heavy.Mass, 1e-9, "расход от массы не зависит");
+        Assert.Less(heavy.BurnedDeltaV, 0.51 * light.BurnedDeltaV);
+    }
+
+    [Test]
+    public void EngineFlamesOut_WhenMethaneRunsOut()
+    {
+        const double Step = 1.0;
+        Ship ship = Planned(new Vector3d(10000.0, 0.0, 0.0), 100.0);
+        ship.tanks.methane = 50.0;
+        double loxBefore = ship.tanks.lox;
+        double expected = ship.engine.Engine.ExhaustVelocity * Math.Log(ship.Mass / (ship.Mass - 50.0));
+
+        double node = ship.GetManeuver().startEpoch;
+        Burn(ship, node, node + 1000.0, Step);
+
+        Assert.AreEqual(0.0, ship.tanks.methane);
+        Assert.AreEqual(loxBefore, ship.tanks.lox, "ЯРД кислород не тратит");
+        Assert.AreEqual(expected, ship.BurnedDeltaV, 1e-9);
+        Assert.AreEqual(0.0, ship.engine.AvailableDeltaV(ship.Mass));
+    }
+
+    [Test]
+    public void Prox_SpendsMethaneAndLoxByRatio_AndCruiseNeedsNoLox()
+    {
+        Ship ship = Planned(new Vector3d(10000.0, 0.0, 0.0), 100.0);
+        ship.SetEngineMode(EngineMode.Prox);
+        ship.engine.SetLoxThrottle(1.0);
+        ship.tanks.lox = 35.0;
+        double methaneBefore = ship.tanks.methane;
+
+        double node = ship.GetManeuver().startEpoch;
+        Burn(ship, node, node + 1000.0, 1.0);
+
+        Assert.AreEqual(0.0, ship.tanks.lox, 1e-12);
+        Assert.AreEqual(10.0, methaneBefore - ship.tanks.methane, 1e-9, "O/F 3.5 : 1");
+
+        ship.tanks.lox = 0.0;
+        ship.SetThrust(true);
+        Assert.IsFalse(ship.Thrusting, "без кислорода ЖРД не зажигается");
+        ship.SetEngineMode(EngineMode.Cruise);
+        ship.engine.SetLoxThrottle(0.0);
+        ship.SetThrust(true);
+        Assert.IsTrue(ship.Thrusting, "ЯРД без форсажа кислород не нужен");
+        ship.SetThrust(false);
+    }
+
+    [Test]
+    public void Throttles_PushEachOther_AndLatchInProxOnContact()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(ShipRadius), 0.0);
+        ship.engine.SetMainThrottle(0.5);
+        ship.engine.SetLoxThrottle(0.7);
+        Assert.AreEqual(0.7, ship.engine.MainThrottle, "LOX выше MAIN толкает MAIN");
+        ship.engine.SetMainThrottle(0.3);
+        Assert.AreEqual(0.3, ship.engine.LoxThrottle, "MAIN ниже LOX толкает LOX");
+        ship.engine.SetLoxThrottle(0.1);
+        Assert.AreEqual(0.3, ship.engine.MainThrottle, "в CRUISE не сцеплены: LOX уходит вниз один");
+
+        ship.SetEngineMode(EngineMode.Prox);
+        ship.engine.SetMainThrottle(0.6);
+        Assert.AreEqual(0.1, ship.engine.LoxThrottle, "не коснулись — не сцепились");
+
+        ship.engine.SetLoxThrottle(0.6);
+        ship.engine.SetLoxThrottle(0.2);
+        Assert.AreEqual(0.2, ship.engine.MainThrottle, "коснулись в PROX — ходят вместе и вниз");
+
+        ship.SetEngineMode(EngineMode.Cruise);
+        ship.engine.SetLoxThrottle(0.0);
+        Assert.AreEqual(0.2, ship.engine.MainThrottle, "вне PROX сцепка снята");
+    }
+
+    [Test]
+    public void Prox_FlamesOut_WhenEnteredWithSplitThrottles()
+    {
+        Ship ship = Planned(new Vector3d(100.0, 0.0, 0.0), 100.0);
+        ship.engine.SetLoxThrottle(0.5);
+        ship.SetThrust(true);
+        Assert.IsTrue(ship.Thrusting);
+
+        ship.SetEngineMode(EngineMode.Prox);
+        Assert.IsFalse(ship.Thrusting, "рукоятки разведены — смесь не та");
+        ship.SetThrust(true);
+        Assert.IsFalse(ship.Thrusting, "пока не сцеплены, не зажигается");
+
+        ship.engine.SetLoxThrottle(1.0);
+        ship.SetThrust(true);
+        Assert.IsTrue(ship.Thrusting, "LOX дошёл до MAIN и сцепился");
+        ship.SetThrust(false);
+    }
+
+    [Test]
+    public void Idle_DoesNotIgnite_AndShutsDownOnSwitch()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(ShipRadius), 0.0);
+        ship.SetThrust(true);
+        Assert.IsTrue(ship.Thrusting);
+
+        ship.SetEngineMode(EngineMode.Idle);
+        Assert.IsFalse(ship.Thrusting, "IDLE глушит двигатель");
+        ship.SetThrust(true);
+        Assert.IsFalse(ship.Thrusting, "в IDLE зажигание не включается");
+    }
+
+    [Test]
+    public void Afterburner_BlendsBetweenPureAndFullLox()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(ShipRadius), 0.0);
+        Propulsion p = ship.engine.spec;
+
+        ship.engine.SetLoxThrottle(1.0);
+        Assert.AreEqual(p.nuclearLox.thrust, ship.engine.Engine.thrust, 1e-6);
+        Assert.AreEqual(p.nuclearLox.isp, ship.engine.Engine.isp, 1e-9);
+
+        ship.engine.SetMainThrottle(0.8);
+        ship.engine.SetLoxThrottle(0.4);
+        Assert.AreEqual(0.5 * (p.nuclear.thrust + p.nuclearLox.thrust), ship.engine.Engine.thrust, 1e-6,
+            "форсаж — доля LOX от MAIN");
+        Assert.AreEqual(0.5, ship.engine.Engine.oxidizerRatio, 1e-12);
+    }
+
+    [Test]
+    public void Reactor_SpoolsUpInTenSeconds_AndLimitsThrust()
+    {
+        Ship ship = Planned(new Vector3d(10000.0, 0.0, 0.0), 10000.0);
+        double node = ship.GetManeuver().startEpoch;
+        world.Step(node, ship);
+        ship.engine.reactorPower = 0.0;
+
+        ship.SetThrust(true);
+        world.Step(node + 5.0, ship);
+        Assert.AreEqual(0.5, ship.engine.reactorPower, 1e-9);
+        Assert.AreEqual(ship.engine.spec.nuclear.isp * Math.Sqrt(15000.0 / 25000.0), ship.engine.SpecificImpulse, 1e-9,
+            "импульс ниже паспортного, пока реактор не догнал заказ");
+        Assert.AreEqual(15000.0, ship.engine.ReactorTemperature, 1e-6);
+        world.Step(node + 10.0, ship);
+        Assert.AreEqual(1.0, ship.engine.reactorPower, 1e-12);
+
+        ship.SetEngineMode(EngineMode.Prox);
+        world.Step(node + 13.0, ship);
+        Assert.AreEqual(0.7, ship.engine.reactorPower, 1e-9, "в PROX реактор остывает");
+        ship.SetThrust(false);
+    }
+
+    [Test]
+    public void ColdStart_CostsMorePropellant_ThanWarmReactor()
+    {
+        Ship warm = Planned(new Vector3d(10000.0, 0.0, 0.0), 10000.0);
+        Ship cold = Planned(new Vector3d(10000.0, 0.0, 0.0), 10000.0);
+        double node = warm.GetManeuver().startEpoch;
+        world.Step(node, cold);
+        cold.engine.reactorPower = 0.0;
+        double warmBefore = warm.Mass;
+        double coldBefore = cold.Mass;
+
+        Burn(warm, node, node + 20.0, 0.1);
+        Burn(cold, node, node + 20.0, 0.1);
+
+        double exhaust = warm.engine.Engine.ExhaustVelocity;
+        double warmPerKg = warm.BurnedDeltaV / (warmBefore - warm.Mass);
+        double coldPerKg = cold.BurnedDeltaV / (coldBefore - cold.Mass);
+        Assert.AreEqual(exhaust * Math.Log(warmBefore / warm.Mass), warm.BurnedDeltaV, 1e-9, "прогретый — по паспорту");
+        Assert.Less(cold.BurnedDeltaV, warm.BurnedDeltaV, "холодный не успел разогнаться");
+        Assert.Less(coldPerKg, warmPerKg, "разогрев стоит топлива");
     }
 
     /// <summary>

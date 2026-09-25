@@ -43,6 +43,9 @@ namespace Game
     }
     public class PlayerShip : ObjectData
     {
-        public double mass;                 // кг: у корабля масса нужна по-настоящему, для тяги
+        public double dryMass;              // кг
+        public double methane;              // кг, начальный запас
+        public double lox;                  // кг, начальный запас
+        public Propulsion propulsion;
     }
 }

@@ -18,7 +18,9 @@ namespace OuterSpace.Sim
         const string ShaderPath = "Shaders/InstrumentLine";
         const string FallbackMaterialPath = "Materials/Line";
 
-        public static Material Material => material ??= Create();
+        // Не ??=: оно не видит уничтоженный Unity-объект, а материал из прошлой play-сессии
+        // уничтожается при выходе из неё, хотя статическое поле его всё ещё держит.
+        public static Material Material => material != null ? material : material = Create();
         static Material material;
 
         static Material Create()

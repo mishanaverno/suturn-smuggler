@@ -37,6 +37,10 @@ namespace Interior
         [Tooltip("Куда отдаётся положение, 0…1. Ассет величины из папки разъёмов.")]
         public SettingPort port;
 
+        [Tooltip("Показание, по которому рычаг встаёт на место, пока его не держат: устройство " +
+                 "может сдвинуть величину само, как сцепленные рукоятки РУД. Пусто — рычаг стоит, где поставили.")]
+        public ReadingPort follow;
+
         [Tooltip("Направление хода в местных осях объекта. Нормализуется.")]
         public Vector3 axis = Vector3.forward;
 
@@ -48,6 +52,7 @@ namespace Interior
 
         float value;
         float grabOffset;
+        bool held;
         Vector3 home;
 
         void Awake()
@@ -79,6 +84,7 @@ namespace Interior
         /// </summary>
         public void Grab(Ray ray)
         {
+            held = true;
             if (Pointer(ray, out float along)) grabOffset = value * travel - along;
         }
 
@@ -90,7 +96,14 @@ namespace Interior
             Push();
         }
 
-        public void Drop() { }
+        public void Drop() => held = false;
+
+        void Update()
+        {
+            if (held || follow == null || !ControlBus.TryRead(follow.id, out double read) || double.IsNaN(read)) return;
+            value = Mathf.Clamp01((float)read);
+            Apply();
+        }
 
         /// <summary>
         /// Куда показывает курсор, в метрах вдоль направляющей от нижнего упора. Берётся

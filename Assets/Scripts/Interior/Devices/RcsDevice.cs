@@ -12,12 +12,12 @@ namespace Interior
         protected override void Wire()
         {
             // Связанные оси корабля: X — вперёд, Y — влево, Z — вверх.
-            Bind(SettingId.RcsForward, value => Fire(ref Ship.translationCommand.x, value), HasShip);
-            Bind(SettingId.RcsRight, value => Fire(ref Ship.translationCommand.y, -value), HasShip);
-            Bind(SettingId.RcsUp, value => Fire(ref Ship.translationCommand.z, value), HasShip);
+            Bind(SettingId.RcsForward, value => Fire(ref Ship.rcs.command.x, value), HasShip);
+            Bind(SettingId.RcsRight, value => Fire(ref Ship.rcs.command.y, -value), HasShip);
+            Bind(SettingId.RcsUp, value => Fire(ref Ship.rcs.command.z, value), HasShip);
 
-            Bind(SettingId.RcsThrottle, value => Ship.rcsThrottle = value, HasShip);
-            Bind(ReadingId.RcsThrottle, () => Ship == null ? double.NaN : Ship.rcsThrottle);
+            Bind(SettingId.RcsThrottle, value => { if (Ship != null) Ship.rcs.throttle = value; }, HasShip);
+            Bind(ReadingId.RcsThrottle, () => Ship == null ? double.NaN : Ship.rcs.throttle);
         }
 
         static bool HasShip() => Ship != null;

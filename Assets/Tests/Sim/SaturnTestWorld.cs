@@ -103,12 +103,30 @@ public class SaturnTestWorld : IDisposable
     {
         Epoch = epoch;
         foreach (SpaceObject body in ordered) body.FixedUpdate();
-        Ship ship = new(1000.0, prefab);
+        // Прогретый реактор на полной мощности в CRUISE: здесь проверяется исполнение плана,
+        // а разогрев и органы — отдельными тестами.
+        Ship ship = new(500.0, 400.0, 100.0, TestPropulsion(), prefab);
+        ship.engine.reactorPower = 1.0;
+        ship.SetEngineMode(EngineMode.Cruise);
+        ship.engine.SetMainThrottle(1.0);
         created.Add(ship.GameObject);
         ship.SetCentralBody(central);
         ship.SetOrbit(orbit);
         return ship;
     }
+
+    /// <summary>
+    /// Корабль в тонну с ускорением 50 м/с² на ЯРД — как было до топлива, чтобы тесты
+    /// исполнения манёвра шли за те же секунды. Исп — как у настоящего.
+    /// </summary>
+    static Propulsion TestPropulsion() => new()
+    {
+        nuclear = new Engine { thrust = 5.0e4, isp = 1500.0 },
+        nuclearLox = new Engine { thrust = 1.25e5, isp = 900.0, oxidizerRatio = 1.0 },
+        chemical = new Engine { thrust = 1.0e4, isp = 370.0, oxidizerRatio = 3.5 },
+        rcs = new Engine { thrust = 500.0, isp = 110.0 },
+        reactor = new Reactor { idleTemperature = 5000.0, fullTemperature = 25000.0, spoolTime = 10.0 },
+    };
 
     /// <summary>Тик симуляции с переподчинением по сферам влияния — как SimMono.FixedUpdate.</summary>
     public bool Step(double epoch, SpaceObject ship, SpaceObject other = null)

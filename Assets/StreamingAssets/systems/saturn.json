@@ -193,7 +193,18 @@
       // Круговая орбита на высоте 400 км над Титаном - 6.9 % радиуса его сферы влияния.
       // Виток за 3 часа задаёт темп всему локальному: подходу, стыковке, работе у станции.
       "parent": "titan",
-      "mass": 100000,
+      // Двигательная установка и её числа — DOCS/DEVICES/ENGINE.md. Тяга в Н, Isp в с,
+      // oxidizerRatio — кислорода на килограмм метана.
+      "dryMass": 20000,
+      "methane": 40000,
+      "lox": 15000,
+      "propulsion": {
+        "nuclear":    { "thrust": 1.1e6,  "isp": 1500, "oxidizerRatio": 0 },
+        "nuclearLox": { "thrust": 2.75e6, "isp": 900,  "oxidizerRatio": 1 },
+        "chemical":   { "thrust": 3.0e5,  "isp": 370,  "oxidizerRatio": 3.5 },
+        "rcs":        { "thrust": 3.75e4, "isp": 110,  "oxidizerRatio": 0 },
+        "reactor":    { "idleTemperature": 5000, "fullTemperature": 25000, "spoolTime": 10 }
+      },
       "radius": 50,
       "simPrefab": "PlayerShip",
       "orbit": {

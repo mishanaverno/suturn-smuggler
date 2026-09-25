@@ -25,6 +25,9 @@
 
         // Двигатель — 100
         EngineToggle = 100,
+        EngineModeIdle = 101,
+        EngineModeCruise = 102,
+        EngineModeProx = 103,
 
         // Навигационный компьютер — 200
         NewManeuver = 200,
@@ -71,6 +74,9 @@
 
         // Двигатель — 100
         EngineRunning = 100,
+        EngineModeIdle = 101,
+        EngineModeCruise = 102,
+        EngineModeProx = 103,
 
         // Навигационный компьютер — 200
         ManeuverPlanned = 200,
@@ -122,6 +128,7 @@
 
         // Двигатель — 100
         Throttle = 100,
+        LoxThrottle = 101,
 
         // Система ориентации — 300
         Pitch = 300,
@@ -154,6 +161,14 @@
         Acceleration = 100,
         RemainingBurn = 101,
         Throttle = 102,
+        Methane = 103,
+        Lox = 104,
+        AvailableDeltaV = 105,
+        LoxThrottle = 106,
+        ReactorPower = 107,
+        ReactorTemperature = 108,
+        Thrust = 109,
+        SpecificImpulse = 110,
 
         // Навигационный компьютер — 200
         NavRange = 200,
