@@ -1,0 +1,175 @@
+using System.Globalization;
+using OuterSpace;
+using OuterSpace.Sim;
+using OuterSpace.Sim.Objects;
+using TMPro;
+using UnityEngine;
+using Utilities;
+
+namespace Interior
+{
+    /// <summary>
+    /// Экран стыковки: картинка с камеры в активном узле корабля и поверх неё прицел и
+    /// показания узла относительно узла станции-цели. Прицел неподвижен — это ось узла
+    /// корабля; совмещают с ним узел станции на картинке, а числа говорят, насколько
+    /// точно.
+    ///
+    /// Из сцены нужны меш стекла и вид за бортом, в котором стоит камера: камеру ставит и
+    /// ведёт ExteriorView, потому что только он знает, где корабль в сцене ближнего плана.
+    /// </summary>
+    public class DockingPanel : MonoBehaviour
+    {
+        const string ScreenLayer = "Panels";
+
+        [Tooltip("Вид за бортом: в его сцене ближнего плана стоит камера стыковки.")]
+        public ExteriorView exterior;
+        [Tooltip("Поверхность, на которой видна картинка прибора: любой меш с UV.")]
+        public Renderer surface;
+        [Tooltip("Разрешение прибора по высоте. Ширина считается из пропорций стекла.")]
+        public int textureHeight = 512;
+        [Tooltip("Ширина текстуры. Подгоняется под меш при запуске; заданное здесь значение — запас на случай, если поверхности нет.")]
+        public int textureWidth = 512;
+        [Tooltip("Растянуть развёртку экрана на всю текстуру. Нужно, если меш вырезан из модели и его UV — кусок общей развёртки.")]
+        public bool normalizeScreenUV = true;
+        [Tooltip("Повернуть картинку на стекле. Развёртка вырезанной грани может идти вдоль любой стороны.")]
+        public ScreenTurn screenRotation = ScreenTurn.Deg0;
+        [Tooltip("Отразить картинку поперёк.")]
+        public bool flipScreenU;
+        [Tooltip("Отразить картинку вдоль.")]
+        public bool flipScreenV;
+
+        [Tooltip("Угол зрения камеры стыковки по вертикали, градусы.")]
+        public float fieldOfView = 30f;
+        [Tooltip("Толщина линий в пикселях текстуры.")]
+        public float linePixels = 2f;
+        [Tooltip("Размах прицела в пикселях текстуры.")]
+        public float crossPixels = 80f;
+        [Tooltip("Высота строки показаний в пикселях текстуры. Кегль образца на размер не влияет — он нормализуется.")]
+        public float labelPixels = 18f;
+
+        GameObject rig;
+        RenderTexture texture;
+        Material lineMaterial;
+        TextMeshPro readout;
+
+        static Ship Ship => SimMono.playerShip as Ship;
+
+        void Awake()
+        {
+            int layer = LayerMask.NameToLayer(ScreenLayer);
+            if (surface == null || exterior == null || layer < 0)
+            {
+                Debug.LogError($"DockingPanel на «{name}»: нужны стекло экрана, вид за бортом и слой «{ScreenLayer}».", this);
+                enabled = false;
+                return;
+            }
+            if (normalizeScreenUV) ScreenGlass.NormalizeUV(surface, screenRotation, flipScreenU, flipScreenV);
+            textureWidth = ScreenGlass.TextureWidth(surface, textureHeight, textureWidth);
+            texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Docking {name}" };
+            Build(layer);
+            ScreenGlass.Show(surface, texture);
+        }
+
+        // Камера заводится в Start: сцену ближнего плана ExteriorView строит в своём Awake.
+        void Start()
+        {
+            if (!exterior.isActiveAndEnabled)
+            {
+                Debug.LogError($"DockingPanel на «{name}»: вид за бортом выключен — камере стыковки негде стоять.", this);
+                enabled = false;
+                return;
+            }
+            // Прицел и показания дорисовываются поверх той же текстуры, поэтому картинка
+            // камеры обязана быть готова раньше.
+            exterior.CreateDockingCamera(texture, fieldOfView).depth = rig.GetComponentInChildren<Camera>().depth - 1f;
+        }
+
+        void OnDestroy()
+        {
+            if (rig != null) Destroy(rig);
+            if (lineMaterial != null) Destroy(lineMaterial);
+            if (texture == null) return;
+            texture.Release();
+            Destroy(texture);
+        }
+
+        /// <summary>Мировая единица прибора равна пикселю текстуры, как у остальных экранов.</summary>
+        void Build(int layer)
+        {
+            lineMaterial = new Material(SimLine.Material) { name = "DockingLine", renderQueue = 2900 };
+            rig = new GameObject($"Docking {name}") { layer = layer };
+            rig.transform.position = ScreenGlass.NextRigPosition();
+
+            GameObject eye = new("Camera") { layer = layer };
+            eye.transform.SetParent(rig.transform, false);
+            eye.transform.localPosition = new Vector3(0f, 0f, -2f * textureHeight);
+            Camera cam = eye.AddComponent<Camera>();
+            cam.orthographic = true;
+            cam.orthographicSize = 0.5f * textureHeight;
+            cam.clearFlags = CameraClearFlags.Depth;
+            cam.cullingMask = 1 << layer;
+            cam.nearClipPlane = 0.01f;
+            cam.farClipPlane = 4f * textureHeight;
+            cam.targetTexture = texture;
+
+            float arm = 0.5f * crossPixels;
+            float gap = 0.25f * arm;
+            Segment(layer, new Vector3(-arm, 0f), new Vector3(-gap, 0f));
+            Segment(layer, new Vector3(gap, 0f), new Vector3(arm, 0f));
+            Segment(layer, new Vector3(0f, -arm), new Vector3(0f, -gap));
+            Segment(layer, new Vector3(0f, gap), new Vector3(0f, arm));
+
+            if (NavPalette.LabelPrefab == null) return;
+            readout = Instantiate(NavPalette.LabelPrefab, rig.transform);
+            readout.gameObject.name = "Readout";
+            readout.gameObject.layer = layer;
+            readout.textWrappingMode = TextWrappingModes.NoWrap;
+            readout.overflowMode = TextOverflowModes.Overflow;
+            readout.color = NavPalette.Own;
+            // Точка отсчёта — с той же стороны, что и выравнивание: иначе строки уезжают за край.
+            readout.alignment = TextAlignmentOptions.TopLeft;
+            readout.rectTransform.pivot = new Vector2(0f, 1f);
+            readout.text = "Xg";
+            readout.ForceMeshUpdate();
+            if (readout.preferredHeight > 0f) readout.transform.localScale = Vector3.one * (labelPixels / readout.preferredHeight);
+            float margin = 0.5f * labelPixels;
+            readout.transform.localPosition = new Vector3(-0.5f * textureWidth + margin, 0.5f * textureHeight - margin, 0f);
+        }
+
+        void Segment(int layer, Vector3 from, Vector3 to)
+        {
+            GameObject host = new("Cross") { layer = layer };
+            host.transform.SetParent(rig.transform, false);
+            LineRenderer line = host.AddComponent<LineRenderer>();
+            line.material = lineMaterial;
+            line.useWorldSpace = false;
+            line.widthMultiplier = linePixels;
+            line.startColor = NavPalette.Own;
+            line.endColor = NavPalette.Own;
+            line.positionCount = 2;
+            line.SetPosition(0, from);
+            line.SetPosition(1, to);
+        }
+
+        void LateUpdate()
+        {
+            Ship ship = Ship;
+            if (readout == null || ship == null) return;
+            readout.text = Readout(ship);
+        }
+
+        static string Readout(Ship ship)
+        {
+            string port = ship.rightPortActive ? "PORT R" : "PORT L";
+            if (ship.Docking is not DockingState d) return $"{port}\nNO TARGET PORT";
+            string beacon = ship.BeaconHolding ? "BCN HOLD" : ship.BeaconLocked ? "BCN LOCK" : "BCN ----";
+            return string.Format(CultureInfo.InvariantCulture,
+                "{0}   {1}\n" +
+                "RNG  {2,8:F1} m   CLS {3,6:+0.00;-0.00} m/s\n" +
+                "SIDE {4,8:+0.00;-0.00} m   {5,10:+0.00;-0.00} m/s\n" +
+                "UP   {6,8:+0.00;-0.00} m   {7,10:+0.00;-0.00} m/s\n" +
+                "ROLL {8,5:+0.0;-0.0}  PIT {9,5:+0.0;-0.0}  YAW {10,5:+0.0;-0.0}",
+                port, beacon, d.Range, d.ClosingSpeed, d.Side, d.SideSpeed, d.Up, d.UpSpeed, d.Roll, d.Pitch, d.Yaw);
+        }
+    }
+}

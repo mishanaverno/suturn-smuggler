@@ -71,6 +71,7 @@ namespace OuterSpace
         Camera skyCam;
         Transform proximityRoot;
         Camera proximityCam;
+        Camera dockingCam;
         readonly List<(Station station, Transform view)> stationViews = new();
         readonly List<(SpaceObject body, Transform view)> views = new();
         static readonly int SaturnDirectionId = Shader.PropertyToID("_SaturnDirection");
@@ -150,6 +151,27 @@ namespace OuterSpace
             cam.clearFlags = CameraClearFlags.Depth;
         }
 
+        /// <summary>
+        /// Камера стыковки: стоит в активном узле корабля и смотрит по его оси. Видит только
+        /// ближний план и небо — к узлу подходят с сотен метров, и дальние тела в её кадре
+        /// ничего не решают.
+        /// </summary>
+        public Camera CreateDockingCamera(RenderTexture target, float fieldOfView)
+        {
+            GameObject camObject = new("DockingCamera") { layer = proximityRoot.gameObject.layer };
+            camObject.transform.SetParent(proximityRoot, false);
+            dockingCam = camObject.AddComponent<Camera>();
+            dockingCam.clearFlags = sky != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
+            dockingCam.backgroundColor = Color.black;
+            if (sky != null) camObject.AddComponent<Skybox>().material = sky;
+            dockingCam.cullingMask = proximityCam.cullingMask;
+            dockingCam.nearClipPlane = ProximityNear;
+            dockingCam.farClipPlane = ProximityFar;
+            dockingCam.fieldOfView = fieldOfView;
+            dockingCam.targetTexture = target;
+            return dockingCam;
+        }
+
         // Тела заводятся в первом кадре, а не в Start: SimMono строит систему в своём Start,
         // и порядок двух Start между объектами не задан.
         void CreateViews()
@@ -197,6 +219,12 @@ namespace OuterSpace
         {
             if (SimMono.playerShip is not Ship ship) return;
             if (views.Count == 0) CreateViews();
+            if (dockingCam != null)
+            {
+                PortData port = ship.ActivePort;
+                dockingCam.transform.SetLocalPositionAndRotation(ToHull(port.position),
+                    Quaternion.LookRotation(ToHull(port.axis), ToHull(port.up)));
+            }
 
             Camera eye = ActiveEye();
             if (eye == null)
