@@ -73,6 +73,10 @@ namespace Game
                 ValidatePort(station.id, station.port);
                 if (station.beacon == null || station.beacon.range <= 0 || station.beacon.cone <= 0 || station.beacon.cone >= 90)
                     throw new SystemDataException($"Станция {station.id}: у маяка должны быть положительная дальность и полуугол конуса меньше 90°");
+                CaptureData capture = station.capture;
+                if (capture == null || capture.range <= 0 || capture.lateral <= 0 || capture.speed <= 0
+                    || capture.roll <= 0 || capture.pitch <= 0 || capture.yaw <= 0)
+                    throw new SystemDataException($"Станция {station.id}: все допуски захвата должны быть положительными");
                 foreach (string good in station.sells)
                     if (good != "methane" && good != "lox")
                         throw new SystemDataException($"Станция {station.id}: неизвестный товар {good}");

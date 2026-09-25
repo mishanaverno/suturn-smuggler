@@ -28,6 +28,8 @@ namespace OuterSpace.Sim.Objects
         const double CarryLimit = 10.0;
         /// <summary>Относительная скорость, ниже которой у TGT и ATGT нет направления, м/с.</summary>
         const double MinClosingSpeed = 0.1;
+        /// <summary>С какой скоростью узел отталкивает корабль при расстыковке, м/с.</summary>
+        public const double UndockSpeed = 0.2;
         Maneuver maneuver;
         // Направление, которое требует режим ориентации. Куда корабль смотрит на самом деле,
         // знает attitude: разворот занимает время, и на коротком прожиге тяга уходит не туда,
@@ -61,6 +63,14 @@ namespace OuterSpace.Sim.Objects
         /// глиссаде — РСУ пилота.
         /// </summary>
         public bool BeaconHolding { get; private set; }
+        /// <summary>Станция, к которой корабль пристыкован, или null.</summary>
+        public Station DockedTo { get; private set; }
+        // Положение корабля относительно центра станции. Станция не вращается, поэтому в
+        // инерциальных осях оно постоянно.
+        Vector3d dockedOffset;
+        // Захват срабатывает на входе в допуск, а не на пребывании в нём: иначе корабль,
+        // только что отпущенный узлом, защёлкивался бы обратно на том же тике.
+        bool inCapture;
         static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
         static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
@@ -229,7 +239,7 @@ namespace OuterSpace.Sim.Objects
 
         public void SetThrust(bool on)
         {
-            if (on && !engine.CanIgnite) return;
+            if (on && (!engine.CanIgnite || DockedTo != null)) return;
             if (thrusting == on) return;
             thrusting = on;
             trajectory.settings.maxPatches = on ? 1 : DefaultMaxPatches;
@@ -290,6 +300,54 @@ namespace OuterSpace.Sim.Objects
             Station station = SimMono.target as Station;
             Docking = station == null ? null : DockingGeometry.Measure(this, station);
             BeaconLocked = Docking is DockingState state && station.Beacon(state);
+            if (DockedTo != null) return;
+            bool captures = Docking is DockingState contact && station.Captures(contact);
+            if (captures && !inCapture) Dock(station);
+            inCapture = captures;
+        }
+
+        /// <summary>
+        /// Узел защёлкнулся: корабль выставляется точно в узел и дальше движется со станцией
+        /// как одно целое. Двигатель глохнет, автопилот отпускает — держать больше нечего.
+        /// </summary>
+        void Dock(Station station)
+        {
+            SetThrust(false);
+            BeaconHolding = false;
+            orientation = ShipOrientation.Free;
+            attitude.Release();
+            attitude.rotation = DockingGeometry.Aligned(ActivePort, station.port);
+            attitude.angularVelocity = Vector3d.zero;
+            dockedOffset = station.port.position - attitude.rotation * ActivePort.position;
+            DockedTo = station;
+            FollowStation(Vector3d.zero);
+            trajectory.Invalidate();
+        }
+
+        public void Undock()
+        {
+            if (DockedTo == null) return;
+            FollowStation(DockedTo.port.axis * UndockSpeed);
+            DockedTo = null;
+            inCapture = true;
+            trajectory.Invalidate();
+        }
+
+        /// <summary>
+        /// Состояние пристыкованного корабля выводится из станции каждый тик. Две орбиты,
+        /// поставленные рядом один раз, разошлись бы за виток: у точки в двадцати метрах от
+        /// центра станции чуть другой период.
+        ///
+        /// Станция берётся с её орбиты на текущую эпоху, а не из последнего тика: расстыковка
+        /// приходит с пульта между тиками, и эпоха к тому моменту уже ушла вперёд — на
+        /// орбитальной скорости доля кадра это десятки метров. Центральное тело у станции и
+        /// стоящего в её узле корабля одно и то же, поэтому её орбита годится кораблю как есть.
+        /// </summary>
+        void FollowStation(Vector3d push)
+        {
+            double epoch = GameMono.instance.Epoch;
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(DockedTo.orbitParams, epoch);
+            orbitParams = AstroDynamic.CalculateOrbitElements(r + dockedOffset, v + push, centralBody.MU, epoch);
         }
 
         /// <summary>Мгновенно совместить тягу с направлением режима, без разворота.</summary>
@@ -444,6 +502,16 @@ namespace OuterSpace.Sim.Objects
 
         public override void FixedUpdate()
         {
+            if (DockedTo != null)
+            {
+                // Отметки времени идут и у стоящего: иначе первый тик после расстыковки
+                // получил бы всё время стоянки разом.
+                attitudeEpoch = burnEpoch = rcsEpoch = GameMono.instance.Epoch;
+                FollowStation(Vector3d.zero);
+                base.FixedUpdate();
+                UpdateDocking();
+                return;
+            }
             UpdateDirection();
             UpdateAttitude();
             engine.UpdateReactor(GameMono.instance.Epoch);

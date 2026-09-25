@@ -62,6 +62,11 @@
         SasColumnC = 309,
         SasHold = 310,
         SasToggle = 311,
+
+        // Стыковка — 500
+        BeaconHold = 500,
+        DockingPortLeft = 501,
+        DockingPortRight = 502,
     }
 
     /// <summary>
@@ -90,6 +95,13 @@
         // Система ориентации — 300
         SasEngaged = 300,
         SasHolding = 301,
+
+        // Стыковка — 500
+        BeaconLocked = 500,
+        BeaconHolding = 501,
+        Docked = 502,
+        DockingPortLeft = 503,
+        DockingPortRight = 504,
     }
 
     /// <summary>
@@ -187,5 +199,16 @@
 
         // РСУ — 400
         RcsThrottle = 400,
+
+        // Стыковка — 500
+        DockingRange = 500,
+        DockingClosingSpeed = 501,
+        DockingSide = 502,
+        DockingUp = 503,
+        DockingSideSpeed = 504,
+        DockingUpSpeed = 505,
+        DockingRoll = 506,
+        DockingPitch = 507,
+        DockingYaw = 508,
     }
 }

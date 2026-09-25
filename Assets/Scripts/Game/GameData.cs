@@ -60,7 +60,18 @@ namespace Game
     {
         public PortData port;
         public BeaconData beacon;
+        public CaptureData capture;
         public List<string> sells = new();   // "methane", "lox"
+    }
+    /// <summary>Допуски захвата: грубее — узел не защёлкивается.</summary>
+    public class CaptureData
+    {
+        public double range;                // м, по оси узла
+        public double lateral;              // м, вбок от оси
+        public double speed;                // м/с, относительная скорость
+        public double roll;                 // градусы
+        public double pitch;                // градусы
+        public double yaw;                  // градусы
     }
     /// <summary>Глиссадный маяк узла: ловится в конусе вокруг его оси.</summary>
     public class BeaconData
