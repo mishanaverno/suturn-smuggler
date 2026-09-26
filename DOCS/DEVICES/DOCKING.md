@@ -60,9 +60,16 @@
 углы — подход по глиссаде ведёт пилот на РСУ. Потерянный маяк или взятая ручка ориентации
 прерывают удержание в стабилизацию.
 
-## Захват
+## Захват и фиксация
 
-Узел защёлкивается на входе в допуск, когда выполнено всё сразу (`capture` в ассете, у
+Стыковка в два шага:
+
+1. **Магниты.** Корабль вошёл в допуски — магниты узла ловят его и держат в пристыкованном
+   положении. Горит `DockingReady`, на экране стыковки — `DOCKING READY`.
+2. **Фиксация.** Пилот жмёт DCK (`DockingLatch`) — узел фиксируется механически. Горит
+   `Docked`, открывается меню станции.
+
+Магниты срабатывают на входе в допуск, когда выполнено всё сразу (`capture` в ассете, у
 Selk):
 
 | | допуск |
@@ -82,15 +89,15 @@ Selk):
 
 | вид | разъём |
 |---|---|
-| Command | `BeaconHold` (500), `DockingPortLeft` (501), `DockingPortRight` (502) |
-| Signal | `BeaconLocked` (500), `BeaconHolding` (501), `Docked` (502), `DockingPortLeft` (503), `DockingPortRight` (504) |
+| Command | `BeaconHold` (500), `DockingPortLeft` (501), `DockingPortRight` (502), `DockingLatch` (503) |
+| Signal | `BeaconLocked` (500), `BeaconHolding` (501), `Docked` (502), `DockingPortLeft` (503), `DockingPortRight` (504), `DockingReady` (505) |
 | Reading | `DockingRange` … `DockingYaw` (500–508) |
 
 Устройство — `DockingDevice` на `MainDeck`. Органов под эти разъёмы в кабине пока нет.
 
 ## Меню станции
 
-UI Toolkit (`Assets/UI/Station`, `Interior/StationMenu`). Открывается само при захвате,
+UI Toolkit (`Assets/UI/Station`, `Interior/StationMenu`). Открывается само при фиксации узла,
 закрытое — клавишей `B` из кабины, пока корабль пристыкован. Пока меню открыто, кабина ввода
 не слышит. Заправка — долить метан или кислород до ёмкости, если станция его продаёт;
 бесплатно и мгновенно, денег в игре нет.

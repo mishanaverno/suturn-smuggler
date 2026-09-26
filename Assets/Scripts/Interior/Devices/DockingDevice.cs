@@ -4,8 +4,12 @@ using OuterSpace.Sim;
 namespace Interior
 {
     /// <summary>
-    /// Стыковка: выбор узла по борту, удержание ориентации по маяку станции и показания узла.
-    /// Всё, что делается уже у станции — заправка, расстыковка, — не здесь, а в её меню.
+    /// Стыковка: выбор узла по борту, удержание ориентации по маяку станции, механическая
+    /// фиксация узла и показания. Всё, что делается уже у станции — заправка,
+    /// расстыковка, — не здесь, а в её меню.
+    ///
+    /// Порядок: корабль вошёл в допуски — магниты узла держат его, горит DockingReady;
+    /// пилот жмёт фиксацию — узел зафиксирован, горит Docked, открывается меню станции.
     /// </summary>
     public class DockingDevice : ShipDevice
     {
@@ -16,10 +20,12 @@ namespace Interior
             // Узел выбирается до захвата: пристыкованный корабль держится тем, которым подошёл.
             Bind(CommandId.DockingPortLeft, () => Ship.rightPortActive = false, Undocked);
             Bind(CommandId.DockingPortRight, () => Ship.rightPortActive = true, Undocked);
+            Bind(CommandId.DockingLatch, () => Ship.Latch(), Ready);
 
             Bind(SignalId.BeaconLocked, () => Ship != null && Ship.BeaconLocked);
             Bind(SignalId.BeaconHolding, () => Ship != null && Ship.BeaconHolding);
-            Bind(SignalId.Docked, () => Ship != null && Ship.DockedTo != null);
+            Bind(SignalId.DockingReady, Ready);
+            Bind(SignalId.Docked, () => Ship != null && Ship.Latched);
             Bind(SignalId.DockingPortLeft, () => Ship != null && !Ship.rightPortActive);
             Bind(SignalId.DockingPortRight, () => Ship != null && Ship.rightPortActive);
 
@@ -35,6 +41,8 @@ namespace Interior
         }
 
         static bool Undocked() => Ship != null && Ship.DockedTo == null;
+
+        static bool Ready() => Ship != null && Ship.DockedTo != null && !Ship.Latched;
 
         /// <summary>Нет станции-цели — табло гаснет, а не показывает ноль.</summary>
         static double Read(Func<DockingState, double> value) =>

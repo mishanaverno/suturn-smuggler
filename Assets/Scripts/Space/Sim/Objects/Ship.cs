@@ -65,8 +65,13 @@ namespace OuterSpace.Sim.Objects
         /// глиссаде — РСУ пилота.
         /// </summary>
         public bool BeaconHolding { get; private set; }
-        /// <summary>Станция, к которой корабль пристыкован, или null.</summary>
+        /// <summary>
+        /// Станция, чьи магниты держат корабль в узле, или null. Держат, но ещё не
+        /// зафиксировали: это готовность к стыковке, а не стыковка.
+        /// </summary>
         public Station DockedTo { get; private set; }
+        /// <summary>Узел механически зафиксирован — стыковка завершена, со станцией можно работать.</summary>
+        public bool Latched { get; private set; }
         PortData dockedPort;
         // Положение корабля относительно центра станции. Станция не вращается, поэтому в
         // инерциальных осях оно постоянно.
@@ -325,8 +330,9 @@ namespace OuterSpace.Sim.Objects
         }
 
         /// <summary>
-        /// Узел защёлкнулся: корабль выставляется точно в узел и дальше движется со станцией
-        /// как одно целое. Двигатель глохнет, автопилот отпускает — держать больше нечего.
+        /// Магниты узла поймали корабль: он выставляется точно в узел и дальше движется со
+        /// станцией как одно целое. Двигатель глохнет, автопилот отпускает — держать больше
+        /// нечего. Механическую фиксацию пилот включает сам (Latch).
         /// </summary>
         void Dock(Station station)
         {
@@ -343,11 +349,17 @@ namespace OuterSpace.Sim.Objects
             trajectory.Invalidate();
         }
 
+        public void Latch()
+        {
+            if (DockedTo != null) Latched = true;
+        }
+
         public void Undock()
         {
             if (DockedTo == null) return;
             FollowStation(dockedPort.axis * UndockSpeed);
             DockedTo = null;
+            Latched = false;
             inCapture = true;
             trajectory.Invalidate();
         }

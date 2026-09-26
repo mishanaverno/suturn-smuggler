@@ -11,7 +11,8 @@ namespace Interior
 {
     /// <summary>
     /// Меню станции: всё, что делается у неё, пристыкованным, — заправка и расстыковка.
-    /// Открывается само при захвате, закрытое открывается снова клавишей из кабины. Пока
+    /// Открывается само, когда узел механически зафиксирован, закрытое открывается снова
+    /// клавишей из кабины. Пока
     /// меню открыто, кабина ввода не слышит: щелчок по кнопке меню не должен заодно
     /// нажимать орган под ней.
     /// </summary>
@@ -74,7 +75,7 @@ namespace Interior
             Ship ship = Ship;
             if (ship == null || root == null) return;
 
-            Station docked = ship.DockedTo;
+            Station docked = ship.Latched ? ship.DockedTo : null;
             if (docked != lastDocked)
             {
                 lastDocked = docked;

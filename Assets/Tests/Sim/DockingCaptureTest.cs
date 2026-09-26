@@ -89,6 +89,30 @@ public class DockingCaptureTest
         Assert.AreSame(station, ship.DockedTo);
     }
 
+    /// <summary>
+    /// Магниты держат, но не фиксируют: стыковку завершает пилот. Без захвата фиксировать
+    /// нечего, расстыковка снимает и то, и другое.
+    /// </summary>
+    [Test]
+    public void Capture_WaitsForLatch_UndockReleasesBoth()
+    {
+        ship.Latch();
+        Assert.IsFalse(ship.Latched, "фиксация без захвата");
+
+        Approach(0.3, 0.1, 0.1, 1.0);
+        double epoch = Step(Tick);
+        Assert.AreSame(station, ship.DockedTo);
+        Assert.IsFalse(ship.Latched, "зафиксировался сам");
+
+        ship.Latch();
+        Assert.IsTrue(ship.Latched);
+
+        ship.Undock();
+        Step(epoch + Tick);
+        Assert.IsNull(ship.DockedTo);
+        Assert.IsFalse(ship.Latched);
+    }
+
     /// <summary>У станции два узла на противоположных концах: корабль берёт тот, перед которым стоит.</summary>
     [Test]
     public void SecondPort_IsChosenAndCaptures()

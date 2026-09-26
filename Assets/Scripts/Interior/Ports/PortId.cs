@@ -67,6 +67,7 @@
         BeaconHold = 500,
         DockingPortLeft = 501,
         DockingPortRight = 502,
+        DockingLatch = 503,
     }
 
     /// <summary>
@@ -102,6 +103,7 @@
         Docked = 502,
         DockingPortLeft = 503,
         DockingPortRight = 504,
+        DockingReady = 505,
     }
 
     /// <summary>

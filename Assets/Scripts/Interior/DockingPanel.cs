@@ -225,7 +225,8 @@ namespace Interior
         {
             string port = ship.rightPortActive ? "PORT R" : "PORT L";
             if (ship.Docking is not DockingState d) return $"{port}\nNO TARGET PORT";
-            string beacon = ship.BeaconHolding ? "BCN HOLD" : ship.BeaconLocked ? "BCN LOCK" : "BCN ----";
+            string beacon = ship.Latched ? "DOCKED" : ship.DockedTo != null ? "DOCKING READY" :
+                ship.BeaconHolding ? "BCN HOLD" : ship.BeaconLocked ? "BCN LOCK" : "BCN ----";
             string head = string.Format(CultureInfo.InvariantCulture,
                 "{0}   {1}\n" +
                 "DIST {2,9}   RATE {3,7:+0.00;-0.00} m/s\n" +
