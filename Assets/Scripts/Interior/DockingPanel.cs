@@ -164,12 +164,12 @@ namespace Interior
             if (ship.Docking is not DockingState d) return $"{port}\nNO TARGET PORT";
             string beacon = ship.BeaconHolding ? "BCN HOLD" : ship.BeaconLocked ? "BCN LOCK" : "BCN ----";
             return string.Format(CultureInfo.InvariantCulture,
-                "{0}   {1}\n" +
+                "{0}   {1}   REL {11,5:F2} m/s\n" +
                 "RNG  {2,8:F1} m   CLS {3,6:+0.00;-0.00} m/s\n" +
                 "SIDE {4,8:+0.00;-0.00} m   {5,10:+0.00;-0.00} m/s\n" +
                 "UP   {6,8:+0.00;-0.00} m   {7,10:+0.00;-0.00} m/s\n" +
                 "ROLL {8,5:+0.0;-0.0}  PIT {9,5:+0.0;-0.0}  YAW {10,5:+0.0;-0.0}",
-                port, beacon, d.Range, d.ClosingSpeed, d.Side, d.SideSpeed, d.Up, d.UpSpeed, d.Roll, d.Pitch, d.Yaw);
+                port, beacon, d.Range, d.ClosingSpeed, d.Side, d.SideSpeed, d.Up, d.UpSpeed, d.Roll, d.Pitch, d.Yaw, d.Speed);
         }
     }
 }

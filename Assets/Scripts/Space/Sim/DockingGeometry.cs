@@ -42,6 +42,8 @@ namespace OuterSpace.Sim
 
         public double Lateral => Mathd.Sqrt(Side * Side + Up * Up);
         public double Distance => Mathd.Sqrt(Range * Range + Side * Side + Up * Up);
+        /// <summary>Относительная скорость узлов целиком, м/с.</summary>
+        public double Speed => Mathd.Sqrt(ClosingSpeed * ClosingSpeed + SideSpeed * SideSpeed + UpSpeed * UpSpeed);
         /// <summary>Угол между осью узла станции и направлением на узел корабля, градусы.</summary>
         public double OffAxis => Mathd.Atan2(Lateral, Range) * Mathd.Rad2Deg;
     }

@@ -30,7 +30,7 @@ namespace OuterSpace.Sim.Objects
         public bool Captures(DockingState state) =>
             Mathd.Abs(state.Range) <= capture.range
             && state.Lateral <= capture.lateral
-            && Mathd.Sqrt(state.ClosingSpeed * state.ClosingSpeed + state.SideSpeed * state.SideSpeed + state.UpSpeed * state.UpSpeed) <= capture.speed
+            && state.Speed <= capture.speed
             && Mathd.Abs(state.Roll) <= capture.roll
             && Mathd.Abs(state.Pitch) <= capture.pitch
             && Mathd.Abs(state.Yaw) <= capture.yaw;
