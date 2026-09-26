@@ -186,37 +186,8 @@
         }
       }
     ],
-    "stations": [
-      {
-        "id": "selk",
-        "name": "Selk",
-        "description": "Заправочная станция на орбите Титана: метан снизу, кислород привозной",
-        // Орбита корабля со старта, на 0.4° впереди: около 21 км по дуге.
-        "parent": "titan",
-        "radius": 40,
-        "simPrefab": "Station",
-        // Узел смотрит назад по движению станции в момент старта — навстречу кораблю.
-        "port": {
-          "position": { "x": 0, "y": -20, "z": 0 },
-          "axis": { "x": 0, "y": -1, "z": 0 },
-          "up": { "x": 0, "y": 0, "z": 1 }
-        },
-        // Маяк ловится с двух километров в конусе ±15° вокруг оси узла.
-        "beacon": { "range": 2000, "cone": 15 },
-        // Допуски захвата: м по оси и вбок, м/с, градусы.
-        "capture": { "range": 0.5, "lateral": 0.3, "speed": 0.3, "roll": 3, "pitch": 3, "yaw": 3 },
-        "sells": [ "methane", "lox" ],
-        "orbit": {
-          "semiMajorAxis": 2.975e6,
-          "eccentricity": 0.0,
-          "inclination": 0.0,
-          "longitudeOfAscendingNode": 0.0,
-          "argumentOfPeriapsis": 0.0,
-          "meanAnomalyAtEpoch": 0.4,
-          "epoch": 0
-        }
-      }
-    ],
+    // Станции — отдельными ассетами (Game.StationAsset), здесь только пути в Resources.
+    "stations": [ "Stations/Selk" ],
     "playerShip": {
       "id": "player",
       "name": "player",

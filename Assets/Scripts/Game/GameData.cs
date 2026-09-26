@@ -1,5 +1,7 @@
 using DoublePrecision;
 using OuterSpace.Sim;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 
 namespace Game
@@ -17,9 +19,14 @@ namespace Game
         public double sunDistance;
         // После загрузки — обходом иерархии от корня: родитель всегда раньше ребёнка.
         public List<ObjectData> objects;
+        // В файле — пути к ассетам станций в Resources; загрузчик подставляет их содержимое.
+        [JsonProperty("stations")]
+        public List<string> stationAssets = new();
+        [JsonIgnore]
         public List<StationData> stations = new();
         public PlayerShip playerShip;
     }
+    [Serializable]
     public class ObjectData
     {
         public string id;
@@ -30,8 +37,10 @@ namespace Game
         public double radius;               // Средний радиус тела, м
         public string simPrefab;
         public OrbitData orbit;             // У корня системы отсутствует
+        [NonSerialized]
         public KnowledgeSource knowledge;   // Не из файла: проставляется загрузчиком
     }
+    [Serializable]
     public class OrbitData
     {
         public double semiMajorAxis;            // a, м
@@ -58,6 +67,7 @@ namespace Game
     /// Станция не вращается: её оси совпадают с осями симуляции, поэтому узел задан прямо в
     /// них, смещением от центра станции.
     /// </summary>
+    [Serializable]
     public class StationData : ObjectData
     {
         public PortData port;
@@ -66,6 +76,7 @@ namespace Game
         public List<string> sells = new();   // "methane", "lox"
     }
     /// <summary>Допуски захвата: грубее — узел не защёлкивается.</summary>
+    [Serializable]
     public class CaptureData
     {
         public double range;                // м, по оси узла
@@ -76,12 +87,14 @@ namespace Game
         public double yaw;                  // градусы
     }
     /// <summary>Глиссадный маяк узла: ловится в конусе вокруг его оси.</summary>
+    [Serializable]
     public class BeaconData
     {
         public double range;                // м
         public double cone;                 // полуугол, градусы
     }
     /// <summary>Стыковочный узел: у станции в осях симуляции, у корабля — в связанных.</summary>
+    [Serializable]
     public class PortData
     {
         public Vector3d position;           // м

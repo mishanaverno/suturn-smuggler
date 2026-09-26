@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using OuterSpace.Sim;
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Game
 {
@@ -62,10 +63,17 @@ namespace Game
             if (reactor == null || reactor.spoolTime <= 0 || reactor.idleTemperature <= 0 || reactor.fullTemperature < reactor.idleTemperature)
                 throw new SystemDataException($"Корабль {ship.id}: у реактора должны быть положительные время выхода на мощность и температуры, полная не ниже холостой");
 
-            data.system.stations ??= new();
+            data.system.stations = new();
             HashSet<string> stationIds = new();
-            foreach (StationData station in data.system.stations)
+            foreach (string path in data.system.stationAssets ?? new())
             {
+                StationAsset asset = Resources.Load<StationAsset>(path);
+                if (asset == null) throw new SystemDataException($"Ассет станции не найден в Resources: {path}");
+                // Копия: загрузчик переводит градусы в радианы и нормирует оси узла, а в
+                // редакторе это записалось бы в сам ассет.
+                StationData station = JsonUtility.FromJson<StationData>(JsonUtility.ToJson(asset.station));
+                data.system.stations.Add(station);
+
                 if (string.IsNullOrEmpty(station.id)) throw new SystemDataException("У одной из станций пустой id");
                 if (byId.ContainsKey(station.id) || !stationIds.Add(station.id))
                     throw new SystemDataException($"Идентификатор станции повторяется: {station.id}");

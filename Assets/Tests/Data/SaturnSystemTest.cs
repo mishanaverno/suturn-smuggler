@@ -242,6 +242,25 @@ public class SaturnSystemTest
     }
 
     [Test]
+    public void MissingStationAsset_ThrowsReadableError()
+    {
+        string json = Synthetic(RootBody + "," + MoonBody).Replace("\"playerShip\"", "\"stations\":[\"Stations/Nowhere\"],\"playerShip\"");
+        SystemDataException error = Assert.Throws<SystemDataException>(() => SystemLoader.Load(json));
+        StringAssert.Contains("Stations/Nowhere", error.Message);
+    }
+
+    /// <summary>Загрузчик переводит градусы в радианы у копии, а не у самого ассета.</summary>
+    [Test]
+    public void Load_DoesNotChangeStationAsset()
+    {
+        StationAsset asset = Resources.Load<StationAsset>("Stations/Selk");
+        double before = asset.station.orbit.meanAnomalyAtEpoch;
+        SystemLoader.Load(Json());
+        SystemLoader.Load(Json());
+        Assert.AreEqual(before, asset.station.orbit.meanAnomalyAtEpoch);
+    }
+
+    [Test]
     public void ValidSyntheticSystem_Loads()
     {
         Assert.AreEqual(2, SystemLoader.Load(Synthetic(RootBody + "," + MoonBody)).system.objects.Count);

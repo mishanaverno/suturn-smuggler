@@ -48,7 +48,9 @@
   двухслойная отрисовка тел, орбиты, сферы влияния, цепочки дуг.
 - `KnowledgeSource` — откуда кораблю известно об объекте (заведено, пока у всех `Database`).
 
-**Данные:** `Assets/StreamingAssets/systems/saturn.json`, читается `SystemLoader`.
+**Данные:** `Assets/StreamingAssets/systems/saturn.json`, читается `SystemLoader`. Станции —
+отдельными ассетами `StationAsset` в `Assets/Resources/Stations/`, файл системы только
+ссылается на них.
 
 ## 3. Что работает
 
