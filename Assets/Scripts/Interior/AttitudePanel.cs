@@ -36,12 +36,21 @@ namespace Interior
         const int PointsPerCircle = 72;
         const int RingPoints = 16;
 
-        /// <summary>Метки направлений. Порядок — порядок отрисовки, важен только при наложении.</summary>
-        static readonly (ShipOrientation mode, string label)[] Markers =
+        /// <summary>
+        /// Метки направлений. Порядок — порядок отрисовки, важен только при наложении. Метка
+        /// без режима — линия визирования на цель: держать её автопилоту незачем, а видеть,
+        /// где цель, нужно. TGT рядом с ней — относительная скорость, и это разные метки.
+        /// </summary>
+        static readonly (ShipOrientation? mode, string label)[] Markers =
         {
             (ShipOrientation.Prograde, "PRO"),
             (ShipOrientation.Retrograde, "RET"),
+            (ShipOrientation.Normal, "NML"),
+            (ShipOrientation.Antinormal, "ANM"),
+            (ShipOrientation.RadialOut, "RDO"),
+            (ShipOrientation.RadialIn, "RDI"),
             (ShipOrientation.Target, "TGT"),
+            (null, "LOS"),
             (ShipOrientation.Maneuver, "MNV"),
         };
 
@@ -87,9 +96,9 @@ namespace Interior
         /// Шар и карта обязаны называть одно и то же одинаково, иначе сверять их приходится
         /// по буквам.
         /// </summary>
-        static Color MarkerColor(ShipOrientation mode) => mode switch
+        static Color MarkerColor(ShipOrientation? mode) => mode switch
         {
-            ShipOrientation.Target => NavPalette.Target,
+            ShipOrientation.Target or null => NavPalette.Target,
             // Шар ведёт к ближайшему узлу, а ближайший — всегда первый в цепочке плана.
             ShipOrientation.Maneuver => NavPalette.Maneuver(0),
             _ => NavPalette.Own,
@@ -238,7 +247,7 @@ namespace Interior
         /// </summary>
         void Labels(int layer)
         {
-            foreach ((ShipOrientation mode, string label) in Markers)
+            foreach ((ShipOrientation? mode, string label) in Markers)
             {
                 Color color = MarkerColor(mode);
                 GameObject holder = new($"Marker {label}") { layer = layer };
@@ -445,7 +454,7 @@ namespace Interior
         {
             for (int i = 0; i < markers.Count; i++)
             {
-                Vector3d direction = ship.DirectionOf(Markers[i].mode);
+                Vector3d direction = Markers[i].mode is ShipOrientation mode ? ship.DirectionOf(mode) : ship.TargetBearing();
                 // Нулевого направления не бывает у режима, которому есть на что смотреть:
                 // нет цели или манёвра — нет и метки.
                 if (direction.sqrMagnitude <= 0.0)

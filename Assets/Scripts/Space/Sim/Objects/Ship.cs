@@ -355,6 +355,19 @@ namespace OuterSpace.Sim.Objects
             orbitParams = AstroDynamic.CalculateOrbitElements(r + dockedOffset, v + push, centralBody.MU, epoch);
         }
 
+        /// <summary>
+        /// Направление на цель — линия визирования, в отличие от TGT, где относительная
+        /// скорость. Нулевое, если цели нет.
+        /// </summary>
+        public Vector3d TargetBearing()
+        {
+            if (SimMono.target == null) return Vector3d.zero;
+            double epoch = GameMono.instance.Epoch;
+            Vector3d r = TrajectoryPredictor.BodyStateAt(centralBody, epoch).r
+                + AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch).r;
+            return (TrajectoryPredictor.BodyStateAt(SimMono.target, epoch).r - r).normalized;
+        }
+
         /// <summary>Мгновенно совместить тягу с направлением режима, без разворота.</summary>
         public void AlignInstantly() => attitude.Snap(dir);
 
