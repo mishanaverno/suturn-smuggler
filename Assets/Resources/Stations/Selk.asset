@@ -41,4 +41,4 @@ MonoBehaviour:
     sells:
     - methane
     - lox
-  view: {fileID: 644544644769490457, guid: b56e3f687566c48c4bbf94627bc552be, type: 3}
+  view: {fileID: 849111686471370573, guid: 6329adf0926264e9ab126fbfd50c05d0, type: 3}
