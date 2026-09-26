@@ -251,6 +251,7 @@ namespace OuterSpace.Sim
             PredictSettings settings)
         {
             List<CloseApproach> approaches = new();
+            List<(double from, double to)> brackets = new();
             // Минимум расстояния до собственного центрального тела — это перицентр, и целиться
             // в него отдельным механизмом незачем.
             foreach (TrajectoryPatch patch in patches)
@@ -258,17 +259,29 @@ namespace OuterSpace.Sim
                 if (patch.Central == target) return approaches;
             }
 
+            // Шаг — время, за которое расстояние заведомо не дойдёт до нуля. Оценок две, и
+            // годится любая, поэтому берётся большая. Сумма абсолютных скоростей хороша для
+            // далёкой цели, но для цели рядом с кораблём давала шаг в секунду на горизонте в
+            // пять витков — десятки тысяч решений уравнения Кеплера. Там выручает вторая:
+            // текущая относительная скорость и то, как быстро она может вырасти.
             double speedBound = 0.0;
             foreach (TrajectoryPatch patch in patches)
             {
                 speedBound = Math.Max(speedBound, MaxSpeed(patch.Orbit) + SpeedBound(patch.Central) + SpeedBound(target));
             }
+            double accelerationBound = AccelerationBound(target);
+            double shipAcceleration = 0.0;
+            foreach (TrajectoryPatch patch in patches)
+            {
+                shipAcceleration = Math.Max(shipAcceleration, patch.Orbit.mu / Square(Periapsis(patch.Orbit)) + AccelerationBound(patch.Central));
+            }
+            accelerationBound += shipAcceleration;
 
             // Прогноз может оборваться раньше горизонта — столкновением или лимитом дуг,
             // и искать сближение за пределом предсказанного нечем.
             double endEpoch = patches[patches.Count - 1].EndEpoch;
             double time = patches[0].StartEpoch;
-            double distance = Separation(patches, target, time);
+            (double distance, double closingBound) = Relative(patches, target, time);
             double previousTime = time;
             double previousDistance = distance;
             double olderTime = double.NegativeInfinity;
@@ -277,14 +290,14 @@ namespace OuterSpace.Sim
 
             while (time < endEpoch)
             {
-                double step = Math.Min(Math.Max(distance / speedBound, settings.minStep), settings.maxStep);
+                double step = Math.Max(distance / speedBound, SafeStep(distance, closingBound, accelerationBound));
+                step = Math.Min(Math.Max(step, settings.minStep), settings.maxStep);
                 double next = Math.Min(time + step, endEpoch);
-                double nextDistance = Separation(patches, target, next);
+                (double nextDistance, double nextClosing) = Relative(patches, target, next);
 
                 if (olderTime > double.NegativeInfinity && distance < previousDistance && distance <= nextDistance)
                 {
-                    double epoch = Minimize(t => Separation(patches, target, t), previousTime, next, settings.rootTolerance);
-                    approaches.Add(Describe(patches, target, epoch));
+                    brackets.Add((previousTime, next));
                 }
 
                 olderTime = previousTime;
@@ -292,14 +305,21 @@ namespace OuterSpace.Sim
                 previousDistance = distance;
                 time = next;
                 distance = nextDistance;
+                closingBound = nextClosing;
                 closest = Math.Min(closest, distance);
                 farthest = Math.Max(farthest, distance);
             }
 
             // Соорбитальная цель: расстояние почти постоянно, любой найденный минимум — шум.
-            if (farthest > 0.0 && (farthest - closest) / farthest < settings.coorbitalVariation) approaches.Clear();
-            if (approaches.Count > settings.maxApproaches)
-                approaches.RemoveRange(settings.maxApproaches, approaches.Count - settings.maxApproaches);
+            // Поэтому уточняются минимумы только после этой проверки и только те, что будут
+            // показаны: у станции на той же орбите шум давал минимум через каждые несколько
+            // шагов, и уточнение каждого стоило больше всего поиска.
+            if (farthest > 0.0 && (farthest - closest) / farthest < settings.coorbitalVariation) return approaches;
+            for (int i = 0; i < brackets.Count && approaches.Count < settings.maxApproaches; i++)
+            {
+                double epoch = Minimize(t => Separation(patches, target, t), brackets[i].from, brackets[i].to, settings.rootTolerance);
+                approaches.Add(Describe(patches, target, epoch));
+            }
             return approaches;
         }
 
@@ -316,6 +336,31 @@ namespace OuterSpace.Sim
                 TargetPosition = targetR,
             };
         }
+
+        /// <summary>Расстояние до цели и относительная скорость — верхняя оценка скорости сближения.</summary>
+        static (double distance, double speed) Relative(IReadOnlyList<TrajectoryPatch> patches, SpaceObject target, double epoch)
+        {
+            (Vector3d shipR, Vector3d shipV) = ShipStateAt(patches, epoch);
+            (Vector3d targetR, Vector3d targetV) = BodyStateAt(target, epoch);
+            return ((shipR - targetR).magnitude, (shipV - targetV).magnitude);
+        }
+
+        /// <summary>
+        /// Время, за которое расстояние d не может сократиться до нуля, если относительная
+        /// скорость сейчас w и растёт не быстрее a: корень w·t + a·t²/2 = d, записанный без
+        /// вычитания близких чисел.
+        /// </summary>
+        static double SafeStep(double d, double w, double a) =>
+            a > 0.0 ? 2.0 * d / (w + Math.Sqrt(w * w + 2.0 * a * d)) : d / w;
+
+        /// <summary>
+        /// Верхняя оценка ускорения тела в абсолютной системе: притяжение своего центрального
+        /// тела в перицентре плюс ускорение самого центрального тела.
+        /// </summary>
+        static double AccelerationBound(SpaceObject body) =>
+            body.IsRoot ? 0.0 : body.centralBody.MU / Square(Periapsis(body.orbitParams)) + AccelerationBound(body.centralBody);
+
+        static double Square(double x) => x * x;
 
         static double Separation(IReadOnlyList<TrajectoryPatch> patches, SpaceObject target, double epoch) =>
             (ShipStateAt(patches, epoch).r - BodyStateAt(target, epoch).r).magnitude;

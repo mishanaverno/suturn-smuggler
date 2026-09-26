@@ -280,10 +280,15 @@ namespace OuterSpace.Sim.Objects
         /// </summary>
         public Vector3d DirectionOf(ShipOrientation mode)
         {
-            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, GameMono.instance.Epoch);
+            double epoch = GameMono.instance.Epoch;
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
+            // Обе скорости — на одну эпоху. Из последнего тика брать нельзя: корабль к этому
+            // месту тика ещё не обновлён, а цель уже, и разница — ускорение на длину тика. Для
+            // луны в километрах в секунду это незаметно, для станции рядом с кораблём
+            // направление дрожало вместе с длиной тика на перемотке.
             Vector3d closing = SimMono.target == null
                 ? Vector3d.zero
-                : simTransform.GLOBAL_V - SimMono.target.simTransform.GLOBAL_V;
+                : TrajectoryPredictor.BodyStateAt(centralBody, epoch).v + v - TrajectoryPredictor.BodyStateAt(SimMono.target, epoch).v;
             // Почти погашенная относительная скорость направления не задаёт: при гашении она
             // проходит через ноль и разворачивается, и корабль метался бы за ней. Нулевой
             // вектор значит «направления нет» — корабль держит прежнее.
