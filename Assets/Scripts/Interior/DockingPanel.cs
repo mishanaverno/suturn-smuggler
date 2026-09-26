@@ -196,13 +196,13 @@ namespace Interior
         /// </summary>
         void DrawMarker(Ship ship)
         {
-            bool show = dockingCamera != null && ship.DockedTo == null && SimMono.target is Station;
+            bool show = dockingCamera != null && ship.DockedTo == null && SimMono.target is Station && ship.TargetPort != null;
             box.gameObject.SetActive(false);
             arrow.gameObject.SetActive(false);
             if (!show) return;
 
             Station station = (Station)SimMono.target;
-            Vector3 view = dockingCamera.WorldToViewportPoint(exterior.ProximityPoint(station.simTransform.GLOBAL_R + station.port.position));
+            Vector3 view = dockingCamera.WorldToViewportPoint(exterior.ProximityPoint(station.simTransform.GLOBAL_R + ship.TargetPort.position));
             Vector2 point = new((view.x - 0.5f) * textureWidth, (view.y - 0.5f) * textureHeight);
             float halfWidth = 0.5f * textureWidth - arrowPixels;
             float halfHeight = 0.5f * textureHeight - arrowPixels;

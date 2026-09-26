@@ -73,6 +73,9 @@ namespace Game
                 // редакторе это записалось бы в сам ассет.
                 StationData station = JsonUtility.FromJson<StationData>(JsonUtility.ToJson(asset.station));
                 station.view = asset.view;
+                if (asset.view == null) throw new SystemDataException($"Станция {station.id}: не задана модель (view)");
+                station.ports = PortsFrom(asset.view);
+                if (station.ports.Count == 0) throw new SystemDataException($"Станция {station.id}: в модели {asset.view.name} нет ни одного объекта Port — узлу негде стоять");
                 data.system.stations.Add(station);
 
                 if (string.IsNullOrEmpty(station.id)) throw new SystemDataException("У одной из станций пустой id");
@@ -81,7 +84,7 @@ namespace Game
                 ValidateOrbiting(station, byId);
                 if (station.radius <= 0)
                     throw new SystemDataException($"Станция {station.id}: габарит должен быть положительным, получено {station.radius}");
-                ValidatePort(station.id, station.port);
+                foreach (PortData port in station.ports) ValidatePort(station.id, port);
                 if (station.beacon == null || station.beacon.range <= 0 || station.beacon.cone <= 0 || station.beacon.cone >= 90)
                     throw new SystemDataException($"Станция {station.id}: у маяка должны быть положительная дальность и полуугол конуса меньше 90°");
                 CaptureData capture = station.capture;
@@ -144,6 +147,34 @@ namespace Game
                 throw new SystemDataException($"Объект {obj.id}: центральное тело {obj.parent} не найдено");
             ValidateOrbit(obj.id, obj.orbit);
         }
+
+        /// <summary>
+        /// Узлы станции с её модели: дочерние объекты с именем на Port, синяя ось — наружу,
+        /// зелёная — верх. Узлы в модели и в данных иначе расходились бы при каждой смене
+        /// модели.
+        ///
+        /// Модель в осях корпуса (Z — ось X симуляции, Y — ось Z, X — против оси Y), а
+        /// поворот корня модели ExteriorView заменяет своим, поэтому узел меряется от корня
+        /// без его поворота, но с масштабом.
+        /// </summary>
+        public static List<PortData> PortsFrom(GameObject view)
+        {
+            Transform root = view.transform;
+            List<PortData> ports = new();
+            foreach (Transform part in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (part == root || !part.name.StartsWith("Port")) continue;
+                ports.Add(new PortData
+                {
+                    position = FromHull(Vector3.Scale(root.localScale, root.InverseTransformPoint(part.position))),
+                    axis = FromHull(root.InverseTransformDirection(part.forward)),
+                    up = FromHull(root.InverseTransformDirection(part.up)),
+                });
+            }
+            return ports;
+        }
+
+        static Vector3d FromHull(Vector3 v) => new(v.z, -v.x, v.y);
 
         /// <summary>Ось и верх нормируются здесь: по ним считаются углы стыковки.</summary>
         static void ValidatePort(string id, PortData port)

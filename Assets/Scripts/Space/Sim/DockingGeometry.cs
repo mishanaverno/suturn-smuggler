@@ -52,9 +52,31 @@ namespace OuterSpace.Sim
 
     public static class DockingGeometry
     {
-        public static DockingState Measure(Ship ship, Station station) => Measure(
+        public static DockingState Measure(Ship ship, Station station, PortData port) => Measure(
             ship.simTransform.GLOBAL_R, ship.simTransform.GLOBAL_V, ship.attitude.rotation, ship.attitude.Rate, ship.ActivePort,
-            station.simTransform.GLOBAL_R, station.simTransform.GLOBAL_V, station.port);
+            station.simTransform.GLOBAL_R, station.simTransform.GLOBAL_V, port);
+
+        /// <summary>
+        /// Узел станции, к которому корабль подходит: ближайший из тех, перед которыми он
+        /// стоит, а если ни перед одним — просто ближайший.
+        /// </summary>
+        public static (DockingState state, PortData port) Nearest(Ship ship, Station station)
+        {
+            (DockingState state, PortData port) best = default;
+            bool bestInFront = false;
+            foreach (PortData port in station.ports)
+            {
+                DockingState state = Measure(ship, station, port);
+                bool inFront = state.Range > 0.0;
+                bool better = best.port == null
+                    || inFront && !bestInFront
+                    || inFront == bestInFront && state.Distance < best.state.Distance;
+                if (!better) continue;
+                best = (state, port);
+                bestInFront = inFront;
+            }
+            return best;
+        }
 
         /// <param name="shipRotation">Связанные оси корабля в инерциальные.</param>
         /// <param name="shipRate">Угловая скорость корабля в инерциальных осях, рад/с.</param>

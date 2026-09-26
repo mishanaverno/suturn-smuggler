@@ -48,8 +48,6 @@ namespace OuterSpace
         public Transform hull;
         [Tooltip("Образец тела: сфера диаметром 1 с материалом. Масштаб выставляется под размер тела.")]
         public GameObject bodyTemplate;
-        [Tooltip("Образец станции для тех, у кого в ассете не задан свой вид. В метрах, оси — как у корпуса: Z — ось X симуляции, Y — ось Z.")]
-        public GameObject stationTemplate;
         [Header("Exterior style")]
         [Tooltip("Материал Сатурна за иллюминатором.")]
         public Material saturnMaterial;
@@ -92,10 +90,10 @@ namespace OuterSpace
 
         void Awake()
         {
-            if (hull == null || bodyTemplate == null || stationTemplate == null
+            if (hull == null || bodyTemplate == null
                 || LayerMask.NameToLayer("Exterior") < 0 || LayerMask.NameToLayer("Proximity") < 0)
             {
-                Debug.LogError($"{GetType().Name} на «{name}»: нужны hull, bodyTemplate, stationTemplate и слои Exterior, Proximity.", this);
+                Debug.LogError($"{GetType().Name} на «{name}»: нужны hull, bodyTemplate и слои Exterior, Proximity.", this);
                 enabled = false;
                 return;
             }
@@ -189,8 +187,8 @@ namespace OuterSpace
             List<StationData> stationData = GameMono.instance.gameData.system.stations;
             foreach (Station station in SimMono.stations)
             {
-                GameObject template = stationData.Find(s => s.name == station.GameObject.name)?.view;
-                GameObject view = Instantiate(template != null ? template : stationTemplate, proximityRoot, false);
+                // Модель у станции обязательна: с неё загрузчик снял узел.
+                GameObject view = Instantiate(stationData.Find(s => s.name == station.GameObject.name).view, proximityRoot, false);
                 view.name = station.GameObject.name;
                 foreach (Transform part in view.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = proximityRoot.gameObject.layer;
                 stationViews.Add((station, view.transform));

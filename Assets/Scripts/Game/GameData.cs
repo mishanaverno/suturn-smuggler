@@ -71,7 +71,8 @@ namespace Game
     [Serializable]
     public class StationData : ObjectData
     {
-        public PortData port;
+        [NonSerialized, JsonIgnore]
+        public List<PortData> ports;        // Не из данных: загрузчик снимает их с модели
         public BeaconData beacon;
         public CaptureData capture;
         public List<string> sells = new();   // "methane", "lox"

@@ -249,6 +249,34 @@ public class SaturnSystemTest
         StringAssert.Contains("Stations/Nowhere", error.Message);
     }
 
+    /// <summary>
+    /// Узел с модели: объект Port смотрит синей осью по +X корпуса (в симуляции −Y), модель
+    /// увеличена вдвое — узел в двадцати единицах от центра стоит в сорока метрах.
+    /// </summary>
+    [Test]
+    public void PortsFrom_ReadsPortObjectsInSimulationAxes()
+    {
+        GameObject root = new("Model") { transform = { localScale = Vector3.one * 2f } };
+        try
+        {
+            GameObject port = new("Port.1");
+            port.transform.SetParent(root.transform, false);
+            port.transform.localPosition = new Vector3(20f, 0f, 0f);
+            port.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            new GameObject("Hull").transform.SetParent(root.transform, false);
+
+            List<PortData> ports = SystemLoader.PortsFrom(root);
+            Assert.AreEqual(1, ports.Count);
+            Assert.AreEqual(0.0, (ports[0].position - new Vector3d(0, -40, 0)).magnitude, 1e-4);
+            Assert.AreEqual(0.0, (ports[0].axis - new Vector3d(0, -1, 0)).magnitude, 1e-6);
+            Assert.AreEqual(0.0, (ports[0].up - new Vector3d(0, 0, 1)).magnitude, 1e-6);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+
     /// <summary>Загрузчик переводит градусы в радианы у копии, а не у самого ассета.</summary>
     [Test]
     public void Load_DoesNotChangeStationAsset()

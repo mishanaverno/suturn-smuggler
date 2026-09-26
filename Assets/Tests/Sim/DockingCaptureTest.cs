@@ -28,7 +28,11 @@ public class DockingCaptureTest
         world = new SaturnTestWorld();
         prefab = new GameObject("StationPrefab");
         station = new Station(
-            new PortData { position = new Vector3d(0, -20, 0), axis = new Vector3d(0, -1, 0), up = new Vector3d(0, 0, 1) },
+            new List<PortData>
+            {
+                new() { position = new Vector3d(0, -20, 0), axis = new Vector3d(0, -1, 0), up = new Vector3d(0, 0, 1) },
+                new() { position = new Vector3d(0, 20, 0), axis = new Vector3d(0, 1, 0), up = new Vector3d(0, 0, 1) },
+            },
             new BeaconData { range = 2000, cone = 15 },
             new CaptureData { range = 0.5, lateral = 0.3, speed = 0.3, roll = 3, pitch = 3, yaw = 3 },
             new List<string>(), prefab);
@@ -61,13 +65,14 @@ public class DockingCaptureTest
     /// Узел корабля в range метрах перед узлом станции со сдвигом вбок, идёт к нему с
     /// closing м/с, повёрнут на roll градусов вокруг оси узла.
     /// </summary>
-    void Approach(double range, double lateral, double closing, double roll)
+    void Approach(double range, double lateral, double closing, double roll, int portIndex = 0)
     {
-        ship.attitude.rotation = Quaterniond.AngleAxis(roll, station.port.axis) * DockingGeometry.Aligned(ship.ActivePort, station.port);
-        Vector3d portAt = station.simTransform.GLOBAL_R + station.port.position + station.port.axis * range + station.port.up * lateral;
+        PortData port = station.ports[portIndex];
+        ship.attitude.rotation = Quaterniond.AngleAxis(roll, port.axis) * DockingGeometry.Aligned(ship.ActivePort, port);
+        Vector3d portAt = station.simTransform.GLOBAL_R + port.position + port.axis * range + port.up * lateral;
         Vector3d r = portAt - ship.attitude.rotation * ship.ActivePort.position;
         ship.simTransform.SetRELATIVE_R(r - ship.centralBody.simTransform.GLOBAL_R);
-        ship.SetVelocity(station.simTransform.GLOBAL_V - station.port.axis * closing - ship.centralBody.simTransform.GLOBAL_V);
+        ship.SetVelocity(station.simTransform.GLOBAL_V - port.axis * closing - ship.centralBody.simTransform.GLOBAL_V);
     }
 
     double Step(double epoch)
@@ -82,6 +87,16 @@ public class DockingCaptureTest
         Approach(0.3, 0.1, 0.1, 1.0);
         Step(Tick);
         Assert.AreSame(station, ship.DockedTo);
+    }
+
+    /// <summary>У станции два узла на противоположных концах: корабль берёт тот, перед которым стоит.</summary>
+    [Test]
+    public void SecondPort_IsChosenAndCaptures()
+    {
+        Approach(0.3, 0.1, 0.1, 1.0, 1);
+        Step(Tick);
+        Assert.AreSame(station, ship.DockedTo);
+        Assert.AreSame(station.ports[1], ship.TargetPort);
     }
 
     [TestCase(0.3, 0.4, 0.1, 1.0, TestName = "Lateral")]

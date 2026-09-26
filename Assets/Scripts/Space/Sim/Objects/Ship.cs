@@ -57,6 +57,8 @@ namespace OuterSpace.Sim.Objects
         public PortData ActivePort => rightPortActive ? rightPort : leftPort;
         /// <summary>Узел корабля относительно узла станции-цели; пусто, если цель не станция.</summary>
         public DockingState? Docking { get; private set; }
+        /// <summary>Узел станции-цели, к которому относятся Docking и маяк.</summary>
+        public PortData TargetPort { get; private set; }
         public bool BeaconLocked { get; private set; }
         /// <summary>
         /// Автопилот держит узел корабля против узла станции. Держит только углы: подход по
@@ -65,6 +67,7 @@ namespace OuterSpace.Sim.Objects
         public bool BeaconHolding { get; private set; }
         /// <summary>Станция, к которой корабль пристыкован, или null.</summary>
         public Station DockedTo { get; private set; }
+        PortData dockedPort;
         // Положение корабля относительно центра станции. Станция не вращается, поэтому в
         // инерциальных осях оно постоянно.
         Vector3d dockedOffset;
@@ -303,8 +306,18 @@ namespace OuterSpace.Sim.Objects
         void UpdateDocking()
         {
             Station station = SimMono.target as Station;
-            Docking = station == null ? null : DockingGeometry.Measure(this, station);
-            BeaconLocked = Docking is DockingState state && station.Beacon(state);
+            Docking = null;
+            TargetPort = null;
+            if (station != null)
+            {
+                // Пристыкованный держится своего узла, а не ближайшего.
+                (DockingState state, PortData port) = station == DockedTo
+                    ? (DockingGeometry.Measure(this, station, dockedPort), dockedPort)
+                    : DockingGeometry.Nearest(this, station);
+                Docking = state;
+                TargetPort = port;
+            }
+            BeaconLocked = Docking is DockingState measured && station.Beacon(measured);
             if (DockedTo != null) return;
             bool captures = Docking is DockingState contact && station.Captures(contact);
             if (captures && !inCapture) Dock(station);
@@ -321,9 +334,10 @@ namespace OuterSpace.Sim.Objects
             BeaconHolding = false;
             orientation = ShipOrientation.Free;
             attitude.Release();
-            attitude.rotation = DockingGeometry.Aligned(ActivePort, station.port);
+            dockedPort = TargetPort;
+            attitude.rotation = DockingGeometry.Aligned(ActivePort, dockedPort);
             attitude.angularVelocity = Vector3d.zero;
-            dockedOffset = station.port.position - attitude.rotation * ActivePort.position;
+            dockedOffset = dockedPort.position - attitude.rotation * ActivePort.position;
             DockedTo = station;
             FollowStation(Vector3d.zero);
             trajectory.Invalidate();
@@ -332,7 +346,7 @@ namespace OuterSpace.Sim.Objects
         public void Undock()
         {
             if (DockedTo == null) return;
-            FollowStation(DockedTo.port.axis * UndockSpeed);
+            FollowStation(dockedPort.axis * UndockSpeed);
             DockedTo = null;
             inCapture = true;
             trajectory.Invalidate();
@@ -391,7 +405,7 @@ namespace OuterSpace.Sim.Objects
                 {
                     attitude.Release();
                     // Станция не вращается: цель неподвижна, переносить к ней корабль не нужно.
-                    attitude.AlignTo(DockingGeometry.Aligned(ActivePort, ((Station)SimMono.target).port), dt);
+                    attitude.AlignTo(DockingGeometry.Aligned(ActivePort, TargetPort), dt);
                     return;
                 }
                 BeaconHolding = false;

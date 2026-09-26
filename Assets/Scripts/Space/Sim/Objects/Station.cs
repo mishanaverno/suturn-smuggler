@@ -7,20 +7,20 @@ namespace OuterSpace.Sim.Objects
 {
     /// <summary>
     /// Орбитальная станция. Не тяготеет и не вращается: оси станции — оси симуляции, поэтому
-    /// узел неподвижен относительно её центра, и совмещаться корабль будет с постоянным
-    /// направлением.
+    /// узлы неподвижны относительно её центра, и совмещаться корабль будет с постоянным
+    /// направлением. Маяк и допуски захвата у всех узлов станции общие.
     /// </summary>
     public class Station : SpaceObject
     {
-        public readonly PortData port;
+        public readonly IReadOnlyList<PortData> ports;
         public readonly BeaconData beacon;
         public readonly CaptureData capture;
         public readonly IReadOnlyList<string> sells;
 
-        public Station(PortData port, BeaconData beacon, CaptureData capture, IReadOnlyList<string> sells, GameObject prefab)
+        public Station(IReadOnlyList<PortData> ports, BeaconData beacon, CaptureData capture, IReadOnlyList<string> sells, GameObject prefab)
             : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.ORBIT })
         {
-            this.port = port;
+            this.ports = ports;
             this.beacon = beacon;
             this.capture = capture;
             this.sells = sells;
