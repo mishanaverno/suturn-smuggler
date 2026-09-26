@@ -48,7 +48,7 @@ namespace OuterSpace
         public Transform hull;
         [Tooltip("Образец тела: сфера диаметром 1 с материалом. Масштаб выставляется под размер тела.")]
         public GameObject bodyTemplate;
-        [Tooltip("Образец станции в метрах, оси — как у корпуса: Z — ось X симуляции, Y — ось Z.")]
+        [Tooltip("Образец станции для тех, у кого в ассете не задан свой вид. В метрах, оси — как у корпуса: Z — ось X симуляции, Y — ось Z.")]
         public GameObject stationTemplate;
         [Header("Exterior style")]
         [Tooltip("Материал Сатурна за иллюминатором.")]
@@ -186,9 +186,11 @@ namespace OuterSpace
         {
             views.Add((SimMono.root, CreateView(SimMono.root)));
             foreach (SpaceObject body in SimMono.bodies) views.Add((body, CreateView(body)));
+            List<StationData> stationData = GameMono.instance.gameData.system.stations;
             foreach (Station station in SimMono.stations)
             {
-                GameObject view = Instantiate(stationTemplate, proximityRoot, false);
+                GameObject template = stationData.Find(s => s.name == station.GameObject.name)?.view;
+                GameObject view = Instantiate(template != null ? template : stationTemplate, proximityRoot, false);
                 view.name = station.GameObject.name;
                 foreach (Transform part in view.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = proximityRoot.gameObject.layer;
                 stationViews.Add((station, view.transform));

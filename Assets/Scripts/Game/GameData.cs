@@ -3,6 +3,7 @@ using OuterSpace.Sim;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Game
 {
@@ -74,6 +75,8 @@ namespace Game
         public BeaconData beacon;
         public CaptureData capture;
         public List<string> sells = new();   // "methane", "lox"
+        [NonSerialized, JsonIgnore]
+        public GameObject view;             // Не из данных: загрузчик берёт его из ассета
     }
     /// <summary>Допуски захвата: грубее — узел не защёлкивается.</summary>
     [Serializable]

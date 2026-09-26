@@ -10,5 +10,7 @@ namespace Game
     public class StationAsset : ScriptableObject
     {
         public StationData station;
+        [Tooltip("Вид станции за окном, в метрах, оси как у корпуса. Пусто — общий образец ExteriorView.")]
+        public GameObject view;
     }
 }

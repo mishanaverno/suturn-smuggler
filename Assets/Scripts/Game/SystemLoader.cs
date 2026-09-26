@@ -72,6 +72,7 @@ namespace Game
                 // Копия: загрузчик переводит градусы в радианы и нормирует оси узла, а в
                 // редакторе это записалось бы в сам ассет.
                 StationData station = JsonUtility.FromJson<StationData>(JsonUtility.ToJson(asset.station));
+                station.view = asset.view;
                 data.system.stations.Add(station);
 
                 if (string.IsNullOrEmpty(station.id)) throw new SystemDataException("У одной из станций пустой id");
