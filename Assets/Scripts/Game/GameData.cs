@@ -60,9 +60,6 @@ namespace Game
         public double methaneCapacity;      // кг
         public double loxCapacity;          // кг
         public Propulsion propulsion;
-        // Стыковочные узлы по бортам, в связанных осях корабля (X вперёд, Y влево, Z вверх).
-        public PortData leftPort;
-        public PortData rightPort;
     }
     /// <summary>
     /// Станция не вращается: её оси совпадают с осями симуляции, поэтому узел задан прямо в

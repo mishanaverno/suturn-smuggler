@@ -51,6 +51,7 @@ namespace OuterSpace.Sim.Objects
         public readonly PropulsionUnit engine;
         public readonly RcsUnit rcs;
         public readonly TrajectoryCache trajectory = new();
+        // Узлы по бортам, в связанных осях. Их снимает с кабины ShipPorts.
         public PortData leftPort;
         public PortData rightPort;
         public bool rightPortActive;
@@ -310,7 +311,7 @@ namespace OuterSpace.Sim.Objects
 
         void UpdateDocking()
         {
-            Station station = SimMono.target as Station;
+            Station station = ActivePort == null ? null : SimMono.target as Station;
             Docking = null;
             TargetPort = null;
             if (station != null)

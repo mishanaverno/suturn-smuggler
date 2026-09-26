@@ -53,8 +53,6 @@ namespace Game
                 throw new SystemDataException($"Корабль {ship.id}: запасы топлива не могут быть отрицательными");
             if (ship.methane > ship.methaneCapacity || ship.lox > ship.loxCapacity)
                 throw new SystemDataException($"Корабль {ship.id}: начальный запас больше ёмкости бака");
-            ValidatePort(ship.id, ship.leftPort);
-            ValidatePort(ship.id, ship.rightPort);
             ValidateEngine(ship, "nuclear", ship.propulsion?.nuclear);
             ValidateEngine(ship, "nuclearLox", ship.propulsion?.nuclearLox);
             ValidateEngine(ship, "chemical", ship.propulsion?.chemical);
@@ -164,15 +162,24 @@ namespace Game
             foreach (Transform part in root.GetComponentsInChildren<Transform>(true))
             {
                 if (part == root || !part.name.StartsWith("Port")) continue;
-                ports.Add(new PortData
-                {
-                    position = FromHull(Vector3.Scale(root.localScale, root.InverseTransformPoint(part.position))),
-                    axis = FromHull(root.InverseTransformDirection(part.forward)),
-                    up = FromHull(root.InverseTransformDirection(part.up)),
-                });
+                ports.Add(PortFrom(
+                    Vector3.Scale(root.localScale, root.InverseTransformPoint(part.position)),
+                    root.InverseTransformDirection(part.forward),
+                    root.InverseTransformDirection(part.up)));
             }
             return ports;
         }
+
+        /// <summary>
+        /// Узел по положению и осям в осях корпуса — так устроены и модели станций, и кабина:
+        /// Z — ось X симуляции, Y — ось Z, X — против оси Y.
+        /// </summary>
+        public static PortData PortFrom(Vector3 position, Vector3 axis, Vector3 up) => new()
+        {
+            position = FromHull(position),
+            axis = FromHull(axis).normalized,
+            up = FromHull(up).normalized,
+        };
 
         static Vector3d FromHull(Vector3 v) => new(v.z, -v.x, v.y);
 

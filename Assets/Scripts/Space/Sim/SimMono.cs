@@ -70,8 +70,6 @@ namespace OuterSpace.Sim
 
             PlayerShip shipData = data.system.playerShip;
             Ship ship = Place(new Ship(shipData.dryMass, shipData.methane, shipData.lox, shipData.propulsion, Prefab(shipData)), shipData);
-            ship.leftPort = shipData.leftPort;
-            ship.rightPort = shipData.rightPort;
             ship.tanks.methaneCapacity = shipData.methaneCapacity;
             ship.tanks.loxCapacity = shipData.loxCapacity;
             playerShip = ship;
