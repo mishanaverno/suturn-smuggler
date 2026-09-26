@@ -14,6 +14,13 @@ namespace Interior
     /// корабля; совмещают с ним узел станции на картинке, а числа говорят, насколько
     /// точно.
     ///
+    /// Станция с километров меньше пикселя, поэтому узел станции на картинке обведён
+    /// рамкой, а вне кадра у края стоит стрелка — куда доворачивать.
+    ///
+    /// Показаний два набора. Вне маяка оси узла ничего не значат — проекция на ось может
+    /// быть нулём в километре сбоку, — поэтому там расстояние, его скорость и угол от оси.
+    /// В конусе маяка — положение в осях узла и рассогласование.
+    ///
     /// Из сцены нужны меш стекла и вид за бортом, в котором стоит камера: камеру ставит и
     /// ведёт ExteriorView, потому что только он знает, где корабль в сцене ближнего плана.
     /// </summary>
@@ -46,11 +53,18 @@ namespace Interior
         public float crossPixels = 80f;
         [Tooltip("Высота строки показаний в пикселях текстуры. Кегль образца на размер не влияет — он нормализуется.")]
         public float labelPixels = 18f;
+        [Tooltip("Сторона рамки вокруг узла станции в пикселях текстуры.")]
+        public float boxPixels = 28f;
+        [Tooltip("Размер стрелки у края, когда узел станции вне кадра, в пикселях текстуры.")]
+        public float arrowPixels = 20f;
 
         GameObject rig;
         RenderTexture texture;
         Material lineMaterial;
         TextMeshPro readout;
+        Camera dockingCamera;
+        LineRenderer box;
+        LineRenderer arrow;
 
         static Ship Ship => SimMono.playerShip as Ship;
 
@@ -81,7 +95,8 @@ namespace Interior
             }
             // Прицел и показания дорисовываются поверх той же текстуры, поэтому картинка
             // камеры обязана быть готова раньше.
-            exterior.CreateDockingCamera(texture, fieldOfView).depth = rig.GetComponentInChildren<Camera>().depth - 1f;
+            dockingCamera = exterior.CreateDockingCamera(texture, fieldOfView);
+            dockingCamera.depth = rig.GetComponentInChildren<Camera>().depth - 1f;
         }
 
         void OnDestroy()
@@ -119,6 +134,16 @@ namespace Interior
             Segment(layer, new Vector3(0f, -arm), new Vector3(0f, -gap));
             Segment(layer, new Vector3(0f, gap), new Vector3(0f, arm));
 
+            float half = 0.5f * boxPixels;
+            box = Line(layer, "Box", NavPalette.Target);
+            box.loop = true;
+            box.positionCount = 4;
+            box.SetPositions(new[] { new Vector3(-half, -half), new Vector3(half, -half), new Vector3(half, half), new Vector3(-half, half) });
+            // Стрелка смотрит вдоль своей оси X; куда — задаёт поворот.
+            arrow = Line(layer, "Arrow", NavPalette.Target);
+            arrow.positionCount = 3;
+            arrow.SetPositions(new[] { new Vector3(-arrowPixels, 0.6f * arrowPixels), Vector3.zero, new Vector3(-arrowPixels, -0.6f * arrowPixels) });
+
             if (NavPalette.LabelPrefab == null) return;
             readout = Instantiate(NavPalette.LabelPrefab, rig.transform);
             readout.gameObject.name = "Readout";
@@ -138,24 +163,62 @@ namespace Interior
 
         void Segment(int layer, Vector3 from, Vector3 to)
         {
-            GameObject host = new("Cross") { layer = layer };
-            host.transform.SetParent(rig.transform, false);
-            LineRenderer line = host.AddComponent<LineRenderer>();
-            line.material = lineMaterial;
-            line.useWorldSpace = false;
-            line.widthMultiplier = linePixels;
-            line.startColor = NavPalette.Own;
-            line.endColor = NavPalette.Own;
+            LineRenderer line = Line(layer, "Cross", NavPalette.Own);
             line.positionCount = 2;
             line.SetPosition(0, from);
             line.SetPosition(1, to);
         }
 
+        LineRenderer Line(int layer, string name, Color color)
+        {
+            GameObject host = new(name) { layer = layer };
+            host.transform.SetParent(rig.transform, false);
+            LineRenderer line = host.AddComponent<LineRenderer>();
+            line.material = lineMaterial;
+            line.useWorldSpace = false;
+            line.widthMultiplier = linePixels;
+            line.startColor = color;
+            line.endColor = color;
+            return line;
+        }
+
         void LateUpdate()
         {
             Ship ship = Ship;
-            if (readout == null || ship == null) return;
-            readout.text = Readout(ship);
+            if (ship == null) return;
+            DrawMarker(ship);
+            if (readout != null) readout.text = Readout(ship);
+        }
+
+        /// <summary>
+        /// Узел станции в кадре — рамка вокруг него; вне кадра или за спиной — стрелка у края
+        /// в ту сторону, куда доворачивать.
+        /// </summary>
+        void DrawMarker(Ship ship)
+        {
+            bool show = dockingCamera != null && ship.DockedTo == null && SimMono.target is Station;
+            box.gameObject.SetActive(false);
+            arrow.gameObject.SetActive(false);
+            if (!show) return;
+
+            Station station = (Station)SimMono.target;
+            Vector3 view = dockingCamera.WorldToViewportPoint(exterior.ProximityPoint(station.simTransform.GLOBAL_R + station.port.position));
+            Vector2 point = new((view.x - 0.5f) * textureWidth, (view.y - 0.5f) * textureHeight);
+            float halfWidth = 0.5f * textureWidth - arrowPixels;
+            float halfHeight = 0.5f * textureHeight - arrowPixels;
+            if (view.z > 0f && Mathf.Abs(point.x) <= halfWidth && Mathf.Abs(point.y) <= halfHeight)
+            {
+                box.gameObject.SetActive(true);
+                box.transform.localPosition = point;
+                return;
+            }
+            // За спиной проекция зеркальна: доворачивать надо в противоположную сторону.
+            Vector2 direction = view.z > 0f ? point : -point;
+            if (direction.sqrMagnitude < 1e-6f) direction = Vector2.up;
+            float scale = Mathf.Min(halfWidth / Mathf.Max(Mathf.Abs(direction.x), 1e-6f), halfHeight / Mathf.Max(Mathf.Abs(direction.y), 1e-6f));
+            arrow.gameObject.SetActive(true);
+            arrow.transform.localPosition = direction * scale;
+            arrow.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
         }
 
         static string Readout(Ship ship)
@@ -163,13 +226,23 @@ namespace Interior
             string port = ship.rightPortActive ? "PORT R" : "PORT L";
             if (ship.Docking is not DockingState d) return $"{port}\nNO TARGET PORT";
             string beacon = ship.BeaconHolding ? "BCN HOLD" : ship.BeaconLocked ? "BCN LOCK" : "BCN ----";
-            return string.Format(CultureInfo.InvariantCulture,
-                "{0}   {1}   REL {11,5:F2} m/s\n" +
-                "RNG  {2,8:F1} m   CLS {3,6:+0.00;-0.00} m/s\n" +
-                "SIDE {4,8:+0.00;-0.00} m   {5,10:+0.00;-0.00} m/s\n" +
-                "UP   {6,8:+0.00;-0.00} m   {7,10:+0.00;-0.00} m/s\n" +
-                "ROLL {8,5:+0.0;-0.0}  PIT {9,5:+0.0;-0.0}  YAW {10,5:+0.0;-0.0}",
-                port, beacon, d.Range, d.ClosingSpeed, d.Side, d.SideSpeed, d.Up, d.UpSpeed, d.Roll, d.Pitch, d.Yaw, d.Speed);
+            string head = string.Format(CultureInfo.InvariantCulture,
+                "{0}   {1}\n" +
+                "DIST {2,9}   RATE {3,7:+0.00;-0.00} m/s\n" +
+                "REL  {4,7:F2} m/s   OFF AXIS {5,5:F1}",
+                port, beacon, Distance(d.Distance), d.RangeRate, d.Speed, d.OffAxis);
+            if (!ship.BeaconLocked && !ship.BeaconHolding) return head;
+            return head + string.Format(CultureInfo.InvariantCulture,
+                "\n" +
+                "RNG  {0,8:F1} m   CLS {1,6:+0.00;-0.00} m/s\n" +
+                "SIDE {2,8:+0.00;-0.00} m   {3,10:+0.00;-0.00} m/s\n" +
+                "UP   {4,8:+0.00;-0.00} m   {5,10:+0.00;-0.00} m/s\n" +
+                "ROLL {6,5:+0.0;-0.0}  PIT {7,5:+0.0;-0.0}  YAW {8,5:+0.0;-0.0}",
+                d.Range, d.ClosingSpeed, d.Side, d.SideSpeed, d.Up, d.UpSpeed, d.Roll, d.Pitch, d.Yaw);
         }
+
+        static string Distance(double metres) => metres >= 10000.0
+            ? string.Format(CultureInfo.InvariantCulture, "{0:F1} km", metres / 1000.0)
+            : string.Format(CultureInfo.InvariantCulture, "{0:F1} m", metres);
     }
 }

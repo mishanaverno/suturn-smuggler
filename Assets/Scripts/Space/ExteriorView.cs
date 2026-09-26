@@ -172,6 +172,14 @@ namespace OuterSpace
             return dockingCam;
         }
 
+        /// <summary>Точка симуляции в мировых координатах сцены ближнего плана.</summary>
+        public Vector3 ProximityPoint(Vector3d global)
+        {
+            Ship ship = (Ship)SimMono.playerShip;
+            Vector3d local = Quaterniond.Inverse(ship.attitude.rotation) * (global - ship.simTransform.GLOBAL_R);
+            return proximityRoot.TransformPoint(ToHull(local));
+        }
+
         // Тела заводятся в первом кадре, а не в Start: SimMono строит систему в своём Start,
         // и порядок двух Start между объектами не задан.
         void CreateViews()
