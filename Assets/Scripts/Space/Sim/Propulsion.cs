@@ -31,7 +31,15 @@ namespace OuterSpace.Sim
         public double fullTemperature;
         /// <summary>Время выхода от холостого хода на полную мощность, с.</summary>
         public double spoolTime;
+        /// <summary>
+        /// Тепловая постоянная, с, и собственное охлаждение в долях отвода потоком на полной
+        /// тяге. См. PropulsionUnit.UpdateReactor. Это настройка механики, а не паспорт корабля:
+        /// её выставляет EngineDevice.
+        /// </summary>
+        public double heatTime;
+        public double cooling;
 
+        /// <summary>Температура, которой требует мощность power для паспортного импульса, К.</summary>
         public double Temperature(double power) => idleTemperature + power * (fullTemperature - idleTemperature);
     }
 

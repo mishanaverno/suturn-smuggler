@@ -1,4 +1,5 @@
 ﻿using OuterSpace.Sim;
+using UnityEngine;
 
 namespace Interior
 {
@@ -7,6 +8,20 @@ namespace Interior
     /// </summary>
     public class EngineDevice : ShipDevice
     {
+        [Tooltip("Тепловая постоянная реактора, с. Больше — медленнее и нагрев, и остывание.")]
+        public double heatTime = 20.0;
+        [Tooltip("Собственное охлаждение реактора в долях отвода метаном на полной тяге. Больше — рост сильнее замедляется и ниже предел перегрева без прожига.")]
+        public double cooling = 0.5;
+
+        // В Start, как органы кокпита: корабль к этому моменту уже построен, а первый тик
+        // симуляции ещё не прошёл.
+        void Start()
+        {
+            Reactor reactor = Ship.engine.spec.reactor;
+            reactor.heatTime = heatTime;
+            reactor.cooling = cooling;
+        }
+
         protected override void Wire()
         {
             BindMode(CommandId.EngineModeIdle, SignalId.EngineModeIdle, EngineMode.Idle);

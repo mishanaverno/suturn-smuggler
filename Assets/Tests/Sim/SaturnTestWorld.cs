@@ -107,6 +107,7 @@ public class SaturnTestWorld : IDisposable
         // а разогрев и органы — отдельными тестами.
         Ship ship = new(500.0, 400.0, 100.0, TestPropulsion(), prefab);
         ship.engine.reactorPower = 1.0;
+        ship.engine.reactorHeat = 1.0;
         ship.SetEngineMode(EngineMode.Cruise);
         ship.engine.SetMainThrottle(1.0);
         created.Add(ship.GameObject);
@@ -125,7 +126,7 @@ public class SaturnTestWorld : IDisposable
         nuclearLox = new Engine { thrust = 1.25e5, isp = 900.0, oxidizerRatio = 1.0 },
         chemical = new Engine { thrust = 1.0e4, isp = 370.0, oxidizerRatio = 3.5 },
         rcs = new Engine { thrust = 500.0, isp = 110.0 },
-        reactor = new Reactor { idleTemperature = 5000.0, fullTemperature = 25000.0, spoolTime = 10.0 },
+        reactor = new Reactor { idleTemperature = 5000.0, fullTemperature = 25000.0, spoolTime = 10.0, heatTime = 20.0, cooling = 0.5 },
     };
 
     /// <summary>Тик симуляции с переподчинением по сферам влияния — как SimMono.FixedUpdate.</summary>

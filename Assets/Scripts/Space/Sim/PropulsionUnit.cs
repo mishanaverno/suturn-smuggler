@@ -21,6 +21,8 @@ namespace OuterSpace.Sim
         public EngineMode Mode { get; private set; } = EngineMode.Idle;
         /// <summary>Мощность реактора, 0…1. Идёт за заказом РУД с задержкой, см. UpdateReactor.</summary>
         public double reactorPower;
+        /// <summary>Нагрев реактора: 0 — холостой ход, 1 — номинал полной мощности. Может уйти выше 1.</summary>
+        public double reactorHeat;
         double reactorEpoch;
 
         /// <summary>
@@ -91,7 +93,7 @@ namespace OuterSpace.Sim
         /// </summary>
         public Engine Engine => Mode == EngineMode.Prox ? spec.chemical : spec.Afterburning(Mixture);
 
-        public double ReactorTemperature => spec.reactor.Temperature(reactorPower);
+        public double ReactorTemperature => spec.reactor.Temperature(reactorHeat);
 
         /// <summary>Тяга при зажигании, Н: в CRUISE её даёт реактор, в PROX — MAIN.</summary>
         public double Thrust => Engine.thrust * Mode switch
@@ -121,16 +123,27 @@ namespace OuterSpace.Sim
         /// Реактор идёт к заказанной мощности с постоянной скоростью: от холостого хода до
         /// полной за spoolTime. Заказ — MAIN в CRUISE; в IDLE и PROX реактор уходит на холостой
         /// ход. Время симуляционное, как у тяги.
+        ///
+        /// Нагрев θ: dθ/dt = [(1 + k)·P − (k + F)·θ] / τ. Мощность P греет, тепло уносят
+        /// излучение k и метан через реактор F — он течёт только в прожиге ЯРД, F = P. Прожиг
+        /// на полной держит θ = 1; без прожига θ идёт к (1 + k)·P / k, далеко за номинал. Шаг —
+        /// точное решение при постоянных P и F, поэтому перемотка его не раскачивает.
         /// </summary>
-        public void UpdateReactor(double epoch)
+        public void UpdateReactor(double epoch, bool thrusting)
         {
             double dt = epoch - reactorEpoch;
             reactorEpoch = epoch;
             if (dt <= 0.0) return;
 
+            Reactor reactor = spec.reactor;
             double demand = Mode == EngineMode.Cruise ? MainThrottle : 0.0;
-            double step = dt / spec.reactor.spoolTime;
+            double step = dt / reactor.spoolTime;
             reactorPower = Mathd.Clamp(demand, reactorPower - step, reactorPower + step);
+
+            double flow = thrusting && Mode == EngineMode.Cruise ? reactorPower : 0.0;
+            double removal = reactor.cooling + flow;
+            double equilibrium = (1.0 + reactor.cooling) * reactorPower / removal;
+            reactorHeat = equilibrium + (reactorHeat - equilibrium) * Mathd.Exp(-removal * dt / reactor.heatTime);
         }
 
         /// <summary>Прирост скорости за dt вдоль forward с расходом топлива.</summary>

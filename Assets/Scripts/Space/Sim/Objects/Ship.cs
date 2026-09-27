@@ -563,7 +563,7 @@ namespace OuterSpace.Sim.Objects
             }
             UpdateDirection();
             UpdateAttitude();
-            engine.UpdateReactor(GameMono.instance.Epoch);
+            engine.UpdateReactor(GameMono.instance.Epoch, thrusting);
             if (thrusting) ApplyThrust();
             ApplyRcs();
             base.FixedUpdate();

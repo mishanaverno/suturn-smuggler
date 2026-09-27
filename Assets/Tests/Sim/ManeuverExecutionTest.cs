@@ -356,13 +356,13 @@ public class ManeuverExecutionTest
         double node = ship.GetManeuver().startEpoch;
         world.Step(node, ship);
         ship.engine.reactorPower = 0.0;
+        ship.engine.reactorHeat = 0.0;
 
         ship.SetThrust(true);
         world.Step(node + 5.0, ship);
         Assert.AreEqual(0.5, ship.engine.reactorPower, 1e-9);
-        Assert.AreEqual(ship.engine.spec.nuclear.isp * Math.Sqrt(15000.0 / 25000.0), ship.engine.SpecificImpulse, 1e-9,
-            "импульс ниже паспортного, пока реактор не догнал заказ");
-        Assert.AreEqual(15000.0, ship.engine.ReactorTemperature, 1e-6);
+        Assert.Less(ship.engine.SpecificImpulse, ship.engine.spec.nuclear.isp,
+            "импульс ниже паспортного, пока реактор не прогрелся");
         world.Step(node + 10.0, ship);
         Assert.AreEqual(1.0, ship.engine.reactorPower, 1e-12);
 
@@ -373,6 +373,27 @@ public class ManeuverExecutionTest
     }
 
     [Test]
+    public void Reactor_OverheatsWithoutBurn_AndFullBurnHoldsNominal()
+    {
+        Ship ship = world.PutShip(world.saturn, Circular(ShipRadius), 0.0);
+        PropulsionUnit engine = ship.engine;
+        double epoch = 1000.0;
+        engine.UpdateReactor(epoch, false);
+        engine.reactorHeat = 0.0;
+
+        engine.UpdateReactor(epoch += 16.0, false);
+        double firstRise = engine.reactorHeat;
+        engine.UpdateReactor(epoch += 16.0, false);
+        Assert.Greater(engine.reactorHeat, 1.0, "без прожига реактор уходит за номинал");
+        Assert.Less(engine.reactorHeat - firstRise, firstRise, "рост замедляется");
+
+        engine.UpdateReactor(epoch += 200.0, true);
+        Assert.AreEqual(25000.0, engine.ReactorTemperature, 1.0, "прожиг на полной держит номинал");
+        engine.UpdateReactor(epoch += 1000.0, true);
+        Assert.AreEqual(25000.0, engine.ReactorTemperature, 1e-6);
+    }
+
+    [Test]
     public void ColdStart_CostsMorePropellant_ThanWarmReactor()
     {
         Ship warm = Planned(new Vector3d(10000.0, 0.0, 0.0), 10000.0);
@@ -380,6 +401,7 @@ public class ManeuverExecutionTest
         double node = warm.GetManeuver().startEpoch;
         world.Step(node, cold);
         cold.engine.reactorPower = 0.0;
+        cold.engine.reactorHeat = 0.0;
         double warmBefore = warm.Mass;
         double coldBefore = cold.Mass;
 
