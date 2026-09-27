@@ -63,6 +63,7 @@ namespace Interior
             Bind(SignalId.Maneuver2Created, () => Ship != null && Ship.ManeuverCount >= 2);
             Bind(SignalId.Maneuver3Created, () => Ship != null && Ship.ManeuverCount >= 3);
             Bind(SignalId.ManeuverLocked, Locked);
+            Bind(SignalId.ManeuverCompleted, () => Ship != null && Ship.ManeuverCompleted);
 
             Bind(ReadingId.NavRange, () => Nav == null ? double.NaN : Nav.Range);
             Bind(ReadingId.TimeToNode, TimeToNode);

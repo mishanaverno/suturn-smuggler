@@ -92,6 +92,7 @@
         Maneuver2Created = 204,
         Maneuver3Created = 205,
         ManeuverLocked = 206,
+        ManeuverCompleted = 207,
 
         // Система ориентации — 300
         SasEngaged = 300,

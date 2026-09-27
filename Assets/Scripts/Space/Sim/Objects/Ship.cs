@@ -125,6 +125,10 @@ namespace OuterSpace.Sim.Objects
         public double RemainingDeltaV => GetNextManeuver() is Maneuver next
             ? next.PlannedMagnitude - BurnedDeltaV
             : 0.0;
+        /// <summary>Ближайший манёвр выполнен в пределах 1% или 0.5 м/с от плана.</summary>
+        public bool ManeuverCompleted => GetNextManeuver() is Maneuver next &&
+            next.PlannedMagnitude > 0.0 &&
+            BurnedDeltaV >= next.PlannedMagnitude - Mathd.Min(0.5, next.PlannedMagnitude * 0.01);
         /// <summary>Сколько осталось жечь на полной тяге, с.</summary>
         public double RemainingBurnDuration => engine.BurnDuration(Mass, Mathd.Max(RemainingDeltaV, 0.0));
         /// <summary>

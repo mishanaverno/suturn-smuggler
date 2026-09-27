@@ -30,20 +30,10 @@ namespace Interior
 
         [Tooltip("Вид за бортом: в его сцене ближнего плана стоит камера стыковки.")]
         public ExteriorView exterior;
-        [Tooltip("Поверхность, на которой видна картинка прибора: любой меш с UV.")]
-        public Renderer surface;
-        [Tooltip("Разрешение прибора по высоте. Ширина считается из пропорций стекла.")]
+        [Tooltip("Разрешение изображения прибора по высоте.")]
         public int textureHeight = 512;
-        [Tooltip("Ширина текстуры. Подгоняется под меш при запуске; заданное здесь значение — запас на случай, если поверхности нет.")]
+        [Tooltip("Разрешение изображения прибора по ширине.")]
         public int textureWidth = 512;
-        [Tooltip("Растянуть развёртку экрана на всю текстуру. Нужно, если меш вырезан из модели и его UV — кусок общей развёртки.")]
-        public bool normalizeScreenUV = true;
-        [Tooltip("Повернуть картинку на стекле. Развёртка вырезанной грани может идти вдоль любой стороны.")]
-        public ScreenTurn screenRotation = ScreenTurn.Deg0;
-        [Tooltip("Отразить картинку поперёк.")]
-        public bool flipScreenU;
-        [Tooltip("Отразить картинку вдоль.")]
-        public bool flipScreenV;
 
         [Tooltip("Угол зрения камеры стыковки по вертикали, градусы.")]
         public float fieldOfView = 30f;
@@ -71,17 +61,15 @@ namespace Interior
         void Awake()
         {
             int layer = LayerMask.NameToLayer(ScreenLayer);
-            if (surface == null || exterior == null || layer < 0)
+            if (exterior == null || layer < 0)
             {
-                Debug.LogError($"DockingPanel на «{name}»: нужны стекло экрана, вид за бортом и слой «{ScreenLayer}».", this);
+                Debug.LogError($"DockingPanel на «{name}»: нужны вид за бортом и слой «{ScreenLayer}».", this);
                 enabled = false;
                 return;
             }
-            if (normalizeScreenUV) ScreenGlass.NormalizeUV(surface, screenRotation, flipScreenU, flipScreenV);
-            textureWidth = ScreenGlass.TextureWidth(surface, textureHeight, textureWidth);
             texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Docking {name}" };
             Build(layer);
-            ScreenGlass.Show(surface, texture);
+            ScreenRouter.RegisterFeed(ScreenContent.Docking, texture);
         }
 
         // Камера заводится в Start: сцену ближнего плана ExteriorView строит в своём Awake.
@@ -101,6 +89,7 @@ namespace Interior
 
         void OnDestroy()
         {
+            ScreenRouter.UnregisterFeed(ScreenContent.Docking, texture);
             if (rig != null) Destroy(rig);
             if (lineMaterial != null) Destroy(lineMaterial);
             if (texture == null) return;

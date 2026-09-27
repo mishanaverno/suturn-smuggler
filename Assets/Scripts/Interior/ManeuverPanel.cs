@@ -18,17 +18,11 @@ namespace Interior
     {
         const string ScreenLayer = "Panels";
 
-        [Tooltip("Поверхность экрана: меш с UV-развёрткой.")]
-        public Renderer surface;
-        [Tooltip("Разрешение экрана по высоте. Ширина берётся из пропорций стекла.")]
+        [Tooltip("Разрешение изображения прибора по высоте.")]
         public int textureHeight = 360;
-        [Tooltip("Запасная ширина, если пропорции стекла не удалось определить.")]
+        [Tooltip("Разрешение изображения прибора по ширине.")]
         public int textureWidth = 256;
         public Color screenBackground = Color.black;
-        public bool normalizeScreenUV = true;
-        public ScreenTurn screenRotation = ScreenTurn.Deg0;
-        public bool flipScreenU;
-        public bool flipScreenV;
 
         [Tooltip("Размер шрифта в пикселях текстуры. Кегль образца заменяется этим значением.")]
         public float labelPixels = 18f;
@@ -47,9 +41,9 @@ namespace Interior
 
         void Awake()
         {
-            if (surface == null || NavPalette.ReadoutPrefab == null)
+            if (NavPalette.ReadoutPrefab == null)
             {
-                Debug.LogError($"ManeuverPanel на «{name}»: нет стекла или в NavPalette не задан " +
+                Debug.LogError($"ManeuverPanel на «{name}»: в NavPalette не задан " +
                     "образец строки показаний.", this);
                 enabled = false;
                 return;
@@ -63,16 +57,15 @@ namespace Interior
                 return;
             }
 
-            if (normalizeScreenUV) ScreenGlass.NormalizeUV(surface, screenRotation, flipScreenU, flipScreenV);
-            textureWidth = ScreenGlass.TextureWidth(surface, textureHeight, textureWidth);
             texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Maneuver {name}" };
             Build(layer);
-            ScreenGlass.Show(surface, texture);
+            ScreenRouter.RegisterFeed(ScreenContent.Maneuver, texture);
             Refresh();
         }
 
         void OnDestroy()
         {
+            ScreenRouter.UnregisterFeed(ScreenContent.Maneuver, texture);
             if (rig != null) Destroy(rig);
             if (texture == null) return;
             texture.Release();

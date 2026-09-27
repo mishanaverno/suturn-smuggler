@@ -54,22 +54,12 @@ namespace Interior
             (ShipOrientation.Maneuver, "MNV"),
         };
 
-        [Tooltip("Поверхность, на которой видна картинка прибора: любой меш с UV.")]
-        public Renderer surface;
-        [Tooltip("Разрешение прибора по высоте. Ширина считается из пропорций стекла.")]
+        [Tooltip("Разрешение изображения прибора по высоте.")]
         public int textureHeight = 256;
-        [Tooltip("Ширина текстуры. Подгоняется под меш при запуске; заданное здесь значение — запас на случай, если поверхности нет.")]
+        [Tooltip("Разрешение изображения прибора по ширине.")]
         public int textureWidth = 256;
         [Tooltip("Чем залит экран там, где ничего нет.")]
         public Color screenBackground = Color.black;
-        [Tooltip("Растянуть развёртку экрана на всю текстуру. Нужно, если меш вырезан из модели и его UV — кусок общей развёртки.")]
-        public bool normalizeScreenUV = true;
-        [Tooltip("Повернуть картинку на стекле. Развёртка вырезанной грани может идти вдоль любой стороны.")]
-        public ScreenTurn screenRotation = ScreenTurn.Deg0;
-        [Tooltip("Отразить картинку поперёк.")]
-        public bool flipScreenU;
-        [Tooltip("Отразить картинку вдоль.")]
-        public bool flipScreenV;
 
         [Tooltip("Диаметр шара в пикселях текстуры.")]
         public float ballPixels = 190f;
@@ -119,12 +109,6 @@ namespace Interior
 
         void Awake()
         {
-            if (surface == null)
-            {
-                Debug.LogError($"AttitudePanel на «{name}»: не указано стекло экрана — показывать не на чем.", this);
-                enabled = false;
-                return;
-            }
             int layer = LayerMask.NameToLayer(ScreenLayer);
             if (layer < 0)
             {
@@ -134,15 +118,14 @@ namespace Interior
                 return;
             }
 
-            if (normalizeScreenUV) ScreenGlass.NormalizeUV(surface, screenRotation, flipScreenU, flipScreenV);
-            textureWidth = ScreenGlass.TextureWidth(surface, textureHeight, textureWidth);
             texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Attitude {name}" };
             Build(layer);
-            ScreenGlass.Show(surface, texture);
+            ScreenRouter.RegisterFeed(ScreenContent.Attitude, texture);
         }
 
         void OnDestroy()
         {
+            ScreenRouter.UnregisterFeed(ScreenContent.Attitude, texture);
             if (rig != null) Destroy(rig);
             if (lineMaterial != null) Destroy(lineMaterial);
             if (texture == null) return;

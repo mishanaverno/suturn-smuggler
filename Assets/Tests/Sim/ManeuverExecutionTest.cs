@@ -154,11 +154,13 @@ public class ManeuverExecutionTest
         const double Step = 20.0;
         Ship ship = Planned(new Vector3d(180.0, 0.0, 0.0), Duration);
         double planned = ship.GetManeuver().PlannedMagnitude;
+        Assert.IsFalse(ship.ManeuverCompleted, "новый план ещё не исполнен");
 
         BurnCentered(ship, Step);
 
         Assert.IsFalse(ship.Thrusting, "двигатель должен выключиться сам");
         Assert.AreEqual(planned, ship.BurnedDeltaV, ship.Acceleration * Step);
+        Assert.IsTrue(ship.ManeuverCompleted, "сигнал загорается после набора плановой Δv");
     }
 
     [Test]

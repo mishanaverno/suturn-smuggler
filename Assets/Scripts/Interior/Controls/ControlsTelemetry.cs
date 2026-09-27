@@ -21,6 +21,7 @@ namespace Interior
         void Start()
         {
             foreach (ButtonControl button in All<ButtonControl>()) Check(button, button.port, button.Wired, button.part, "Кнопка");
+            foreach (ScreenSelectButton button in All<ScreenSelectButton>()) Check(button, null, button.Wired, button.part, "Кнопка экрана");
             foreach (KnobControl knob in All<KnobControl>()) Check(knob, knob.port, knob.Wired, knob.part, "Крутилка");
             foreach (SwitcherControl switcher in All<SwitcherControl>()) Check(switcher, null, switcher.Wired, switcher.part, "Переключатель");
             foreach (LeverControl lever in All<LeverControl>()) Check(lever, lever.port, lever.Wired, lever.part, "Рычаг");

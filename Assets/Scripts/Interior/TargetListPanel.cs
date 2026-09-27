@@ -39,11 +39,11 @@ namespace Interior
 
         public static TargetListPanel instance { get; private set; }
 
-        [Tooltip("Поверхность экрана: меш с UV-развёрткой.")]
+        [Tooltip("Постоянное стекло списка целей: меш с UV-развёрткой.")]
         public Renderer surface;
-        [Tooltip("Разрешение экрана по высоте. Ширина берётся из пропорций стекла.")]
+        [Tooltip("Разрешение изображения прибора по высоте.")]
         public int textureHeight = 256;
-        [Tooltip("Запасная ширина, если пропорции стекла не удалось определить.")]
+        [Tooltip("Разрешение изображения прибора по ширине.")]
         public int textureWidth = 256;
         public Color screenBackground = Color.black;
         public bool normalizeScreenUV = true;
@@ -81,8 +81,7 @@ namespace Interior
         {
             if (surface == null || NavPalette.ReadoutPrefab == null)
             {
-                Debug.LogError($"TargetListPanel на «{name}»: нет стекла или в NavPalette не задан " +
-                    "образец строки показаний.", this);
+                Debug.LogError($"TargetListPanel на «{name}»: нужны стекло и образец строки показаний в NavPalette.", this);
                 enabled = false;
                 return;
             }
