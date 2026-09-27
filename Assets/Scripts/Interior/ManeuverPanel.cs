@@ -18,10 +18,8 @@ namespace Interior
     {
         const string ScreenLayer = "Panels";
 
-        [Tooltip("Разрешение изображения прибора по высоте.")]
+        [Tooltip("Разрешение изображения прибора по высоте. Ширина подгоняется под стекло.")]
         public int textureHeight = 360;
-        [Tooltip("Разрешение изображения прибора по ширине.")]
-        public int textureWidth = 256;
         public Color screenBackground = Color.black;
 
         [Tooltip("Размер шрифта в пикселях текстуры. Кегль образца заменяется этим значением.")]
@@ -35,7 +33,9 @@ namespace Interior
 
         GameObject rig;
         RenderTexture texture;
+        RectTransform canvasRect;
         TextMeshProUGUI readout;
+        int laidOutWidth;
         /// <summary>Ширина стекла в знаках: рамка растягивается на неё, а не на длину текста.</summary>
         int columns;
 
@@ -57,9 +57,10 @@ namespace Interior
                 return;
             }
 
-            texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Maneuver {name}" };
+            texture = new RenderTexture(textureHeight, textureHeight, 24) { name = $"Maneuver {name}" };
             Build(layer);
             ScreenRouter.RegisterFeed(ScreenContent.Maneuver, texture);
+            Layout();
             Refresh();
         }
 
@@ -93,8 +94,7 @@ namespace Interior
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.worldCamera = cam;
 
-            RectTransform canvasRect = canvas.GetComponent<RectTransform>();
-            canvasRect.sizeDelta = new Vector2(textureWidth, textureHeight);
+            canvasRect = canvas.GetComponent<RectTransform>();
             canvasRect.localPosition = new Vector3(0f, 0f, 1f);
 
             // Образец общий для всех табло кабины: шрифт и его материал. Кегль, цвет и
@@ -110,8 +110,16 @@ namespace Interior
             textRect.anchorMax = new Vector2(0f, 1f);
             textRect.pivot = new Vector2(0f, 1f);
             textRect.anchoredPosition = new Vector2(margin.x, -margin.y);
+        }
+
+        /// <summary>Ширину текстуры задаёт стекло, и она может смениться — рамка идёт за ней.</summary>
+        void Layout()
+        {
+            laidOutWidth = texture.width;
+            canvasRect.sizeDelta = new Vector2(texture.width, textureHeight);
+            RectTransform textRect = readout.rectTransform;
             textRect.sizeDelta = new Vector2(
-                Mathf.Max(1f, textureWidth - 2f * margin.x),
+                Mathf.Max(1f, texture.width - 2f * margin.x),
                 Mathf.Max(1f, textureHeight - 2f * margin.y));
             // Заданное руками число знаков важнее меренного: у экрана может быть своя
             // причина быть уже стекла — рамка соседней панели, наклейка, вырез.
@@ -120,6 +128,12 @@ namespace Interior
 
         void Update()
         {
+            if (texture.width != laidOutWidth)
+            {
+                Layout();
+                Refresh();
+                return;
+            }
             if (Time.frameCount % Mathf.Max(everyFrames, 1) == 0) Refresh();
         }
 

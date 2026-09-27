@@ -54,10 +54,8 @@ namespace Interior
             (ShipOrientation.Maneuver, "MNV"),
         };
 
-        [Tooltip("Разрешение изображения прибора по высоте.")]
+        [Tooltip("Разрешение изображения прибора по высоте. Ширина подгоняется под стекло.")]
         public int textureHeight = 256;
-        [Tooltip("Разрешение изображения прибора по ширине.")]
-        public int textureWidth = 256;
         [Tooltip("Чем залит экран там, где ничего нет.")]
         public Color screenBackground = Color.black;
 
@@ -118,7 +116,7 @@ namespace Interior
                 return;
             }
 
-            texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Attitude {name}" };
+            texture = new RenderTexture(textureHeight, textureHeight, 24) { name = $"Attitude {name}" };
             Build(layer);
             ScreenRouter.RegisterFeed(ScreenContent.Attitude, texture);
         }

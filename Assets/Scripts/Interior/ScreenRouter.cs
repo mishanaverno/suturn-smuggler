@@ -9,6 +9,11 @@ namespace Interior
     /// <summary>
     /// Соединяет готовые текстуры приборов с физическими экранами. Приборы продолжают
     /// вычислять и рисовать свои данные; переключается только стекло, на которое они выведены.
+    ///
+    /// Ширина текстуры прибора подгоняется под стекло, на которое её вывели: высота остаётся,
+    /// чтобы кегль и линии в пикселях не менялись. Прибор перекладывает раскладку сам, заметив
+    /// новую ширину. Если одну картинку показывают два стекла разных пропорций, текстура идёт
+    /// по последнему, а на другом вписывается с полями.
     /// </summary>
     public static class ScreenRouter
     {
@@ -97,6 +102,31 @@ namespace Interior
         }
 
         static void ShowTexture(Renderer glass, Display display, Texture texture)
+        {
+            if (texture is RenderTexture feed && Fit(feed, display.aspect))
+            {
+                foreach (KeyValuePair<Renderer, Display> pair in displays)
+                    if (pair.Key != null && pair.Key != glass && feeds.TryGetValue(pair.Value.selectedContent, out RenderTexture shown) && shown == feed)
+                        Frame(pair.Key, pair.Value, feed);
+            }
+            Frame(glass, display, texture);
+        }
+
+        static bool Fit(RenderTexture feed, float aspect)
+        {
+            int width = Mathf.Max(1, Mathf.RoundToInt(feed.height * aspect));
+            if (feed.width == width) return false;
+            feed.Release();
+            feed.width = width;
+            feed.Create();
+            // Камера сама не пересчитывает пропорции, когда её текстура меняет размер, и
+            // рисовала бы в прежних — края раскладки уходили бы за кадр.
+            foreach (Camera cam in Camera.allCameras)
+                if (cam.targetTexture == feed) cam.aspect = width / (float)feed.height;
+            return true;
+        }
+
+        static void Frame(Renderer glass, Display display, Texture texture)
         {
             Material material = glass.material;
             material.mainTexture = texture;

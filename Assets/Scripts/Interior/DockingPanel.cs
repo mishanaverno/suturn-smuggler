@@ -1,4 +1,5 @@
 using System.Globalization;
+using DoublePrecision;
 using OuterSpace;
 using OuterSpace.Sim;
 using OuterSpace.Sim.Objects;
@@ -23,6 +24,10 @@ namespace Interior
     ///
     /// Из сцены нужны меш стекла и вид за бортом, в котором стоит камера: камеру ставит и
     /// ведёт ExteriorView, потому что только он знает, где корабль в сцене ближнего плана.
+    ///
+    /// Узлы по бортам, и камера смотрит вбок: «вперёд» корабля на картинке — это вправо или
+    /// влево, смотря по узлу. Поэтому в левом нижнем углу — оси РСУ, как они лежат в кадре, и
+    /// стрелка, куда сейчас толкают сопла.
     /// </summary>
     public class DockingPanel : MonoBehaviour
     {
@@ -30,10 +35,8 @@ namespace Interior
 
         [Tooltip("Вид за бортом: в его сцене ближнего плана стоит камера стыковки.")]
         public ExteriorView exterior;
-        [Tooltip("Разрешение изображения прибора по высоте.")]
+        [Tooltip("Разрешение изображения прибора по высоте. Ширина подгоняется под стекло.")]
         public int textureHeight = 512;
-        [Tooltip("Разрешение изображения прибора по ширине.")]
-        public int textureWidth = 512;
 
         [Tooltip("Угол зрения камеры стыковки по вертикали, градусы.")]
         public float fieldOfView = 30f;
@@ -47,14 +50,25 @@ namespace Interior
         public float boxPixels = 28f;
         [Tooltip("Размер стрелки у края, когда узел станции вне кадра, в пикселях текстуры.")]
         public float arrowPixels = 20f;
+        [Tooltip("Длина оси РСУ в левом нижнем углу в пикселях текстуры.")]
+        public float axisPixels = 40f;
 
         GameObject rig;
         RenderTexture texture;
         Material lineMaterial;
+        int laidOutWidth;
         TextMeshPro readout;
         Camera dockingCamera;
         LineRenderer box;
         LineRenderer arrow;
+        Vector3 axesOrigin;
+        readonly LineRenderer[] axes = new LineRenderer[3];
+        readonly TextMeshPro[] axisLabels = new TextMeshPro[3];
+        LineRenderer thrust;
+
+        // Связанные оси корабля в осях сцены ближнего плана (ExteriorView.ToHull): вперёд — Z, вправо — X, вверх — Y.
+        static readonly Vector3[] HullAxes = { Vector3.forward, Vector3.right, Vector3.up };
+        static readonly string[] AxisNames = { "F", "R", "U" };
 
         static Ship Ship => SimMono.playerShip as Ship;
 
@@ -67,7 +81,7 @@ namespace Interior
                 enabled = false;
                 return;
             }
-            texture = new RenderTexture(textureWidth, textureHeight, 24) { name = $"Docking {name}" };
+            texture = new RenderTexture(textureHeight, textureHeight, 24) { name = $"Docking {name}" };
             Build(layer);
             ScreenRouter.RegisterFeed(ScreenContent.Docking, texture);
         }
@@ -133,21 +147,47 @@ namespace Interior
             arrow.positionCount = 3;
             arrow.SetPositions(new[] { new Vector3(-arrowPixels, 0.6f * arrowPixels), Vector3.zero, new Vector3(-arrowPixels, -0.6f * arrowPixels) });
 
+            for (int i = 0; i < 3; i++)
+            {
+                axes[i] = Line(layer, $"Axis {AxisNames[i]}", NavPalette.Other);
+                axes[i].positionCount = 2;
+            }
+            thrust = Line(layer, "Thrust", NavPalette.Target);
+            thrust.positionCount = 2;
+
             if (NavPalette.LabelPrefab == null) return;
-            readout = Instantiate(NavPalette.LabelPrefab, rig.transform);
-            readout.gameObject.name = "Readout";
-            readout.gameObject.layer = layer;
-            readout.textWrappingMode = TextWrappingModes.NoWrap;
-            readout.overflowMode = TextOverflowModes.Overflow;
-            readout.color = NavPalette.Own;
-            // Точка отсчёта — с той же стороны, что и выравнивание: иначе строки уезжают за край.
-            readout.alignment = TextAlignmentOptions.TopLeft;
-            readout.rectTransform.pivot = new Vector2(0f, 1f);
-            readout.text = "Xg";
-            readout.ForceMeshUpdate();
-            if (readout.preferredHeight > 0f) readout.transform.localScale = Vector3.one * (labelPixels / readout.preferredHeight);
+            readout = Label(layer, "Readout", TextAlignmentOptions.TopLeft, new Vector2(0f, 1f));
+            for (int i = 0; i < 3; i++)
+            {
+                axisLabels[i] = Label(layer, $"Axis {AxisNames[i]}", TextAlignmentOptions.Center, new Vector2(0.5f, 0.5f));
+                axisLabels[i].color = NavPalette.Other;
+            }
+        }
+
+        /// <summary>Раскладка по углам: ширину текстуры задаёт стекло, и она может смениться.</summary>
+        void Layout()
+        {
+            laidOutWidth = texture.width;
             float margin = 0.5f * labelPixels;
-            readout.transform.localPosition = new Vector3(-0.5f * textureWidth + margin, 0.5f * textureHeight - margin, 0f);
+            axesOrigin = new Vector3(-0.5f * texture.width + margin + axisPixels + labelPixels, -0.5f * textureHeight + margin + axisPixels + labelPixels, 0f);
+            if (readout != null) readout.transform.localPosition = new Vector3(-0.5f * texture.width + margin, 0.5f * textureHeight - margin, 0f);
+        }
+
+        TextMeshPro Label(int layer, string name, TextAlignmentOptions alignment, Vector2 pivot)
+        {
+            TextMeshPro label = Instantiate(NavPalette.LabelPrefab, rig.transform);
+            label.gameObject.name = name;
+            label.gameObject.layer = layer;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Overflow;
+            label.color = NavPalette.Own;
+            // Точка отсчёта — с той же стороны, что и выравнивание: иначе строки уезжают за край.
+            label.alignment = alignment;
+            label.rectTransform.pivot = pivot;
+            label.text = "Xg";
+            label.ForceMeshUpdate();
+            if (label.preferredHeight > 0f) label.transform.localScale = Vector3.one * (labelPixels / label.preferredHeight);
+            return label;
         }
 
         void Segment(int layer, Vector3 from, Vector3 to)
@@ -174,8 +214,10 @@ namespace Interior
         void LateUpdate()
         {
             Ship ship = Ship;
+            if (texture.width != laidOutWidth) Layout();
             if (ship == null) return;
             DrawMarker(ship);
+            DrawAxes(ship);
             if (readout != null) readout.text = Readout(ship);
         }
 
@@ -192,8 +234,8 @@ namespace Interior
 
             Station station = (Station)SimMono.target;
             Vector3 view = dockingCamera.WorldToViewportPoint(exterior.ProximityPoint(station.simTransform.GLOBAL_R + ship.TargetPort.position));
-            Vector2 point = new((view.x - 0.5f) * textureWidth, (view.y - 0.5f) * textureHeight);
-            float halfWidth = 0.5f * textureWidth - arrowPixels;
+            Vector2 point = new((view.x - 0.5f) * texture.width, (view.y - 0.5f) * textureHeight);
+            float halfWidth = 0.5f * texture.width - arrowPixels;
             float halfHeight = 0.5f * textureHeight - arrowPixels;
             if (view.z > 0f && Mathf.Abs(point.x) <= halfWidth && Mathf.Abs(point.y) <= halfHeight)
             {
@@ -208,6 +250,49 @@ namespace Interior
             arrow.gameObject.SetActive(true);
             arrow.transform.localPosition = direction * scale;
             arrow.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
+        }
+
+        /// <summary>
+        /// Оси проецируются в кадр камеры узла; ось вдоль взгляда вырождается в точку, и тогда
+        /// подпись говорит, от экрана она или на экран. Стрелка — сумма команд по осям.
+        /// </summary>
+        void DrawAxes(Ship ship)
+        {
+            bool show = dockingCamera != null;
+            thrust.gameObject.SetActive(false);
+            for (int i = 0; i < 3; i++)
+            {
+                axes[i].gameObject.SetActive(show);
+                if (axisLabels[i] != null) axisLabels[i].gameObject.SetActive(show);
+            }
+            if (!show) return;
+
+            Quaternion toView = Quaternion.Inverse(dockingCamera.transform.localRotation);
+            // Команда РСУ по осям вперёд, влево, вверх; на экране нужна вправо.
+            Vector3d command = ship.rcs.command;
+            float[] commands = { (float)command.x, (float)-command.y, (float)command.z };
+            Vector3 push = Vector3.zero;
+            for (int i = 0; i < 3; i++)
+            {
+                Vector3 view = toView * HullAxes[i];
+                Vector3 tip = new Vector3(view.x, view.y) * axisPixels;
+                push += tip * commands[i];
+                Color color = commands[i] != 0f ? NavPalette.Target : NavPalette.Other;
+                axes[i].startColor = color;
+                axes[i].endColor = color;
+                axes[i].SetPosition(0, axesOrigin);
+                axes[i].SetPosition(1, axesOrigin + tip);
+                if (axisLabels[i] == null) continue;
+                bool alongView = tip.magnitude < 0.3f * axisPixels;
+                axisLabels[i].color = color;
+                axisLabels[i].text = !alongView ? AxisNames[i] : AxisNames[i] + (view.z > 0f ? " IN" : " OUT");
+                Vector3 offset = alongView ? new Vector3(0f, -0.8f * labelPixels) : tip.normalized * (0.7f * labelPixels);
+                axisLabels[i].transform.localPosition = axesOrigin + tip + offset;
+            }
+            if (push.sqrMagnitude < 1e-6f) return;
+            thrust.gameObject.SetActive(true);
+            thrust.SetPosition(0, axesOrigin);
+            thrust.SetPosition(1, axesOrigin + push);
         }
 
         static string Readout(Ship ship)
