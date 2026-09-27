@@ -37,6 +37,7 @@ Shader "Suturn/Saturn"
 
             #include "SuturnNoise.cginc"
             #include "SuturnSphere.cginc"
+            #include "Eclipse.cginc"
 
             // Opacity of the ring whose shadow falls at radius r, in planet radii.
             // Edges follow StylizedRing (NASA NSSDCA); values track the ring materials.
@@ -54,6 +55,8 @@ Shader "Suturn/Saturn"
                 float3 normal = normalize(mul((float3x3)unity_ObjectToWorld, p));
                 float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
                 float sunlight = dot(normal, lightDirection);
+                // Затмение уводит точку в ночь, а не в полутон: тень тела — это отсутствие Солнца.
+                sunlight = lerp(-1.0, sunlight, EclipseSunlightExterior(mul(unity_ObjectToWorld, float4(p * i.radius, 1)).xyz));
 
                 // Latitude bands with wavy edges: the warp runs along longitude, so the
                 // belts keep their zonal look instead of breaking into blobs.

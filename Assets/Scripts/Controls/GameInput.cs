@@ -21,11 +21,16 @@ namespace Controls
     /// </summary>
     public static class GameInput
     {
-        public enum Context { None, Bridge, Cockpit }
+        public enum Context { None, Bridge, Cockpit, FreeCamera }
 
         static InputActionAsset asset;
         static InputActionMap bridge;
         static InputActionMap cockpit;
+        // Перемотка нужна и пилоту, и свободной камере: смотреть на затмение без перемотки нечего.
+        static InputActionMap time;
+        static InputActionMap freeCamera;
+        // Отладка включена всегда, в любом занятии.
+        static InputActionMap debug;
 
         public static Context Current { get; private set; } = Context.None;
 
@@ -87,6 +92,16 @@ namespace Controls
         /// </summary>
         public static InputAction[] Orientation { get; private set; }
 
+        // --- отладка: свободная камера ---
+        public static InputAction FreeCameraToggle { get; private set; }
+        public static InputAction FreeMove { get; private set; }
+        public static InputAction FreeVertical { get; private set; }
+        public static InputAction FreeRoll { get; private set; }
+        public static InputAction FreeLook { get; private set; }
+        /// <summary>Колесо меняет скорость: от метров до сотен тысяч километров в секунду.</summary>
+        public static InputAction FreeSpeed { get; private set; }
+        public static InputAction FreeFast { get; private set; }
+
         public static void Initialize()
         {
             if (asset != null) return;
@@ -146,8 +161,6 @@ namespace Controls
             Fine = cockpit.AddAction("Fine", InputActionType.Button, "<Keyboard>/leftCtrl");
             CycleFocus = cockpit.AddAction("CycleFocus", InputActionType.Button, "<Keyboard>/tab");
             CycleTarget = cockpit.AddAction("CycleTarget", InputActionType.Button, "<Keyboard>/t");
-            TimeWarp = Axis(cockpit, "TimeWarp", "<Keyboard>/comma", "<Keyboard>/period");
-            Decade = cockpit.AddAction("Decade", InputActionType.Button, "<Keyboard>/leftShift");
             ObjectInfo = cockpit.AddAction("ObjectInfo", InputActionType.Button, "<Keyboard>/p");
             StationMenu = cockpit.AddAction("StationMenu", InputActionType.Button, "<Keyboard>/b");
 
@@ -158,6 +171,29 @@ namespace Controls
                 Orientation[i] = cockpit.AddAction($"Orientation{digits[i]}", InputActionType.Button,
                     $"<Keyboard>/{digits[i]}");
             }
+
+            time = asset.AddActionMap("Time");
+            TimeWarp = Axis(time, "TimeWarp", "<Keyboard>/comma", "<Keyboard>/period");
+            Decade = time.AddAction("Decade", InputActionType.Button, "<Keyboard>/leftShift");
+
+            freeCamera = asset.AddActionMap("FreeCamera");
+            FreeMove = freeCamera.AddAction("FreeMove", InputActionType.Value);
+            FreeMove.AddCompositeBinding("2DVector")
+                .With("Up", "<Keyboard>/w")
+                .With("Down", "<Keyboard>/s")
+                .With("Left", "<Keyboard>/a")
+                .With("Right", "<Keyboard>/d");
+            FreeVertical = Axis(freeCamera, "FreeVertical", "<Keyboard>/leftCtrl", "<Keyboard>/space");
+            FreeRoll = Axis(freeCamera, "FreeRoll", "<Keyboard>/e", "<Keyboard>/q");
+            FreeLook = freeCamera.AddAction("FreeLook", InputActionType.Value, "<Mouse>/delta");
+            FreeSpeed = freeCamera.AddAction("FreeSpeed", InputActionType.Value, "<Mouse>/scroll/y");
+            FreeFast = freeCamera.AddAction("FreeFast", InputActionType.Button, "<Keyboard>/leftShift");
+
+            debug = asset.AddActionMap("Debug");
+            FreeCameraToggle = debug.AddAction("FreeCameraToggle", InputActionType.Button, "<Keyboard>/f1");
+            // На Mac F1 без fn — яркость экрана и до игры не доходит.
+            FreeCameraToggle.AddBinding("<Keyboard>/backquote");
+            debug.Enable();
         }
 
         static InputAction Axis(InputActionMap map, string name, string negative, string positive)
@@ -175,8 +211,12 @@ namespace Controls
             if (Current == context) return;
             bridge.Disable();
             cockpit.Disable();
+            time.Disable();
+            freeCamera.Disable();
             if (context == Context.Bridge) bridge.Enable();
             if (context == Context.Cockpit) cockpit.Enable();
+            if (context == Context.FreeCamera) freeCamera.Enable();
+            if (context is Context.Cockpit or Context.FreeCamera) time.Enable();
             Current = context;
         }
 

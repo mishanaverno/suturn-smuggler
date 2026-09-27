@@ -38,6 +38,11 @@ namespace Game
         public double radius;               // Средний радиус тела, м
         public string simPrefab;
         public OrbitData orbit;             // У корня системы отсутствует
+        // Вращение вокруг своей оси. Захваченное тело повёрнуто к центральному одной стороной,
+        // его ось — нормаль орбиты, и период не нужен. Остальные вращаются вокруг полюса
+        // Сатурна; период 0 — не вращается, отрицательный — обратное вращение.
+        public bool tidallyLocked;
+        public double rotationPeriod;       // с
         [NonSerialized]
         public KnowledgeSource knowledge;   // Не из файла: проставляется загрузчиком
     }

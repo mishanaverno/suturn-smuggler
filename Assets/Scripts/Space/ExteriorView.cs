@@ -15,8 +15,6 @@ namespace OuterSpace
         [Tooltip("Имя тела в системе, как в saturn.json.")]
         public string body;
         public Material material;
-        [Tooltip("Повёрнута к Сатурну одной стороной. У Гипериона и Фебы вращение своё.")]
-        public bool tidallyLocked = true;
     }
 
     /// <summary>
@@ -71,13 +69,13 @@ namespace OuterSpace
         Camera proximityCam;
         Camera dockingCam;
         readonly List<(Station station, Transform view)> stationViews = new();
-        readonly List<(SpaceObject body, Transform view)> views = new();
+        readonly List<(SpaceObject body, Transform view, ObjectData data)> views = new();
         static readonly int SaturnDirectionId = Shader.PropertyToID("_SaturnDirection");
         Transform titanView;
         Renderer titanRenderer;
         MaterialPropertyBlock titanProperties;
         readonly TitanFieldBake titanFields = new();
-        readonly List<(SpaceObject body, Transform view, Renderer renderer, bool locked)> moons = new();
+        readonly List<(SpaceObject body, Renderer renderer)> moons = new();
         MaterialPropertyBlock moonProperties;
         static readonly int LeadingId = Shader.PropertyToID("_Leading");
         // Копия skyMaterial: направления меняются каждый кадр и не должны писаться в ассет.
@@ -87,6 +85,16 @@ namespace OuterSpace
         static readonly int SkyXId = Shader.PropertyToID("_SkyX");
         static readonly int SkyYId = Shader.PropertyToID("_SkyY");
         static readonly int SkyZId = Shader.PropertyToID("_SkyZ");
+        // Тела для тени в шейдерах, см. Eclipse.cginc. Размер массива там же: глобальный массив
+        // заводится длиной первой записи, поэтому пишется всегда целиком.
+        const int EclipseMaxBodies = 16;
+        readonly Vector4[] eclipseBodies = new Vector4[EclipseMaxBodies];
+        static readonly int EclipseId = Shader.PropertyToID("_Eclipse");
+        static readonly int EclipseBodiesId = Shader.PropertyToID("_EclipseBodies");
+        static readonly int EclipseBodyCountId = Shader.PropertyToID("_EclipseBodyCount");
+        static readonly int EclipseSunDirectionId = Shader.PropertyToID("_EclipseSunDirection");
+        static readonly int EclipseSunRadiusId = Shader.PropertyToID("_EclipseSunRadius");
+        static readonly int EclipseExteriorScaleId = Shader.PropertyToID("_EclipseExteriorScale");
 
         void Awake()
         {
@@ -182,15 +190,21 @@ namespace OuterSpace
         // и порядок двух Start между объектами не задан.
         void CreateViews()
         {
-            views.Add((SimMono.root, CreateView(SimMono.root)));
-            foreach (SpaceObject body in SimMono.bodies) views.Add((body, CreateView(body)));
+            List<ObjectData> objects = GameMono.instance.gameData.system.objects;
+            views.Add((SimMono.root, CreateView(SimMono.root), objects.Find(o => o.name == SimMono.root.GameObject.name)));
+            foreach (SpaceObject body in SimMono.bodies) views.Add((body, CreateView(body), objects.Find(o => o.name == body.GameObject.name)));
             List<StationData> stationData = GameMono.instance.gameData.system.stations;
+            // Станция стоит под Солнцем и уходит в тень тел — в отличие от кабины, у которой
+            // те же материалы, но свой свет.
+            MaterialPropertyBlock eclipse = new();
+            eclipse.SetFloat(EclipseId, 1f);
             foreach (Station station in SimMono.stations)
             {
                 // Модель у станции обязательна: с неё загрузчик снял узел.
                 GameObject view = Instantiate(stationData.Find(s => s.name == station.GameObject.name).view, proximityRoot, false);
                 view.name = station.GameObject.name;
                 foreach (Transform part in view.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = proximityRoot.gameObject.layer;
+                foreach (Renderer renderer in view.GetComponentsInChildren<Renderer>(true)) renderer.SetPropertyBlock(eclipse);
                 stationViews.Add((station, view.transform));
             }
         }
@@ -216,7 +230,7 @@ namespace OuterSpace
             }
             if (moonStyle != null)
             {
-                moons.Add((body, view.transform, view.GetComponentInChildren<Renderer>(), moonStyle.tidallyLocked));
+                moons.Add((body, view.GetComponentInChildren<Renderer>()));
                 moonProperties ??= new MaterialPropertyBlock();
             }
             if (body.IsRoot) StylizedRing.Create(view.transform, (float)(body.radius / 1000.0), rings);
@@ -234,7 +248,8 @@ namespace OuterSpace
                     Quaternion.LookRotation(ToHull(port.axis), ToHull(port.up)));
             }
 
-            Camera eye = ActiveEye();
+            FreeCamera free = FreeCamera.instance != null && FreeCamera.instance.Active ? FreeCamera.instance : null;
+            Camera eye = free != null ? free.Eye : ActiveEye();
             if (eye == null)
             {
                 cam.enabled = false;
@@ -244,20 +259,23 @@ namespace OuterSpace
             }
             Follow(eye);
 
-            root.SetPositionAndRotation(Vector3.zero, hull.rotation);
-            Quaterniond toShip = Quaterniond.Inverse(ship.attitude.rotation);
-            Vector3d origin = ship.simTransform.GLOBAL_R;
+            // Свободная камера смотрит из своей точки и в осях симуляции, а не корабля.
+            Quaternion frame = free != null ? Quaternion.identity : hull.rotation;
+            root.SetPositionAndRotation(Vector3.zero, frame);
+            Quaterniond toShip = free != null ? Quaterniond.identity : Quaterniond.Inverse(ship.attitude.rotation);
+            Vector3d origin = free != null ? free.Position : ship.simTransform.GLOBAL_R;
             // Локальная ось Y тел — полюс Сатурна (ось Z симуляции, плоскость его экватора —
             // опорная для орбит), поэтому кольца лежат в экваторе и не крутятся вслед за кораблём.
             Vector3 pole = ToHull(toShip * Vector3d.forward);
             Quaternion bodyRotation = Quaternion.LookRotation(ToHull(toShip * Vector3d.right), pole);
-            foreach ((SpaceObject body, Transform view) in views)
+            double epoch = GameMono.instance.Epoch;
+            foreach ((SpaceObject body, Transform view, ObjectData data) in views)
             {
-                view.localRotation = bodyRotation;
+                view.localRotation = Spin(body, data, toShip, bodyRotation, epoch);
                 view.localPosition = ToHull(toShip * (body.simTransform.GLOBAL_R - origin) / Scale);
                 view.localScale = Vector3.one * (float)(2.0 * body.radius / Scale);
             }
-            proximityRoot.SetPositionAndRotation(Vector3.zero, hull.rotation);
+            proximityRoot.SetPositionAndRotation(Vector3.zero, frame);
             foreach ((Station station, Transform view) in stationViews)
             {
                 // Станция не вращается: её оси — оси симуляции, как у тел.
@@ -273,12 +291,10 @@ namespace OuterSpace
                     titanProperties.SetVector(SaturnDirectionId, root.TransformDirection(toSaturn.normalized));
                 titanRenderer.SetPropertyBlock(titanProperties);
             }
-            // Захваченная луна смотрит на Сатурн одной стороной, поэтому её рисунок держится
-            // за направление на Сатурн, а шейдеру нужно ещё и направление движения по орбите.
-            Vector3 saturn = views[0].view.localPosition;
-            foreach ((SpaceObject body, Transform view, Renderer renderer, bool locked) in moons)
+            // Рисунок захваченной луны держится за направление на Сатурн, а шейдеру нужно ещё и
+            // направление движения по орбите.
+            foreach ((SpaceObject body, Renderer renderer) in moons)
             {
-                if (locked) view.localRotation = Quaternion.LookRotation(saturn - view.localPosition, pole);
                 Vector3 leading = ToHull(toShip * (body.simTransform.GLOBAL_V - SimMono.root.simTransform.GLOBAL_V));
                 renderer.GetPropertyBlock(moonProperties);
                 moonProperties.SetVector(LeadingId, root.rotation * leading.normalized);
@@ -287,6 +303,7 @@ namespace OuterSpace
             SystemData system = GameMono.instance.gameData.system;
             Vector3 toSun = ToHull(toShip * system.sunDirection);
             if (sun != null) sun.transform.rotation = root.rotation * Quaternion.LookRotation(-toSun);
+            UpdateEclipse(toShip, origin, root.rotation * toSun.normalized, system);
             if (sky != null)
             {
                 // Звёзды неподвижны в инерциальных осях симуляции, поэтому небу передаются
@@ -302,7 +319,50 @@ namespace OuterSpace
         void OnDestroy() => titanFields.Dispose();
 
         /// <summary>Связанные оси корабля (X вперёд, Y влево, Z вверх, правая) в оси Unity корпуса.</summary>
-        static Vector3 ToHull(Vector3d v) => new((float)-v.y, (float)v.z, (float)v.x);
+        /// <summary>
+        /// Тела — в метрах, в мировых осях, относительно корабля. Разность считается в double,
+        /// во float уходит только она: Титан в миллиарде метров дрожит на десятки метров, а
+        /// полутень его тени — тысячи километров.
+        /// </summary>
+        void UpdateEclipse(Quaterniond toShip, Vector3d origin, Vector3 sunDirection, SystemData system)
+        {
+            int count = Mathf.Min(views.Count, EclipseMaxBodies);
+            for (int i = 0; i < count; i++)
+            {
+                SpaceObject body = views[i].body;
+                Vector3 center = root.rotation * ToHull(toShip * (body.simTransform.GLOBAL_R - origin));
+                eclipseBodies[i] = new Vector4(center.x, center.y, center.z, (float)body.radius);
+            }
+            Shader.SetGlobalVectorArray(EclipseBodiesId, eclipseBodies);
+            Shader.SetGlobalFloat(EclipseBodyCountId, count);
+            Shader.SetGlobalVector(EclipseSunDirectionId, sunDirection);
+            Shader.SetGlobalFloat(EclipseSunRadiusId, (float)(SunRadius / system.sunDistance));
+            Shader.SetGlobalFloat(EclipseExteriorScaleId, (float)Scale);
+        }
+
+        /// <summary>
+        /// Поворот тела в осях корпуса. Захваченное смотрит на центральное тело, ось — нормаль
+        /// орбиты: так один оборот приходится ровно на виток, и у наклонной орбиты Япета ось
+        /// наклонена вместе с ней. Остальные вращаются вокруг полюса Сатурна — локальной оси Y.
+        /// </summary>
+        static Quaternion Spin(SpaceObject body, ObjectData data, Quaterniond toShip, Quaternion fixedRotation, double epoch)
+        {
+            if (data.tidallyLocked)
+            {
+                Vector3d r = body.simTransform.RELATIVE_R;
+                Vector3d v = body.simTransform.RELATIVE_V;
+                return Quaternion.LookRotation(ToHull(toShip * -r), ToHull(toShip * Vector3d.Cross(r, v)));
+            }
+            if (data.rotationPeriod == 0.0) return fixedRotation;
+            // Доля оборота — в double: эпоха в миллионах секунд, а угол нужен точнее градуса.
+            float angle = (float)(360.0 * (epoch / data.rotationPeriod % 1.0));
+            return fixedRotation * Quaternion.AngleAxis(angle, Vector3.up);
+        }
+
+        /// <summary>Направление сцены обратно в оси симуляции.</summary>
+        public static Vector3d FromHull(Vector3 v) => new(v.z, -v.x, v.y);
+
+        public static Vector3 ToHull(Vector3d v) => new((float)-v.y, (float)v.z, (float)v.x);
 
         static Camera ActiveEye()
         {

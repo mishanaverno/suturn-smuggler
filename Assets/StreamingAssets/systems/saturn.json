@@ -21,6 +21,8 @@
         "description": "Газовый гигант, центральное тело системы",
         "gm": 3.7931206e16,
         "radius": 5.8232e7,
+        // 10 ч 33 мин 38 с — период недр по Cassini (Mankovich, 2019).
+        "rotationPeriod": 38018,
         "simPrefab": "Star"
       },
       {
@@ -30,6 +32,7 @@
         "parent": "saturn",
         "gm": 2.50349e9,
         "radius": 1.9820e5,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 1.86000e8,
@@ -48,6 +51,7 @@
         "parent": "saturn",
         "gm": 7.21037e9,
         "radius": 2.5210e5,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 2.38400e8,
@@ -66,6 +70,7 @@
         "parent": "saturn",
         "gm": 4.121353e10,
         "radius": 5.3110e5,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 2.95000e8,
@@ -84,6 +89,7 @@
         "parent": "saturn",
         "gm": 7.311607e10,
         "radius": 5.6140e5,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 3.77700e8,
@@ -102,6 +108,7 @@
         "parent": "saturn",
         "gm": 1.5394175e11,
         "radius": 7.6350e5,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 5.27200e8,
@@ -120,6 +127,7 @@
         "parent": "saturn",
         "gm": 8.9781371e12,
         "radius": 2.5747e6,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 1.22190e9,
@@ -138,6 +146,8 @@
         "parent": "saturn",
         "gm": 3.7049e8,
         "radius": 1.3500e5,
+        // Вращение хаотическое, 13 сут — среднее по Voyager. Ось здесь — полюс Сатурна, это упрощение.
+        "rotationPeriod": 1123200,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 1.48150e9,
@@ -156,6 +166,7 @@
         "parent": "saturn",
         "gm": 1.2051511e11,
         "radius": 7.3430e5,
+        "tidallyLocked": true,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 3.56170e9,
@@ -174,6 +185,8 @@
         "parent": "saturn",
         "gm": 5.5479e8,
         "radius": 1.0650e5,
+        // 9.27 ч. Вращение прямое при обратной орбите; ось — полюс Сатурна, это упрощение.
+        "rotationPeriod": 33385,
         "simPrefab": "Planet",
         "orbit": {
           "semiMajorAxis": 1.292940e10,

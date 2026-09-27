@@ -3486,6 +3486,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: monitor
       objectReference: {fileID: 0}
+    - target: {fileID: 6097345799425391410, guid: a9cd1d8d4605e4cbdb85cdcdf0b175b0, type: 3}
+      propertyPath: m_Name
+      value: screen.hull
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3494,6 +3498,11 @@ PrefabInstance:
 --- !u!4 &751792688 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 532741262047088696, guid: a9cd1d8d4605e4cbdb85cdcdf0b175b0, type: 3}
+  m_PrefabInstance: {fileID: 751792687}
+  m_PrefabAsset: {fileID: 0}
+--- !u!23 &751792689 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 8337043149198650930, guid: a9cd1d8d4605e4cbdb85cdcdf0b175b0, type: 3}
   m_PrefabInstance: {fileID: 751792687}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &754896845
@@ -5471,28 +5480,20 @@ MonoBehaviour:
   moonStyles:
   - body: Mimas
     material: {fileID: 2100000, guid: 3d8204d1ef6954a80ad9743d17a47121, type: 2}
-    tidallyLocked: 1
   - body: Enceladus
     material: {fileID: 2100000, guid: 9e557a31009264c4999131b1f0585cd8, type: 2}
-    tidallyLocked: 1
   - body: Tethys
     material: {fileID: 2100000, guid: ca3d7321144c14cbca0486c03b8ca80f, type: 2}
-    tidallyLocked: 1
   - body: Dione
     material: {fileID: 2100000, guid: 3c02132534e5e4b938f256e62afd0924, type: 2}
-    tidallyLocked: 1
   - body: Rhea
     material: {fileID: 2100000, guid: 9ab65d5adb3c641f78bb3c5f49a855e5, type: 2}
-    tidallyLocked: 1
   - body: Hyperion
     material: {fileID: 2100000, guid: fec18261a65c04051a4b42467aecbd95, type: 2}
-    tidallyLocked: 0
   - body: Iapetus
     material: {fileID: 2100000, guid: bb6644995a5de4371a9fa826088f8d46, type: 2}
-    tidallyLocked: 1
   - body: Phoebe
     material: {fileID: 2100000, guid: cb52187e0eb284f96b2c70c969b42e1f, type: 2}
-    tidallyLocked: 0
   titanMaterial: {fileID: 2100000, guid: 3dc5a7cf317824a04a38bba2690ad4f8, type: 2}
   rings:
     A: {fileID: 2100000, guid: 96501fc15a9d64f60bdadb7d763711e2, type: 2}
@@ -7206,6 +7207,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1423801796}
+  - component: {fileID: 1423801797}
   m_Layer: 0
   m_Name: SystemPanel
   m_TagString: Untagged
@@ -7222,13 +7224,37 @@ Transform:
   m_GameObject: {fileID: 1423801795}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -1.11, y: 2.19, z: 0.428}
+  m_LocalPosition: {x: -1.11, y: 2.19, z: 1.056}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 751792688}
   m_Father: {fileID: 1903000002}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &1423801797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1423801795}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c19d2b9a1aa84b568d8931594a7ca61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.HullStatusPanel
+  surface: {fileID: 751792689}
+  textureHeight: 360
+  textureWidth: 256
+  screenBackground: {r: 0, g: 0, b: 0, a: 1}
+  normalizeScreenUV: 1
+  screenRotation: 1
+  flipScreenU: 0
+  flipScreenV: 0
+  labelPixels: 18
+  margin: {x: 12, y: 12}
+  everyFrames: 10
+  lineColumns: 0
 --- !u!1001 &1458453205
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -10141,6 +10167,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game::Interior.HullDevice
   fullWearDays: 365
+  spaceTemperature: 90
+  heatGain: 200
+  coolTime: 600
+  overheatLimit: 350
+  overheatDays: 7
 --- !u!1 &1921760849
 GameObject:
   m_ObjectHideFlags: 0
@@ -10709,7 +10740,7 @@ Light:
   m_RenderMode: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 247
+    m_Bits: 183
   m_RenderingLayerMask: 1
   m_Lightmapping: 1
   m_LightShadowCasterMode: 0

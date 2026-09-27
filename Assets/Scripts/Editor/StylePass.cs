@@ -348,9 +348,9 @@ namespace InteriorEditor
                 new MoonStyle { body = "Tethys", material = tethys },
                 new MoonStyle { body = "Dione", material = dione },
                 new MoonStyle { body = "Rhea", material = rhea },
-                new MoonStyle { body = "Hyperion", material = hyperion, tidallyLocked = false },
+                new MoonStyle { body = "Hyperion", material = hyperion },
                 new MoonStyle { body = "Iapetus", material = iapetus },
-                new MoonStyle { body = "Phoebe", material = phoebe, tidallyLocked = false },
+                new MoonStyle { body = "Phoebe", material = phoebe },
             };
         }
 

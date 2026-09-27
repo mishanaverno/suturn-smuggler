@@ -39,6 +39,7 @@ Shader "Suturn/Icy Moon"
 
             #include "SuturnNoise.cginc"
             #include "SuturnSphere.cginc"
+            #include "Eclipse.cginc"
 
             // Nearest crater around p: x = distance from its center in crater radii,
             // yzw = direction from the crater center to p.
@@ -86,6 +87,8 @@ Shader "Suturn/Icy Moon"
                 float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
                 float3 light = normalize(mul((float3x3)unity_WorldToObject, lightDirection));
                 float sunlight = dot(normal, lightDirection);
+                // Затмение уводит точку в ночь, а не в полутон: тень тела — это отсутствие Солнца.
+                sunlight = lerp(-1.0, sunlight, EclipseSunlightExterior(mul(unity_ObjectToWorld, float4(p * i.radius, 1)).xyz));
                 float midZone = HardStep(-0.05, sunlight);
                 float lightZone = HardStep(0.35, sunlight);
 

@@ -8,6 +8,9 @@ Shader "Suturn/Stylized Matte"
         _MidLevel ("Middle brightness", Range(0, 1)) = 0.78
         _Edge ("Light threshold", Range(0, 1)) = 0.42
         _Softness ("Transition width", Range(0.01, 0.3)) = 0.08
+        // Включает ExteriorView на моделях в космосе: те же материалы стоят и в кабине, а её
+        // светит не Солнце, и тень Титана гасить её не должна.
+        [MaterialToggle] _Eclipse ("Shadowed by bodies", Float) = 0
     }
 
     SubShader
@@ -19,6 +22,7 @@ Shader "Suturn/Stylized Matte"
         #pragma surface surf Stepped fullforwardshadows addshadow noforwardadd
         #pragma target 3.0
         #include "Lighting.cginc"
+        #include "Eclipse.cginc"
 
         fixed4 _Color;
         fixed4 _ShadeColor;
@@ -26,18 +30,31 @@ Shader "Suturn/Stylized Matte"
         half _MidLevel;
         half _Edge;
         half _Softness;
+        float _Eclipse;
 
         struct Input { float3 worldPos; };
 
-        void surf(Input IN, inout SurfaceOutput o)
+        struct SurfaceOutputStepped
+        {
+            fixed3 Albedo;
+            fixed3 Normal;
+            fixed3 Emission;
+            half Specular;
+            fixed Gloss;
+            fixed Alpha;
+            half Sunlight;
+        };
+
+        void surf(Input IN, inout SurfaceOutputStepped o)
         {
             o.Albedo = _Color.rgb;
             o.Alpha = _Color.a;
+            o.Sunlight = _Eclipse > 0.5 ? EclipseSunlight(IN.worldPos) : 1.0;
         }
 
-        half4 LightingStepped(SurfaceOutput s, half3 lightDir, half atten)
+        half4 LightingStepped(SurfaceOutputStepped s, half3 lightDir, half atten)
         {
-            half light = saturate(dot(s.Normal, lightDir)) * atten;
+            half light = saturate(dot(s.Normal, lightDir)) * atten * s.Sunlight;
             half mid = smoothstep(_Edge - _Softness, _Edge + _Softness, light);
             half high = smoothstep(0.72 - _Softness, 0.72 + _Softness, light);
             half level = lerp(_ShadowLevel, _MidLevel, mid);

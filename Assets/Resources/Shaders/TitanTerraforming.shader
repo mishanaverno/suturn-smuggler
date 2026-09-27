@@ -52,6 +52,7 @@ Shader "Suturn/Titan Terraforming"
 
             #include "TitanFields.cginc"
             #include "SuturnSphere.cginc"
+            #include "Eclipse.cginc"
 
             // Bilinear filtering is linear between texel centers, and a hard threshold turns
             // that into a polyline along every cloud edge. A cubic B-spline in four bilinear
@@ -116,6 +117,8 @@ Shader "Suturn/Titan Terraforming"
                 float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz -
                     i.worldPosition * _WorldSpaceLightPos0.w);
                 float sunlight = dot(normal, lightDirection);
+                // Затмение уводит точку в ночь, а не в полутон: тень тела — это отсутствие Солнца.
+                sunlight = lerp(-1.0, sunlight, EclipseSunlightExterior(mul(unity_ObjectToWorld, float4(spherePoint * i.radius, 1)).xyz));
                 float midZone = HardStep(-0.1, sunlight);
                 float lightZone = HardStep(0.5, sunlight);
                 fixed3 cloudColor = lerp(lerp(_CloudShadow.rgb, _CloudMid.rgb, midZone),
