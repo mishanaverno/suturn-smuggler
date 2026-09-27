@@ -213,5 +213,13 @@
         DockingRoll = 506,
         DockingPitch = 507,
         DockingYaw = 508,
+
+        // Корпус — 600
+        HullNose = 600,
+        HullTail = 601,
+        HullLeft = 602,
+        HullRight = 603,
+        HullTop = 604,
+        HullBottom = 605,
     }
 }

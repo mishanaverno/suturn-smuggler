@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using DoublePrecision;
 using Game;
+using OuterSpace.Sim.Systems;
 using UnityEngine;
 
 namespace OuterSpace.Sim.Objects
@@ -50,6 +51,9 @@ namespace OuterSpace.Sim.Objects
         public readonly Tanks tanks = new();
         public readonly PropulsionUnit engine;
         public readonly RcsUnit rcs;
+        public readonly ShipSystems systems = new();
+        public readonly Hull hull = new();
+        public readonly DustSource dust;
         public readonly TrajectoryCache trajectory = new();
         // Узлы по бортам, в связанных осях. Их снимает с кабины ShipPorts.
         public PortData leftPort;
@@ -152,6 +156,14 @@ namespace OuterSpace.Sim.Objects
             tanks.lox = lox;
             engine = new PropulsionUnit(propulsion, tanks);
             rcs = new RcsUnit(propulsion.rcs, tanks);
+
+            dust = new DustSource(attitude, () => simTransform.RELATIVE_V);
+            systems.Add(dust);
+            foreach (HullPanel panel in hull.panels)
+            {
+                systems.Add(panel);
+                systems.Connect(dust, panel, Flow.Wear);
+            }
         }
         public Maneuver GetManeuver()
         {
@@ -556,6 +568,7 @@ namespace OuterSpace.Sim.Objects
                 // Отметки времени идут и у стоящего: иначе первый тик после расстыковки
                 // получил бы всё время стоянки разом.
                 attitudeEpoch = burnEpoch = rcsEpoch = GameMono.instance.Epoch;
+                systems.Skip(GameMono.instance.Epoch);
                 FollowStation(Vector3d.zero);
                 base.FixedUpdate();
                 UpdateDocking();
@@ -566,6 +579,7 @@ namespace OuterSpace.Sim.Objects
             engine.UpdateReactor(GameMono.instance.Epoch, thrusting);
             if (thrusting) ApplyThrust();
             ApplyRcs();
+            systems.Update(GameMono.instance.Epoch);
             base.FixedUpdate();
             UpdateDocking();
         }
