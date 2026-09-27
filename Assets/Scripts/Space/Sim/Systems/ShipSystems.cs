@@ -30,7 +30,8 @@ namespace OuterSpace.Sim.Systems
             if (dt < Interval) return;
 
             tickEpoch = epoch;
-            foreach (SystemNode node in nodes) node.Tick(dt);
+            foreach (SystemNode node in nodes) node.Emit(dt);
+            foreach (SystemNode node in nodes) node.Settle(dt);
         }
 
         /// <summary>Пропустить время без тика: стоянка у станции не должна прийти после неё разом.</summary>

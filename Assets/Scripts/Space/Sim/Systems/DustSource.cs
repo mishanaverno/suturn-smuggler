@@ -25,7 +25,7 @@ namespace OuterSpace.Sim.Systems
             this.velocity = velocity;
         }
 
-        public override void Tick(double dt)
+        public override void Emit(double dt)
         {
             Vector3d v = velocity();
             if (v.sqrMagnitude == 0.0) return;

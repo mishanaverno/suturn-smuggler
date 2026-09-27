@@ -158,11 +158,15 @@ namespace OuterSpace.Sim.Objects
             rcs = new RcsUnit(propulsion.rcs, tanks);
 
             dust = new DustSource(attitude, () => simTransform.RELATIVE_V);
+            systems.Add(engine);
             systems.Add(dust);
+            systems.Add(hull);
+            systems.Connect(engine, hull, Flow.Heat);
             foreach (HullPanel panel in hull.panels)
             {
                 systems.Add(panel);
                 systems.Connect(dust, panel, Flow.Wear);
+                systems.Connect(hull, panel, Flow.Wear);
             }
         }
         public Maneuver GetManeuver()

@@ -7,6 +7,7 @@ namespace OuterSpace.Sim.Systems
     public enum Flow
     {
         Wear,
+        Heat,
     }
 
     public readonly struct Link
@@ -25,6 +26,10 @@ namespace OuterSpace.Sim.Systems
     /// Узел графа систем: агрегат корабля или внешний источник вроде пыли. Узел отдаёт по своим
     /// связям в тик систем и принимает то, что отдали ему. Знать, кто на другом конце связи,
     /// ему не нужно — только вид потока.
+    ///
+    /// Тик в две фазы: сначала все узлы отдают, потом все усваивают принятое. Иначе результат
+    /// зависел бы от порядка узлов — принятое после своего хода доходило бы тиком позже и
+    /// считалось бы с чужим dt.
     /// </summary>
     public abstract class SystemNode
     {
@@ -33,7 +38,10 @@ namespace OuterSpace.Sim.Systems
         public readonly List<Link> outputs = new();
 
         /// <summary>Отдать по связям за dt симуляционного времени.</summary>
-        public virtual void Tick(double dt) { }
+        public virtual void Emit(double dt) { }
+
+        /// <summary>Усвоить принятое за тик: все узлы уже отдали.</summary>
+        public virtual void Settle(double dt) { }
 
         public virtual void Accept(Flow flow, double amount)
         {

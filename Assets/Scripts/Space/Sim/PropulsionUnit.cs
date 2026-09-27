@@ -1,4 +1,5 @@
 using DoublePrecision;
+using OuterSpace.Sim.Systems;
 
 namespace OuterSpace.Sim
 {
@@ -7,7 +8,7 @@ namespace OuterSpace.Sim
     /// зависят прогноз и перемотка, а установка только говорит, можно ли зажечь. Схема и
     /// числа — в DOCS/DEVICES/ENGINE.md.
     /// </summary>
-    public class PropulsionUnit
+    public class PropulsionUnit : SystemNode
     {
         public readonly Propulsion spec;
         readonly Tanks tanks;
@@ -24,6 +25,11 @@ namespace OuterSpace.Sim
         /// <summary>Нагрев реактора: 0 — холостой ход, 1 — номинал полной мощности. Может уйти выше 1.</summary>
         public double reactorHeat;
         double reactorEpoch;
+        /// <summary>
+        /// Излишек тепла, накопленный с прошлого тика систем: то, что реактор теряет собственным
+        /// охлаждением k·θ. Уходит по связям Heat, в долях полной мощности × с.
+        /// </summary>
+        public double ExcessHeat { get; private set; }
 
         /// <summary>
         /// Двойной РУД, 0…1. MAIN — заказ мощности реактора в CRUISE и тяга ЖРД в PROX, LOX —
@@ -143,7 +149,28 @@ namespace OuterSpace.Sim
             double flow = thrusting && Mode == EngineMode.Cruise ? reactorPower : 0.0;
             double removal = reactor.cooling + flow;
             double equilibrium = (1.0 + reactor.cooling) * reactorPower / removal;
-            reactorHeat = equilibrium + (reactorHeat - equilibrium) * Mathd.Exp(-removal * dt / reactor.heatTime);
+            double decay = Mathd.Exp(-removal * dt / reactor.heatTime);
+            double start = reactorHeat;
+            reactorHeat = equilibrium + (start - equilibrium) * decay;
+
+            // Излишек — k·θ, проинтегрированный по шагу точно: на перемотке шаг длиннее
+            // тепловой постоянной, и θ в конце шага ничего не говорит о том, что ушло за шаг.
+            // На холостом ходу θ = 0: остывший до нижней границы реактор излишка не даёт.
+            double integral = equilibrium * dt + (start - equilibrium) * reactor.heatTime / removal * (1.0 - decay);
+            ExcessHeat += reactor.cooling * integral;
+        }
+
+        /// <summary>Излишек делится поровну между всеми, кто принимает от реактора тепло.</summary>
+        public override void Emit(double dt)
+        {
+            int receivers = 0;
+            foreach (Link link in outputs)
+                if (link.flow == Flow.Heat) receivers++;
+            if (receivers == 0) return;
+
+            foreach (Link link in outputs)
+                if (link.flow == Flow.Heat) link.to.Accept(Flow.Heat, ExcessHeat / receivers);
+            ExcessHeat = 0.0;
         }
 
         /// <summary>Прирост скорости за dt вдоль forward с расходом топлива.</summary>

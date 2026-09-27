@@ -8,8 +8,8 @@ using Utilities;
 namespace Interior
 {
     /// <summary>
-    /// Самостоятельный текстовый экран корпуса на своём постоянном стекле: износ шести панелей
-    /// строкой-шкалой и процентом.
+    /// Самостоятельный текстовый экран корпуса на своём постоянном стекле: температура и износ
+    /// шести панелей строкой-шкалой и процентом.
     ///
     /// Показания берутся со щитка, а не из корабля: снятое или неисправное устройство корпуса
     /// гасит экран, как гасит любое табло.
@@ -17,7 +17,7 @@ namespace Interior
     public class HullStatusPanel : MonoBehaviour
     {
         const string ScreenLayer = "Panels";
-        const string Title = "HULL WEAR";
+        const string Title = "HULL";
         const int NameWidth = 6;
         // Рамка, пробелы вокруг имени и шкалы, скобки шкалы и «100%».
         const int FixedWidth = 4 + NameWidth + 1 + 2 + 1 + 4;
@@ -147,9 +147,10 @@ namespace Interior
             int lineLength = Mathf.Max(FixedWidth + MinBar, columns);
             Color label = NavText.Label;
 
+            bool hasTemperature = ControlBus.TryRead(ReadingId.HullTemperature, out double temperature) && !double.IsNaN(temperature);
             for (int i = 0; i < Sections.Length; i++)
             {
-                if (ControlBus.TryRead(Sections[i].reading, out wear[i]) && !double.IsNaN(wear[i])) continue;
+                if (hasTemperature && ControlBus.TryRead(Sections[i].reading, out wear[i]) && !double.IsNaN(wear[i])) continue;
                 readout.text = NavText.Frame(
                     NavText.Paint(AsciiTable.TitledBorder(Title, lineLength), label) + "\n" +
                     NavText.Paint(AsciiTable.Row("NO DATA", lineLength), label) + "\n" +
@@ -159,6 +160,11 @@ namespace Interior
 
             int bar = lineLength - FixedWidth;
             StringBuilder text = new(NavText.Paint(AsciiTable.TitledBorder(Title, lineLength), label));
+            text.Append('\n').Append(AsciiTable.V).Append(' ')
+                .Append(NavText.Paint("TEMP".PadRight(NameWidth), label)).Append(' ')
+                .Append(NavText.Paint($"{temperature:F0} K".PadRight(lineLength - NameWidth - 5), NavPalette.Own)).Append(' ')
+                .Append(AsciiTable.V);
+            text.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsBorder(new[] { lineLength - 4 }, AsciiTable.Cross), label));
             for (int i = 0; i < Sections.Length; i++)
             {
                 int filled = Mathd.RoundToInt(wear[i] * bar);

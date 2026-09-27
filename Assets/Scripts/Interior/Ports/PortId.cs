@@ -221,5 +221,6 @@
         HullRight = 603,
         HullTop = 604,
         HullBottom = 605,
+        HullTemperature = 606,
     }
 }
