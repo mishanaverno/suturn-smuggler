@@ -49,6 +49,8 @@ namespace OuterSpace.Sim.Objects
         public override bool TracksSOITransitions => true;
         public double dryMass;
         public readonly Tanks tanks = new();
+        public readonly Hold hold = new();
+        public double credits;
         public readonly PropulsionUnit engine;
         public readonly RcsUnit rcs;
         public readonly ShipSystems systems = new();
@@ -121,7 +123,7 @@ namespace OuterSpace.Sim.Objects
         /// <summary>Направление, которого требует режим ориентации.</summary>
         public Vector3d CommandedDirection => dir;
         public bool Thrusting => thrusting;
-        public double Mass => dryMass + tanks.Mass;
+        public double Mass => dryMass + tanks.Mass + hold.Mass;
         /// <summary>Паспортное ускорение текущего режима на полной мощности: по нему строится план.</summary>
         public double Acceleration => engine.Engine.thrust / Mass;
         /// <summary>Сожжено с начала прожига по текущему манёвру, м/с.</summary>
@@ -373,6 +375,49 @@ namespace OuterSpace.Sim.Objects
         public void Latch()
         {
             if (DockedTo != null) Latched = true;
+        }
+
+        /// <summary>Долить бак до полного, насколько хватает денег.</summary>
+        public void BuyFuel(FuelPrice fuel)
+        {
+            bool methane = fuel.good == "methane";
+            double room = methane ? tanks.methaneCapacity - tanks.methane : tanks.loxCapacity - tanks.lox;
+            double kg = fuel.price > 0.0 ? Mathd.Min(room, credits / fuel.price) : room;
+            credits -= kg * fuel.price;
+            tanks.Refill(methane ? kg : 0.0, methane ? 0.0 : kg);
+        }
+
+        public double HullRepairCost(double price)
+        {
+            double wear = 0.0;
+            foreach (HullPanel panel in hull.panels) wear += panel.wear;
+            return wear * price;
+        }
+
+        /// <summary>Починить корпус целиком, а не хватает денег — каждую панель на одну и ту же долю.</summary>
+        public void RepairHull(double price)
+        {
+            double cost = HullRepairCost(price);
+            if (cost <= 0.0) return;
+            double share = Mathd.Min(1.0, credits / cost);
+            foreach (HullPanel panel in hull.panels) panel.wear *= 1.0 - share;
+            credits -= cost * share;
+        }
+
+        public bool CanTake(Cargo cargo) => cargo.mass <= hold.Free;
+
+        public void Take(Cargo cargo)
+        {
+            if (!CanTake(cargo)) return;
+            cargo.from.offers.Remove(cargo);
+            hold.cargo.Add(cargo);
+        }
+
+        /// <summary>Сдать груз на станции назначения. Опоздавший груз принимают, но не платят.</summary>
+        public void Deliver(Cargo cargo, double epoch)
+        {
+            if (!Latched || DockedTo != cargo.to || !hold.cargo.Remove(cargo)) return;
+            if (epoch <= cargo.deadline) credits += cargo.reward;
         }
 
         public void Undock()

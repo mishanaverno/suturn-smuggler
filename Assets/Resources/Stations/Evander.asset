@@ -10,23 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a17f0ab3b8bde4745a5ac9d060499a53, type: 3}
-  m_Name: Selk
+  m_Name: Evander
   m_EditorClassIdentifier: Game::Game.StationAsset
   station:
-    id: selk
-    name: Selk
-    description: "\u0417\u0430\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0430\u044F \u0441\u0442\u0430\u043D\u0446\u0438\u044F \u043D\u0430 \u043E\u0440\u0431\u0438\u0442\u0435 \u0422\u0438\u0442\u0430\u043D\u0430: \u043C\u0435\u0442\u0430\u043D \u0441\u043D\u0438\u0437\u0443, \u043A\u0438\u0441\u043B\u043E\u0440\u043E\u0434 \u043F\u0440\u0438\u0432\u043E\u0437\u043D\u043E\u0439"
-    parent: titan
+    id: evander
+    name: Evander
+    description: "\u0421\u0442\u0430\u043d\u0446\u0438\u044f \u043d\u0430 \u043e\u0440\u0431\u0438\u0442\u0435 \u0414\u0438\u043e\u043d\u044b: \u043a\u0438\u0441\u043b\u043e\u0440\u043e\u0434 \u0438\u0437 \u043b\u044c\u0434\u0430, \u043c\u0435\u0442\u0430\u043d \u043f\u0440\u0438\u0432\u043e\u0437\u043d\u043e\u0439"
+    parent: dione
     gm: 0
     radius: 40
     simPrefab: Station
     orbit:
-      semiMajorAxis: 2975000
+      semiMajorAxis: 800000
       eccentricity: 0
       inclination: 0
       longitudeOfAscendingNode: 0
       argumentOfPeriapsis: 0
-      meanAnomalyAtEpoch: 0.4
+      meanAnomalyAtEpoch: 130
       epoch: 0
     beacon:
       range: 2000
@@ -40,8 +40,8 @@ MonoBehaviour:
       yaw: 3
     fuel:
     - good: methane
-      price: 2
+      price: 5
     - good: lox
-      price: 6
-    repair: 120000
+      price: 2
+    repair: 150000
   view: {fileID: 849111686471370573, guid: 6329adf0926264e9ab126fbfd50c05d0, type: 3}

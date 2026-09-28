@@ -200,7 +200,7 @@
       }
     ],
     // Станции — отдельными ассетами (Game.StationAsset), здесь только пути в Resources.
-    "stations": [ "Stations/Selk" ],
+    "stations": [ "Stations/Selk", "Stations/Odysseus", "Stations/Evander", "Stations/Tirawa", "Stations/Turgis" ],
     "playerShip": {
       "id": "player",
       "name": "player",
@@ -215,6 +215,9 @@
       "lox": 15000,
       "methaneCapacity": 40000,
       "loxCapacity": 15000,
+      // Трюм малый: груз малообъёмный и дорогой. Масса груза идёт в массу корабля.
+      "holdCapacity": 12000,
+      "credits": 50000,
       "propulsion": {
         "nuclear":    { "thrust": 1.1e6,  "isp": 1500, "oxidizerRatio": 0 },
         "nuclearLox": { "thrust": 2.75e6, "isp": 900,  "oxidizerRatio": 1 },

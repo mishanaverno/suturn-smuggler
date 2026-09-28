@@ -15,15 +15,20 @@ namespace OuterSpace.Sim.Objects
         public readonly IReadOnlyList<PortData> ports;
         public readonly BeaconData beacon;
         public readonly CaptureData capture;
-        public readonly IReadOnlyList<string> sells;
+        public readonly IReadOnlyList<FuelPrice> fuel;
+        /// <summary>Цена полного ремонта одной панели корпуса, cr; 0 — станция не ремонтирует.</summary>
+        public readonly double repair;
+        /// <summary>Грузы, которые станция сейчас предлагает отвезти.</summary>
+        public List<Cargo> offers = new();
 
-        public Station(IReadOnlyList<PortData> ports, BeaconData beacon, CaptureData capture, IReadOnlyList<string> sells, GameObject prefab)
+        public Station(IReadOnlyList<PortData> ports, BeaconData beacon, CaptureData capture, IReadOnlyList<FuelPrice> fuel, double repair, GameObject prefab)
             : base(Vector3d.zero, Vector3d.zero, 0.0, prefab, new() { SpaceObjectParts.ORBIT })
         {
             this.ports = ports;
             this.beacon = beacon;
             this.capture = capture;
-            this.sells = sells;
+            this.fuel = fuel;
+            this.repair = repair;
         }
 
         /// <summary>Узел защёлкивается, только когда в допуске всё сразу — и положение, и все три угла.</summary>

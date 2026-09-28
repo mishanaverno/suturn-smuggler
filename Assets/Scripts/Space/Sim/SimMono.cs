@@ -62,7 +62,7 @@ namespace OuterSpace.Sim
 
             foreach (StationData stationData in data.system.stations)
             {
-                Station station = Place(new Station(stationData.ports, stationData.beacon, stationData.capture, stationData.sells, Prefab(stationData)), stationData);
+                Station station = Place(new Station(stationData.ports, stationData.beacon, stationData.capture, stationData.fuel, stationData.repair, Prefab(stationData)), stationData);
                 station.SetCentralBody(byId[stationData.parent]);
                 station.SetOrbit(ToElements(stationData.orbit, station.centralBody.MU));
                 stations.Add(station);
@@ -72,6 +72,8 @@ namespace OuterSpace.Sim
             Ship ship = Place(new Ship(shipData.dryMass, shipData.methane, shipData.lox, shipData.propulsion, Prefab(shipData)), shipData);
             ship.tanks.methaneCapacity = shipData.methaneCapacity;
             ship.tanks.loxCapacity = shipData.loxCapacity;
+            ship.hold.capacity = shipData.holdCapacity;
+            ship.credits = shipData.credits;
             playerShip = ship;
             playerShip.SetCentralBody(byId[shipData.parent]);
             playerShip.SetOrbit(ToElements(shipData.orbit, playerShip.centralBody.MU));

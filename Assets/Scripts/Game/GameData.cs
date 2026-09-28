@@ -64,6 +64,8 @@ namespace Game
         public double lox;                  // кг, начальный запас
         public double methaneCapacity;      // кг
         public double loxCapacity;          // кг
+        public double holdCapacity;         // кг
+        public double credits;              // cr, начальный счёт
         public Propulsion propulsion;
     }
     /// <summary>
@@ -77,9 +79,17 @@ namespace Game
         public List<PortData> ports;        // Не из данных: загрузчик снимает их с модели
         public BeaconData beacon;
         public CaptureData capture;
-        public List<string> sells = new();   // "methane", "lox"
+        public List<FuelPrice> fuel = new();
+        public double repair;               // cr за полный ремонт одной панели корпуса; 0 — не ремонтирует
         [NonSerialized, JsonIgnore]
         public GameObject view;             // Не из данных: загрузчик берёт его из ассета
+    }
+    /// <summary>Топливо, которое продаёт станция: чего нет в списке, того здесь не купить.</summary>
+    [Serializable]
+    public class FuelPrice
+    {
+        public string good;                 // "methane", "lox"
+        public double price;                // cr/кг
     }
     /// <summary>Допуски захвата: грубее — узел не защёлкивается.</summary>
     [Serializable]

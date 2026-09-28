@@ -53,6 +53,8 @@ namespace Game
                 throw new SystemDataException($"Корабль {ship.id}: запасы топлива не могут быть отрицательными");
             if (ship.methane > ship.methaneCapacity || ship.lox > ship.loxCapacity)
                 throw new SystemDataException($"Корабль {ship.id}: начальный запас больше ёмкости бака");
+            if (ship.holdCapacity < 0 || ship.credits < 0)
+                throw new SystemDataException($"Корабль {ship.id}: ёмкость трюма и счёт не могут быть отрицательными");
             ValidateEngine(ship, "nuclear", ship.propulsion?.nuclear);
             ValidateEngine(ship, "nuclearLox", ship.propulsion?.nuclearLox);
             ValidateEngine(ship, "chemical", ship.propulsion?.chemical);
@@ -89,9 +91,15 @@ namespace Game
                 if (capture == null || capture.range <= 0 || capture.lateral <= 0 || capture.speed <= 0
                     || capture.roll <= 0 || capture.pitch <= 0 || capture.yaw <= 0)
                     throw new SystemDataException($"Станция {station.id}: все допуски захвата должны быть положительными");
-                foreach (string good in station.sells)
-                    if (good != "methane" && good != "lox")
-                        throw new SystemDataException($"Станция {station.id}: неизвестный товар {good}");
+                if (station.repair < 0)
+                    throw new SystemDataException($"Станция {station.id}: цена ремонта не может быть отрицательной");
+                foreach (FuelPrice fuel in station.fuel)
+                {
+                    if (fuel.good != "methane" && fuel.good != "lox")
+                        throw new SystemDataException($"Станция {station.id}: неизвестное топливо {fuel.good}");
+                    if (fuel.price < 0)
+                        throw new SystemDataException($"Станция {station.id}: цена {fuel.good} не может быть отрицательной");
+                }
             }
 
             foreach (ObjectData obj in data.system.objects)

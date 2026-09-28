@@ -35,7 +35,7 @@ public class DockingCaptureTest
             },
             new BeaconData { range = 2000, cone = 15 },
             new CaptureData { range = 0.5, lateral = 0.3, speed = 0.3, roll = 3, pitch = 3, yaw = 3 },
-            new List<string>(), prefab);
+            new List<FuelPrice>(), 0.0, prefab);
         SpaceObject titan = world["titan"];
         station.SetCentralBody(titan);
         station.SetOrbit(Circular(titan));
