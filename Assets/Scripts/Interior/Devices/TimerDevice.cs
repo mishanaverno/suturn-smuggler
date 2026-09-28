@@ -7,8 +7,9 @@ namespace Interior
     /// И секундомер: пуск и сброс.
     /// Сами часы и список — на экране CLOCK (ClockPanel); задатчик от экрана не зависит.
     ///
-    /// Новый таймер ставится на «сейчас» и выставляется крутилкой: вводить число в кабине
-    /// нечем. Щелчок крутилки — час, минута или секунда, смотря какая из трёх кнопок выбрана.
+    /// Новый таймер ставится на час вперёд и выставляется крутилкой: вводить число в кабине
+    /// нечем, а таймер на «сейчас» сработал бы, не дав себя выставить. Щелчок крутилки —
+    /// час, минута или секунда, смотря какая из трёх кнопок выбрана.
     /// </summary>
     public class TimerDevice : ShipDevice
     {
@@ -20,7 +21,7 @@ namespace Interior
 
         protected override void Wire()
         {
-            Bind(CommandId.NewTimer, () => Timers.Add(Now), () => Timers != null);
+            Bind(CommandId.NewTimer, () => Timers.Add(Now + Hour), () => Timers != null);
             Bind(CommandId.DeleteTimer, () => Timers.RemoveSelected(), HasSelected);
             Bind(CommandId.NextTimer, () => Timers.MoveCursor(1), HasSelected);
             Bind(CommandId.PreviousTimer, () => Timers.MoveCursor(-1), HasSelected);
