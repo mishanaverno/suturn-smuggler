@@ -81,13 +81,6 @@ namespace Game
             return fired;
         }
 
-        public Timer Next(double now)
-        {
-            foreach (Timer timer in list)
-                if (!timer.Fired && timer.Epoch > now) return timer;
-            return null;
-        }
-
         /// <summary>Список держится по времени срабатывания, курсор остаётся на том же таймере.</summary>
         void Sort(Timer keep)
         {

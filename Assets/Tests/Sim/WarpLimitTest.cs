@@ -1,4 +1,5 @@
-﻿using DoublePrecision;
+﻿using System.Collections.Generic;
+using DoublePrecision;
 using Game;
 using NUnit.Framework;
 using OuterSpace;
@@ -13,6 +14,8 @@ public class WarpLimitTest
     const uint Requested = 100000;
     const double EncounterEpoch = 200000.0;
     const double LeadTime = 3600.0;
+
+    static readonly List<Schedule.Entry> buffer = new();
 
     SaturnTestWorld world;
 
@@ -109,13 +112,13 @@ public class WarpLimitTest
     }
 
     [Test]
-    public void ManeuverTrajectoryEvents_DoNotSlowWarp_BurnStartDoes()
+    public void ManeuverTrajectoryEvents_AreNotScheduled_BurnStartIs()
     {
         SpaceObject titan = world["titan"];
         Ship ship = world.PutShip(titan, Parking(titan), 0.0);
         ship.trajectory.Update(ship.orbitParams, titan, 0.0, null);
         Assert.AreEqual(PatchEndReason.Horizon, ship.trajectory.patches[0].EndReason);
-        Assert.IsNull(ship.NextEvent(0.0), "на собственной траектории событий нет");
+        Assert.IsNull(Schedule.Next(ship, null, 0.0, buffer), "на собственной траектории событий нет");
 
         const double NodeEpoch = 3600.0;
         ship.CreateManeuver(NodeEpoch);
@@ -128,11 +131,12 @@ public class WarpLimitTest
             maneuver.UpdateTrajectory(null);
             Assert.AreEqual(PatchEndReason.EscapedSOI, maneuver.trajectory.patches[0].EndReason);
 
-            Ship.WarpEvent next = ship.NextEvent(0.0);
+            Schedule.Entry? next = Schedule.Next(ship, null, 0.0, buffer);
             Assert.IsNotNull(next);
-            Assert.AreEqual("BURN START", next.Reason);
-            Assert.Less(next.Epoch, NodeEpoch);
-            Assert.Less(next.Epoch, maneuver.trajectory.patches[0].EndEpoch);
+            Assert.AreEqual(Schedule.Kind.Burn, next.Value.Kind);
+            Assert.Less(next.Value.Epoch, NodeEpoch);
+            Assert.IsFalse(buffer.Exists(e => e.Kind == Schedule.Kind.Soi),
+                "уход из сферы влияния по плану гипотетический и в расписание не входит");
         }
         finally
         {
@@ -142,8 +146,8 @@ public class WarpLimitTest
 
     static double AllowedWarp(Ship ship, double epoch)
     {
-        Ship.WarpEvent next = ship.NextEvent(epoch);
-        return next == null ? Requested : WarpLimit.Allowed(Requested, next.Epoch - epoch, FrameSeconds);
+        Schedule.Entry? next = Schedule.Next(ship, null, epoch, buffer);
+        return next == null ? Requested : WarpLimit.Allowed(Requested, next.Value.Epoch - epoch, FrameSeconds);
     }
 
     static OrbitElements Parking(SpaceObject central) => new()

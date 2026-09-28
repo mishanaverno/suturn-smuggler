@@ -16,6 +16,7 @@ namespace Game
         public static GameMono instance;
         public GameData gameData { get; private set; }
         public readonly Timers timers = new();
+        readonly System.Collections.Generic.List<Schedule.Entry> schedule = new();
         /// <summary>Запрошенная игроком ступень перемотки.</summary>
         public uint TimeSpeed => TimeToggler.Current;
         /// <summary>Фактическая перемотка: запрошенная, ограниченная ближайшим событием.</summary>
@@ -41,9 +42,10 @@ namespace Game
             if (timers.Fire(_epoch)) TimeToggler.RealTime();
         }
         /// <summary>
-        /// Перемотка выключается за WarpLimit.GuardSeconds до ближайшего события и включается
-        /// обратно, когда событие позади. Никакой лестницы ступеней и никаких страховок сверх
-        /// этого: одно правило, которое игрок может держать в голове.
+        /// За WarpLimit.GuardSeconds до ближайшей строки расписания (Schedule — то же, что на
+        /// экране часов) перемотка сбрасывается в 1×, и включать её обратно — дело игрока.
+        /// Никакой лестницы ступеней и никаких страховок сверх этого: одно правило, которое
+        /// игрок может держать в голове.
         /// </summary>
         private double AllowedWarp()
         {
@@ -51,17 +53,19 @@ namespace Game
             uint requested = TimeToggler.Current;
             if (requested <= 1) return requested;
 
-            Ship.WarpEvent next = (SimMono.playerShip as Ship)?.NextEvent(_epoch);
-            Timers.Timer timer = timers.Next(_epoch);
-            if (timer != null && (next == null || timer.Epoch < next.Epoch))
-                next = new Ship.WarpEvent { Epoch = timer.Epoch, Reason = $"TIMER T{timer.Number}" };
+            Schedule.Entry? next = Schedule.Next(SimMono.playerShip as Ship, timers, _epoch, schedule);
             if (next == null) return requested;
 
-            double toEvent = next.Epoch - _epoch;
+            double toEvent = next.Value.Epoch - _epoch;
+            if (toEvent <= WarpLimit.GuardSeconds)
+            {
+                TimeToggler.RealTime();
+                return 1.0;
+            }
             double allowed = WarpLimit.Allowed(requested, toEvent, Time.deltaTime);
             if (allowed < requested)
             {
-                WarpLimitReason = $"{next.Reason} {TrajectoryRenderer.Clock(toEvent)}";
+                WarpLimitReason = $"{next.Value.Label} {TrajectoryRenderer.Clock(toEvent)}";
             }
             return allowed;
         }

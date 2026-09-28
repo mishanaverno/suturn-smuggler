@@ -8,13 +8,6 @@ namespace OuterSpace.Sim.Objects
 {
     public class Ship : SpaceObject
     {
-        /// <summary>Ближайшее событие, перед которым перемотку надо притормозить.</summary>
-        public sealed class WarpEvent
-        {
-            public double Epoch;
-            public string Reason;
-        }
-
         // Шаг считается не абсолютной константой, а долей той величины, к которой применяется:
         // долей периода той орбиты, на которой стоит манёвр, и долей орбитальной скорости
         // в его точке. Иначе одно и то же нажатие на парковочной орбите и на перелётной
@@ -543,55 +536,6 @@ namespace OuterSpace.Sim.Objects
         {
             if (maneuver == null || seconds == 0.0) return;
             maneuver.SetStartEpoch(Mathd.Max(maneuver.startEpoch + seconds, GameMono.instance.Epoch));
-        }
-
-        /// <summary>
-        /// Ближайшее событие на собственной траектории корабля плюс начало прожига по манёвру.
-        /// События на плановой траектории манёвра сюда не входят: они гипотетические, корабль
-        /// на той траектории пока не находится, и тормозить перед ними нельзя.
-        /// </summary>
-        public WarpEvent NextEvent(double epoch)
-        {
-            WarpEvent nearest = null;
-            IReadOnlyList<TrajectoryPatch> patches = trajectory.patches;
-            if (patches != null)
-            {
-                foreach (TrajectoryPatch patch in patches)
-                {
-                    if (patch.EndReason == PatchEndReason.Horizon || patch.EndEpoch <= epoch) continue;
-                    nearest = Nearer(nearest, patch.EndEpoch, PatchEventText(patch));
-                    break;
-                }
-            }
-            IReadOnlyList<CloseApproach> approaches = trajectory.approaches;
-            if (approaches != null)
-            {
-                foreach (CloseApproach approach in approaches)
-                {
-                    if (approach.Epoch <= epoch) continue;
-                    nearest = Nearer(nearest, approach.Epoch, "CLOSE APPROACH");
-                    break;
-                }
-            }
-            if (maneuver != null)
-            {
-                // Прожиг центрируется на узле, поэтому событие — его начало, а не сам узел.
-                if (BurnStartEpoch > epoch) nearest = Nearer(nearest, BurnStartEpoch, "BURN START");
-            }
-            return nearest;
-        }
-
-        static WarpEvent Nearer(WarpEvent current, double epoch, string reason) =>
-            current != null && current.Epoch <= epoch ? current : new WarpEvent { Epoch = epoch, Reason = reason };
-
-        static string PatchEventText(TrajectoryPatch patch)
-        {
-            switch (patch.EndReason)
-            {
-                case PatchEndReason.EnteredSOI: return $"SOI ENTRY {patch.NextCentral.GameObject.name}";
-                case PatchEndReason.EscapedSOI: return $"SOI EXIT {patch.Central.GameObject.name}";
-                default: return "IMPACT";
-            }
         }
 
         /// <summary>

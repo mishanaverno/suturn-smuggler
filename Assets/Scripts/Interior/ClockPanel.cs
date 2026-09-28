@@ -35,25 +35,8 @@ namespace Interior
         [Tooltip("Ширина рамки в знаках. Ноль меряет шаг знака у шрифта и растягивает рамку по стеклу.")]
         public int lineColumns;
 
-        readonly struct Row
-        {
-            public readonly double Epoch;
-            public readonly string Label;
-            public readonly Color Color;
-            /// <summary>null — метка навигационного экрана, а не таймер.</summary>
-            public readonly Timers.Timer Timer;
-
-            public Row(double epoch, string label, Color color, Timers.Timer timer = null)
-            {
-                Epoch = epoch;
-                Label = label;
-                Color = color;
-                Timer = timer;
-            }
-        }
-
         readonly StringBuilder builder = new();
-        readonly List<Row> rows = new();
+        readonly List<Schedule.Entry> rows = new();
         GameObject rig;
         RenderTexture texture;
         RectTransform canvasRect;
@@ -181,7 +164,7 @@ namespace Interior
                 timers.StopwatchRunning ? NavPalette.Own : label));
             builder.Append('\n').Append(NavText.Paint(AsciiTable.ColumnsBorder(new[] { lineLength - 4 }, AsciiTable.Cross), label));
 
-            CollectRows(timers, now);
+            Schedule.Collect(SimMono.playerShip as Ship, timers, now, rows);
             int count = rows.Count;
             if (count == 0)
             {
@@ -202,9 +185,9 @@ namespace Interior
             for (int i = scrollOffset; i < end; i++) labelWidth = Mathf.Max(labelWidth, rows[i].Label.Length);
             for (int i = scrollOffset; i < end; i++)
             {
-                Row row = rows[i];
+                Schedule.Entry row = rows[i];
                 string line = $"{(i == cursor ? '>' : ' ')} {row.Label.PadRight(labelWidth)} {TrajectoryRenderer.Countdown(row.Epoch - now)}";
-                Color color = row.Timer == null ? row.Color
+                Color color = row.Timer == null ? RoleColor(row)
                     : row.Timer.Fired ? (blink ? NavPalette.Alarm : NavPalette.Dim(NavPalette.Alarm, NavPalette.NameLevel))
                     : i == cursor ? NavPalette.Own : label;
                 builder.Append('\n').Append(NavText.Paint(AsciiTable.Row(line, lineLength), color));
@@ -215,51 +198,13 @@ namespace Interior
         }
 
         /// <summary>
-        /// Таймеры и метки времени навигационного экрана одним списком по времени: узлы плана,
-        /// смены сферы влияния и сближения с целью — с теми же цветами, что на экране. Меток
-        /// курсор не касается: снять или сдвинуть их нельзя, они следуют из плана.
+        /// Цвет строки — тот, каким эта же вещь нарисована на навигационном экране: события
+        /// траектории тревожным, остальное — цветом своей траектории.
         /// </summary>
-        void CollectRows(Timers timers, double now)
+        static Color RoleColor(Schedule.Entry entry)
         {
-            rows.Clear();
-            foreach (Timers.Timer timer in timers.List)
-                rows.Add(new Row(timer.Epoch, $"T{timer.Number}", default, timer));
-
-            if (SimMono.playerShip is Ship ship)
-            {
-                AddTrajectory(ship.trajectory, "", NavPalette.Own, now);
-                List<Maneuver> plan = ship.Maneuvers();
-                for (int i = 0; i < plan.Count; i++)
-                {
-                    Color color = NavPalette.Maneuver(i);
-                    rows.Add(new Row(plan[i].startEpoch, $"M{i + 1} NODE", color));
-                    AddTrajectory(plan[i].trajectory, $"M{i + 1} ", color, now);
-                }
-            }
-            rows.Sort((a, b) => a.Epoch.CompareTo(b.Epoch));
-        }
-
-        void AddTrajectory(TrajectoryCache trajectory, string prefix, Color color, double now)
-        {
-            if (trajectory.patches != null)
-            {
-                foreach (TrajectoryPatch patch in trajectory.patches)
-                {
-                    if (patch.EndReason == PatchEndReason.Horizon || patch.EndEpoch <= now) continue;
-                    string text = patch.EndReason == PatchEndReason.Impact
-                        ? "IMPACT"
-                        : $"SOI {patch.NextCentral.GameObject.name.ToUpperInvariant()}";
-                    rows.Add(new Row(patch.EndEpoch, prefix + text, NavPalette.Alarm));
-                }
-            }
-            if (trajectory.approaches == null) return;
-            int shown = 0;
-            foreach (CloseApproach approach in trajectory.approaches)
-            {
-                if (approach.Epoch <= now) continue;
-                if (shown++ >= TrajectoryRenderer.ShownApproaches) break;
-                rows.Add(new Row(approach.Epoch, $"{prefix}APPR {approach.Distance / 1000.0:F1} km", color));
-            }
+            if (entry.Kind is Schedule.Kind.Soi or Schedule.Kind.Impact) return NavPalette.Alarm;
+            return entry.Maneuver < 0 ? NavPalette.Own : NavPalette.Maneuver(entry.Maneuver);
         }
 
         /// <summary>Строк под список: всё, кроме рамки, строк даты и секундомера и разделителя.</summary>
