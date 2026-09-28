@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Interior
 {
     /// <summary>Виды картинки, которые приборы кабины могут отправить на любое стекло.</summary>
-    public enum ScreenContent { None, Docking, Attitude, Maneuver }
+    public enum ScreenContent { None, Docking, Attitude, Maneuver, Clock }
 
     /// <summary>
     /// Соединяет готовые текстуры приборов с физическими экранами. Приборы продолжают

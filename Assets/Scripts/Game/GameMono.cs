@@ -15,6 +15,7 @@ namespace Game
         public TimeToggler TimeToggler;
         public static GameMono instance;
         public GameData gameData { get; private set; }
+        public readonly Timers timers = new();
         /// <summary>Запрошенная игроком ступень перемотки.</summary>
         public uint TimeSpeed => TimeToggler.Current;
         /// <summary>Фактическая перемотка: запрошенная, ограниченная ближайшим событием.</summary>
@@ -36,6 +37,8 @@ namespace Game
         {
             WarpSpeed = AllowedWarp();
             _epoch += Time.deltaTime * WarpSpeed;
+            // Таймер ставят, чтобы не проспать на перемотке, поэтому сработавший её снимает.
+            if (timers.Fire(_epoch)) TimeToggler.RealTime();
         }
         /// <summary>
         /// Перемотка выключается за WarpLimit.GuardSeconds до ближайшего события и включается
@@ -46,9 +49,12 @@ namespace Game
         {
             WarpLimitReason = null;
             uint requested = TimeToggler.Current;
-            if (SimMono.playerShip is not Ship ship || requested <= 1) return requested;
+            if (requested <= 1) return requested;
 
-            Ship.WarpEvent next = ship.NextEvent(_epoch);
+            Ship.WarpEvent next = (SimMono.playerShip as Ship)?.NextEvent(_epoch);
+            Timers.Timer timer = timers.Next(_epoch);
+            if (timer != null && (next == null || timer.Epoch < next.Epoch))
+                next = new Ship.WarpEvent { Epoch = timer.Epoch, Reason = $"TIMER T{timer.Number}" };
             if (next == null) return requested;
 
             double toEvent = next.Epoch - _epoch;

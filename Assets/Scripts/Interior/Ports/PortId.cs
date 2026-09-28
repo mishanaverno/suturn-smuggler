@@ -50,6 +50,7 @@
         ClearDeltaVY = 217,
         ClearDeltaVZ = 218,
         FitView = 219,
+        ShowLocalList = 220,
 
         // Система ориентации — 300
         SasRowX = 300,
@@ -68,6 +69,17 @@
         DockingPortLeft = 501,
         DockingPortRight = 502,
         DockingLatch = 503,
+
+        // Часы — 700
+        NewTimer = 700,
+        DeleteTimer = 701,
+        NextTimer = 702,
+        PreviousTimer = 703,
+        StopwatchStart = 704,
+        StopwatchReset = 705,
+        TimerUnitHours = 706,
+        TimerUnitMinutes = 707,
+        TimerUnitSeconds = 708,
     }
 
     /// <summary>
@@ -83,6 +95,8 @@
         EngineModeIdle = 101,
         EngineModeCruise = 102,
         EngineModeProx = 103,
+        MethaneLow = 104,
+        LoxLow = 105,
 
         // Навигационный компьютер — 200
         ManeuverPlanned = 200,
@@ -105,6 +119,13 @@
         DockingPortLeft = 503,
         DockingPortRight = 504,
         DockingReady = 505,
+
+        // Часы — 700
+        TimerFired = 700,
+        StopwatchRunning = 701,
+        TimerUnitHours = 702,
+        TimerUnitMinutes = 703,
+        TimerUnitSeconds = 704,
     }
 
     /// <summary>
@@ -125,6 +146,9 @@
         DeltaVX = 202,
         DeltaVY = 203,
         DeltaVZ = 204,
+
+        // Часы — 700
+        TimerTime = 700,
     }
 
     /// <summary>
@@ -222,5 +246,9 @@
         HullTop = 604,
         HullBottom = 605,
         HullTemperature = 606,
+
+        // Часы — 700
+        SelectedTimer = 700,
+        Stopwatch = 701,
     }
 }

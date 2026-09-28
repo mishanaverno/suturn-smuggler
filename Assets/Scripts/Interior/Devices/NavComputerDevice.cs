@@ -43,6 +43,7 @@ namespace Interior
                 () => HasCursor() && Nav != null);
             Bind(CommandId.ShowTargetBodyList, () => TargetListPanel.instance?.ShowBodies(), HasTargetList);
             Bind(CommandId.ShowManeuverList, () => TargetListPanel.instance?.ShowManeuvers(), HasTargetList);
+            Bind(CommandId.ShowLocalList, () => TargetListPanel.instance?.ShowLocal(), HasTargetList);
 
             Bind(CommandId.FitView, () => Nav?.Fit());
             Bind(CommandId.ManeuverLock, ToggleLock, HasPlan);

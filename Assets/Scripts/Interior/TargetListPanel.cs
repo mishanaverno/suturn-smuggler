@@ -18,7 +18,7 @@ namespace Interior
     {
         const string ScreenLayer = "Panels";
 
-        enum ListMode { Bodies, Maneuvers }
+        enum ListMode { Bodies, Local, Maneuvers }
 
         readonly struct ListEntry
         {
@@ -210,6 +210,11 @@ namespace Interior
             SetMode(ListMode.Bodies);
         }
 
+        public void ShowLocal()
+        {
+            SetMode(ListMode.Local);
+        }
+
         public void ShowManeuvers()
         {
             SetMode(ListMode.Maneuvers);
@@ -244,7 +249,12 @@ namespace Interior
             scrollOffset = Mathf.Clamp(scrollOffset, 0, maxOffset);
 
             int end = Mathf.Min(scrollOffset + rows, count);
-            string title = mode == ListMode.Bodies ? "BODIES" : "MANEUVERS";
+            string title = mode switch
+            {
+                ListMode.Bodies => "BODIES",
+                ListMode.Local => "LOCAL",
+                _ => "MANEUVERS",
+            };
             if (count > rows) title += $" {scrollOffset + 1}-{end}/{count}";
 
             // Ширина рамки — по стеклу, но не уже самой длинной строки внутри: список
@@ -298,15 +308,21 @@ namespace Interior
                     entries.Add(new ListEntry(body.GameObject.name.ToUpperInvariant(), body.simTransform,
                         NavPalette.For(body), body));
                 }
+                return;
+            }
+
+            if (SimMono.playerShip is not Ship ship) return;
+            if (mode == ListMode.Local)
+            {
                 foreach (Station station in SimMono.stations)
                 {
+                    if (station.centralBody != ship.centralBody) continue;
                     entries.Add(new ListEntry(station.GameObject.name.ToUpperInvariant(), station.simTransform,
                         NavPalette.For(station), station));
                 }
                 return;
             }
 
-            if (SimMono.playerShip is not Ship ship) return;
             entries.Add(new ListEntry("SHIP", ship.simTransform, NavPalette.Own));
 
             maneuvers.Clear();

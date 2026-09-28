@@ -8,6 +8,8 @@ namespace Interior
     /// </summary>
     public class EngineDevice : ShipDevice
     {
+        const double LowFuel = 0.25;
+
         [Tooltip("Тепловая постоянная реактора, с. Больше — медленнее и нагрев, и остывание.")]
         public double heatTime = 20.0;
         [Tooltip("Собственное охлаждение реактора в долях отвода метаном на полной тяге. Больше — рост сильнее замедляется и ниже предел перегрева без прожига.")]
@@ -31,6 +33,8 @@ namespace Interior
             Bind(ReadingId.ReactorTemperature, () => Ship == null ? double.NaN : Ship.engine.ReactorTemperature);
             Bind(ReadingId.Methane, () => Ship == null ? double.NaN : Ship.tanks.methane);
             Bind(ReadingId.Lox, () => Ship == null ? double.NaN : Ship.tanks.lox);
+            Bind(SignalId.MethaneLow, () => Ship != null && Ship.tanks.methane < LowFuel * Ship.tanks.methaneCapacity);
+            Bind(SignalId.LoxLow, () => Ship != null && Ship.tanks.lox < LowFuel * Ship.tanks.loxCapacity);
             Bind(ReadingId.Thrust, () => Ship == null ? double.NaN : Ship.Thrusting ? Ship.engine.Thrust : 0.0);
             // Импульс виден и до зажигания: по нему видно, догнал ли реактор заказ.
             Bind(ReadingId.SpecificImpulse, () => Ship == null ? double.NaN : Ship.engine.SpecificImpulse);
