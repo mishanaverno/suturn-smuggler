@@ -73,9 +73,11 @@ namespace OuterSpace.Sim.Objects
         /// <summary>Узел механически зафиксирован — стыковка завершена, со станцией можно работать.</summary>
         public bool Latched { get; private set; }
         PortData dockedPort;
+        public PortData DockedPort => dockedPort;
         // Положение корабля относительно центра станции. Станция не вращается, поэтому в
         // инерциальных осях оно постоянно.
         Vector3d dockedOffset;
+        public Vector3d DockedOffset => dockedOffset;
         // Захват срабатывает на входе в допуск, а не на пребывании в нём: иначе корабль,
         // только что отпущенный узлом, защёлкивался бы обратно на том же тике.
         bool inCapture;
@@ -120,7 +122,7 @@ namespace OuterSpace.Sim.Objects
         /// <summary>Паспортное ускорение текущего режима на полной мощности: по нему строится план.</summary>
         public double Acceleration => engine.Engine.thrust / Mass;
         /// <summary>Сожжено с начала прожига по текущему манёвру, м/с.</summary>
-        public double BurnedDeltaV { get; private set; }
+        public double BurnedDeltaV { get; set; }
         public double RemainingDeltaV => GetNextManeuver() is Maneuver next
             ? next.PlannedMagnitude - BurnedDeltaV
             : 0.0;
@@ -363,6 +365,28 @@ namespace OuterSpace.Sim.Objects
             DockedTo = station;
             FollowStation(Vector3d.zero);
             trajectory.Invalidate();
+        }
+
+        /// <summary>Встать в узел станции из сохранения: без захвата, сразу на прежнее место.</summary>
+        public void RestoreDock(Station station, PortData port, Vector3d offset, bool latched)
+        {
+            dockedPort = port;
+            dockedOffset = offset;
+            DockedTo = station;
+            Latched = latched;
+            inCapture = true;
+            FollowStation(Vector3d.zero);
+            trajectory.Invalidate();
+        }
+
+        /// <summary>
+        /// Отметки времени — на эпоху мира. После загрузки они стояли бы на нуле, и первый тик
+        /// получил бы всё время от начала игры разом.
+        /// </summary>
+        public void SyncClocks(double epoch)
+        {
+            attitudeEpoch = burnEpoch = rcsEpoch = epoch;
+            systems.Skip(epoch);
         }
 
         public void Latch()

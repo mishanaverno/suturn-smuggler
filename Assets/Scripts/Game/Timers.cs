@@ -37,6 +37,18 @@ namespace Game
 
         public void ResetStopwatch() => StopwatchStart = double.NaN;
 
+        public int NextNumber => nextNumber;
+
+        public void Restore(IEnumerable<Timer> timers, int next, double stopwatchStart)
+        {
+            list.Clear();
+            list.AddRange(timers);
+            list.Sort((a, b) => a.Epoch.CompareTo(b.Epoch));
+            nextNumber = next;
+            StopwatchStart = stopwatchStart;
+            Cursor = list.Count == 0 ? -1 : 0;
+        }
+
         public void Add(double epoch)
         {
             Timer timer = new() { Number = nextNumber++, Epoch = epoch };

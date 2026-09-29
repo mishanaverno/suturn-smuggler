@@ -1,0 +1,58 @@
+.pause-menu {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.6);
+    -unity-font: url("project://database/Assets/TextMesh%20Pro/Fonts/JetBrainsMono-Regular.ttf");
+}
+
+.pause-menu--hidden {
+    display: none;
+}
+
+.pause-menu__panel {
+    width: 320px;
+    flex-shrink: 0;
+    padding: 24px;
+    background-color: rgb(8, 14, 12);
+    border-width: 2px;
+    border-color: rgb(90, 200, 160);
+}
+
+.pause-menu__title {
+    font-size: 28px;
+    color: rgb(90, 200, 160);
+    margin-bottom: 16px;
+    -unity-text-align: middle-center;
+}
+
+.pause-menu__button {
+    margin: 0 0 8px 0;
+    padding: 8px 12px;
+    font-size: 18px;
+    color: rgb(90, 200, 160);
+    background-color: rgb(16, 32, 26);
+    border-width: 1px;
+    border-color: rgb(90, 200, 160);
+    border-radius: 0;
+}
+
+.pause-menu__button:hover {
+    background-color: rgb(28, 60, 48);
+}
+
+.pause-menu__button:disabled {
+    color: rgb(50, 90, 75);
+    border-color: rgb(40, 80, 65);
+}
+
+.pause-menu__status {
+    min-height: 24px;
+    font-size: 16px;
+    color: rgb(200, 235, 220);
+    -unity-text-align: middle-center;
+}

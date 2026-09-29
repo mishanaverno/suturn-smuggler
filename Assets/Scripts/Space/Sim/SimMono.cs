@@ -33,6 +33,7 @@ namespace OuterSpace.Sim
         {
             instance = this;
             CreateSim(GameMono.instance.gameData);
+            SaveGame.ApplyPending();
         }
         private void CreateSim(GameData data)
         {

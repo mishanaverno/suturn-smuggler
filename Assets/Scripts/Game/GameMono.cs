@@ -28,7 +28,7 @@ namespace Game
             TimeToggler = GetComponent<TimeToggler>();
             instance = this;
             gameData = LoadGame();
-            _epoch = gameData.startEpoch;
+            _epoch = double.IsNaN(SaveGame.PendingEpoch) ? gameData.startEpoch : SaveGame.PendingEpoch;
         }
         public void Update()
         {

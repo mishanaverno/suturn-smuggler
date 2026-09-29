@@ -21,7 +21,7 @@ namespace Controls
     /// </summary>
     public static class GameInput
     {
-        public enum Context { None, Bridge, Cockpit, FreeCamera }
+        public enum Context { None, Bridge, Cockpit, FreeCamera, Menu }
 
         static InputActionAsset asset;
         static InputActionMap bridge;
@@ -29,6 +29,7 @@ namespace Controls
         // Перемотка нужна и пилоту, и свободной камере: смотреть на затмение без перемотки нечего.
         static InputActionMap time;
         static InputActionMap freeCamera;
+        static InputActionMap menu;
         // Отладка включена всегда, в любом занятии.
         static InputActionMap debug;
 
@@ -42,6 +43,14 @@ namespace Controls
         /// <summary>Гашение скорости двигателями ориентации. В пустоте иначе не остановиться.</summary>
         public static InputAction Brake { get; private set; }
         public static InputAction Interact { get; private set; }
+        /// <summary>
+        /// Меню игры — только на ногах: в кресле Esc встаёт с места, и одна клавиша не может
+        /// значить два намерения.
+        /// </summary>
+        public static InputAction PauseMenu { get; private set; }
+
+        // --- меню игры ---
+        public static InputAction MenuBack { get; private set; }
 
         // --- кокпит: игрок как пилот ---
         /// <summary>Уйти с места пилота и снова встать на ноги.</summary>
@@ -121,6 +130,10 @@ namespace Controls
             Brake = bridge.AddAction("Brake", InputActionType.Button, "<Keyboard>/c");
             Sprint = bridge.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
             Interact = bridge.AddAction("Interact", InputActionType.Button, "<Keyboard>/e");
+            PauseMenu = bridge.AddAction("PauseMenu", InputActionType.Button, "<Keyboard>/escape");
+
+            menu = asset.AddActionMap("Menu");
+            MenuBack = menu.AddAction("MenuBack", InputActionType.Button, "<Keyboard>/escape");
 
             cockpit = asset.AddActionMap("Cockpit");
             Leave = cockpit.AddAction("Leave", InputActionType.Button, "<Keyboard>/escape");
@@ -213,7 +226,9 @@ namespace Controls
             cockpit.Disable();
             time.Disable();
             freeCamera.Disable();
+            menu.Disable();
             if (context == Context.Bridge) bridge.Enable();
+            if (context == Context.Menu) menu.Enable();
             if (context == Context.Cockpit) cockpit.Enable();
             if (context == Context.FreeCamera) freeCamera.Enable();
             if (context is Context.Cockpit or Context.FreeCamera) time.Enable();
