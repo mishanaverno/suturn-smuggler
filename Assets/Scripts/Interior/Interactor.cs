@@ -23,6 +23,9 @@ namespace Interior
         IInteractable aimed;
         IDraggable held;
 
+        /// <summary>Орган под курсором, или null.</summary>
+        public IInteractable Aimed => aimed;
+
         void Awake()
         {
             aim = GetComponentInParent<IAim>();
@@ -74,16 +77,23 @@ namespace Interior
             held = null;
         }
 
-        /// <summary>Двойной щелчок: взять стик под курсором набором клавиш номер set.</summary>
-        public void Grip(int set)
+        /// <summary>
+        /// Взять или отпустить стик под курсором набором клавиш номер set. false — под
+        /// курсором не стик, и кнопка значит что-то другое.
+        /// </summary>
+        public bool Grip(int set)
         {
-            if (aimed is StickControl stick) stick.Take(set);
+            if (aimed is not StickControl stick) return false;
+            stick.Toggle(set);
+            return true;
         }
 
-        /// <summary>Щелчок колеса по тому, на что наведён курсор.</summary>
-        public void Scroll(int direction)
+        /// <summary>Щелчок колеса по тому, на что наведён курсор. false — крутить нечего.</summary>
+        public bool Scroll(int direction)
         {
-            if (aimed is IScrollable knob) knob.Scroll(direction);
+            if (aimed is not IScrollable knob) return false;
+            knob.Scroll(direction);
+            return true;
         }
 
         IInteractable Aim()

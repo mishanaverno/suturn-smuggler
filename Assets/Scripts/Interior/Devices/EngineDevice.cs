@@ -36,8 +36,10 @@ namespace Interior
             Bind(SignalId.MethaneLow, () => Ship != null && Ship.tanks.methane < LowFuel * Ship.tanks.methaneCapacity);
             Bind(SignalId.LoxLow, () => Ship != null && Ship.tanks.lox < LowFuel * Ship.tanks.loxCapacity);
             Bind(ReadingId.Thrust, () => Ship == null ? double.NaN : Ship.Thrusting ? Ship.engine.Thrust : 0.0);
-            // Импульс виден и до зажигания: по нему видно, догнал ли реактор заказ.
-            Bind(ReadingId.SpecificImpulse, () => Ship == null ? double.NaN : Ship.engine.SpecificImpulse);
+            // Импульс виден и до зажигания: по нему видно, догнал ли реактор заказ. В IDLE
+            // истекать нечему — ноль.
+            Bind(ReadingId.SpecificImpulse, () => Ship == null ? double.NaN
+                : Ship.engine.Mode == EngineMode.Idle ? 0.0 : Ship.engine.SpecificImpulse);
             Bind(ReadingId.AvailableDeltaV, () => Ship == null ? double.NaN : Ship.engine.AvailableDeltaV(Ship.Mass));
 
             // Переключатель, а не удержание: прожиг длится минутами, держать кнопку всё это

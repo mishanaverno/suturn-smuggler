@@ -6,8 +6,9 @@ namespace Interior
 {
     /// <summary>
     /// Стик: рукоять с тремя осями — от себя/на себя, вбок и поворот. Мышью его не двигают:
-    /// двойным щелчком его берут набором клавиш, и дальше он отклоняется, пока клавиши
-    /// нажаты. Левая кнопка берёт первым набором (WS, AD, QE), правая — вторым (IK, JL, UO).
+    /// щелчком его берут набором клавиш, и дальше он отклоняется, пока клавиши нажаты.
+    /// Левая кнопка берёт первым набором (WS, AD, QE), правая — вторым (IK, JL, UO);
+    /// повторный щелчок той же кнопкой отпускает.
     ///
     /// Набор держит только один стик сразу: взяли им другой — прежний отпущен и встаёт
     /// в середину. Иначе одна клавиша значила бы два намерения. Стик же может держаться
@@ -27,6 +28,9 @@ namespace Interior
 
         [Tooltip("Величины осей по порядку: от себя/на себя, вбок, поворот рукояти. Пустой разъём — ось не работает.")]
         public SettingPort[] ports = new SettingPort[Axes];
+
+        [Tooltip("Что стик делает — строка в подсказках внизу экрана, пока он взят.")]
+        public string title;
 
         [Tooltip("Рукоять, которая наклоняется.")]
         public Transform part;
@@ -69,16 +73,22 @@ namespace Interior
 
         public bool Wired => Array.Exists(ports, port => port != null && port.Assigned);
 
-        /// <summary>Одиночный щелчок ничего не значит: стик берут двойным.</summary>
+        /// <summary>Нажатие ничего не значит: стик берут кнопками мыши из кресла (Toggle).</summary>
         public void Interact() { }
 
-        /// <summary>Взять стик набором клавиш. Прежний стик этого набора отпускается.</summary>
-        public void Take(int set)
+        /// <summary>
+        /// Взять стик набором клавиш, а если он уже взят этим набором — отпустить. Прежний стик
+        /// набора отпускается.
+        /// </summary>
+        public void Toggle(int set)
         {
             StickControl previous = holders[set];
-            holders[set] = this;
-            if (previous != null && previous != this) previous.Deflect(previous.Read());
+            holders[set] = previous == this ? null : this;
+            if (previous != null) previous.Deflect(previous.Read());
         }
+
+        /// <summary>Стик, который держит набор клавиш set, или null.</summary>
+        public static StickControl Holder(int set) => holders[set];
 
         bool Held(int set) => holders[set] == this;
 

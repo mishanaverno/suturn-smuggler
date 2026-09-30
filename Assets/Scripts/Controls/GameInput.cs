@@ -59,21 +59,17 @@ namespace Controls
         public static InputAction Point { get; private set; }
         /// <summary>Нажатие на орган управления под курсором.</summary>
         public static InputAction Click { get; private set; }
-        /// <summary>Колесо: им крутят крутилку, на которую наведён курсор.</summary>
+        /// <summary>Колесо: крутилку под курсором крутит, мимо крутилки — меняет увеличение.</summary>
         public static InputAction Scroll { get; private set; }
         /// <summary>Поворот головы. Клавишами, а не мышью: мышь занята курсором.</summary>
         public static InputAction View { get; private set; }
         /// <summary>
-        /// Двойной щелчок по стику: левой кнопкой — взять его первым набором клавиш, правой —
-        /// вторым. Индекс — номер набора в Stick.
-        /// </summary>
-        public static InputAction[] Grip { get; private set; }
-        /// <summary>
-        /// Присмотреться: нажатие переводит взгляд туда, куда указывает курсор, удержание ещё и
-        /// сужает его. С двойным щелчком правой (Grip) не спорит — тот ловит два коротких
-        /// нажатия, этот держит.
+        /// Правая кнопка: по стику — взять его вторым набором клавиш, мимо стика — пока зажата,
+        /// голову ведёт мышь (Glance). Левая (Click) по стику берёт первым набором.
         /// </summary>
         public static InputAction Focus { get; private set; }
+        /// <summary>Движение мыши, пока голову ведут правой кнопкой.</summary>
+        public static InputAction Glance { get; private set; }
         /// <summary>
         /// Два набора по три оси: WS, AD, QE и IK, JL, UO. Набор ничего не вращает сам —
         /// он отклоняет тот стик, которым его взяли, а что делает стик, решают его разъёмы.
@@ -146,12 +142,8 @@ namespace Controls
                 .With("Down", "<Keyboard>/downArrow")
                 .With("Left", "<Keyboard>/leftArrow")
                 .With("Right", "<Keyboard>/rightArrow");
-            Grip = new[]
-            {
-                cockpit.AddAction("GripFirst", InputActionType.Button, "<Mouse>/leftButton", "multiTap"),
-                cockpit.AddAction("GripSecond", InputActionType.Button, "<Mouse>/rightButton", "multiTap"),
-            };
             Focus = cockpit.AddAction("Focus", InputActionType.Button, "<Mouse>/rightButton");
+            Glance = cockpit.AddAction("Glance", InputActionType.Value, "<Mouse>/delta");
             Stick = new[]
             {
                 new[]

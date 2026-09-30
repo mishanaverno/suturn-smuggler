@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="HintBar.uss" />
+    <ui:VisualElement name="root" class="hint-bar" picking-mode="Ignore" />
+</ui:UXML>

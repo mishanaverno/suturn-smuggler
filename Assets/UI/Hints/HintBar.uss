@@ -1,0 +1,47 @@
+.hint-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 4px 12px;
+    background-color: rgba(8, 14, 12, 0.75);
+    -unity-font: url("project://database/Assets/TextMesh%20Pro/Fonts/JetBrainsMono-Regular.ttf");
+}
+
+.hint-bar__item {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 18px;
+}
+
+.hint-bar__icon {
+    width: 22px;
+    height: 22px;
+    -unity-background-image-tint-color: rgb(200, 235, 220);
+}
+
+.hint-bar__action {
+    margin-left: 4px;
+    font-size: 12px;
+    color: rgb(200, 235, 220);
+}
+
+.hint-bar__icon--w { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_w_outline.png"); }
+.hint-bar__icon--a { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_a_outline.png"); }
+.hint-bar__icon--s { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_s_outline.png"); }
+.hint-bar__icon--d { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_d_outline.png"); }
+.hint-bar__icon--q { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_q_outline.png"); }
+.hint-bar__icon--e { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_e_outline.png"); }
+.hint-bar__icon--i { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_i_outline.png"); }
+.hint-bar__icon--j { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_j_outline.png"); }
+.hint-bar__icon--k { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_k_outline.png"); }
+.hint-bar__icon--l { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_l_outline.png"); }
+.hint-bar__icon--o { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_o_outline.png"); }
+.hint-bar__icon--u { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_u_outline.png"); }
+.hint-bar__icon--escape { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_escape_outline.png"); }
+.hint-bar__icon--arrows { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/keyboard_arrows.png"); }
+.hint-bar__icon--mouse-left { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/mouse_left_outline.png"); }
+.hint-bar__icon--mouse-right { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/mouse_right_outline.png"); }
+.hint-bar__icon--mouse-scroll { background-image: url("project://database/Assets/UI/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Default/mouse_scroll_outline.png"); }

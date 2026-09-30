@@ -34,7 +34,11 @@ namespace Interior
         public float minAngle = -45f;
         public float maxAngle = 225f;
 
+        [Tooltip("Инерция стрелки, с: примерно за столько она доходит до нового показания. 0 — сразу.")]
+        public float lag;
+
         Quaternion rest;
+        float shown = float.NaN;
 
         void Awake() => rest = part.localRotation;
 
@@ -44,7 +48,8 @@ namespace Interior
             if (port != null && ControlBus.TryRead(port.id, out double value) && !double.IsNaN(value))
                 t = Mathf.InverseLerp(min, max, (float)(value * port.scale));
 
-            part.localRotation = rest * Quaternion.AngleAxis(Mathf.Lerp(minAngle, maxAngle, t), axis);
+            shown = float.IsNaN(shown) || lag <= 0f ? t : Mathf.Lerp(shown, t, 1f - Mathf.Exp(-3f * Time.deltaTime / lag));
+            part.localRotation = rest * Quaternion.AngleAxis(Mathf.Lerp(minAngle, maxAngle, shown), axis);
         }
     }
 }
