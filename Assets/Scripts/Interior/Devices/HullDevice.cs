@@ -25,6 +25,24 @@ namespace Interior
         [Tooltip("За сколько суток перегрев на 100 К сверх предела полностью изнашивает панели.")]
         public double overheatDays = 7.0;
 
+        [Header("Landing")]
+        [Tooltip("Скорость касания поверхности, до которой посадка обходится без износа, м/с.")]
+        public double landingSpeed = 2.0;
+        [Tooltip("Скорость касания, выше которой корабль разбивается, м/с.")]
+        public double crashSpeed = 10.0;
+        [Tooltip("Износ панели, коснувшейся поверхности на скорости разрушения. Между двумя скоростями — по прямой.")]
+        public double landingWear = 0.5;
+
+        [Header("Station collisions")]
+        [Tooltip("Скорость удара о станцию, до которой корабль не изнашивается и не отскакивает, м/с.")]
+        public double bumpSpeed = 0.5;
+        [Tooltip("Скорость удара о станцию, выше которой корабль разбивается, м/с.")]
+        public double rammingSpeed = 5.0;
+        [Tooltip("Износ панели, ударившей станцию на скорости разрушения. Между двумя скоростями — по прямой.")]
+        public double bumpWear = 0.5;
+        [Tooltip("Доля скорости удара, с которой корабль отскакивает от станции.")]
+        public double restitution = 0.3;
+
         // В Start, как у двигателя: корабль уже построен, первый тик ещё не прошёл.
         void Start()
         {
@@ -37,6 +55,13 @@ namespace Interior
             hull.coolTime = coolTime;
             hull.overheatLimit = overheatLimit;
             hull.overheatRate = 1.0 / (overheatDays * SecondsPerDay * 100.0);
+            hull.landingSpeed = landingSpeed;
+            hull.crashSpeed = crashSpeed;
+            hull.landingWear = landingWear;
+            hull.bumpSpeed = bumpSpeed;
+            hull.rammingSpeed = rammingSpeed;
+            hull.bumpWear = bumpWear;
+            hull.restitution = restitution;
         }
 
         protected override void Wire()

@@ -53,10 +53,37 @@ namespace OuterSpace.Sim.Systems
         public double overheatLimit;
         /// <summary>Износ каждой панели в долю за секунду на кельвин сверх предела.</summary>
         public double overheatRate;
+        /// <summary>Скорость касания поверхности, до которой посадка обходится без износа, м/с.</summary>
+        public double landingSpeed;
+        /// <summary>Скорость касания поверхности, выше которой корабль разбивается, м/с.</summary>
+        public double crashSpeed;
+        /// <summary>Износ панели, коснувшейся поверхности на скорости crashSpeed. Между landingSpeed и crashSpeed — по прямой.</summary>
+        public double landingWear;
+        /// <summary>Скорость удара о станцию, до которой корабль не изнашивается и не отскакивает, м/с.</summary>
+        public double bumpSpeed;
+        /// <summary>Скорость удара о станцию, выше которой корабль разбивается, м/с.</summary>
+        public double rammingSpeed;
+        /// <summary>Износ панели, ударившей станцию на скорости rammingSpeed. Между bumpSpeed и rammingSpeed — по прямой.</summary>
+        public double bumpWear;
+        /// <summary>Доля скорости удара, с которой корабль отскакивает от станции.</summary>
+        public double restitution;
 
         double heat;
 
         public HullPanel this[HullSection section] => panels[(int)section];
+
+        /// <summary>Панель, чья внешняя нормаль ближе всех к направлению (в связанных осях).</summary>
+        public HullPanel Facing(Vector3d direction)
+        {
+            HullPanel facing = panels[0];
+            foreach (HullPanel panel in panels)
+                if (Vector3d.Dot(panel.normal, direction) > Vector3d.Dot(facing.normal, direction)) facing = panel;
+            return facing;
+        }
+
+        /// <summary>Износ от удара: ноль до safe, wearAtFatal на fatal, между ними — по прямой.</summary>
+        public static double ImpactWear(double speed, double safe, double fatal, double wearAtFatal) =>
+            speed <= safe ? 0.0 : wearAtFatal * (speed - safe) / (fatal - safe);
 
         public override void Accept(Flow flow, double amount)
         {

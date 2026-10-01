@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Pause/PauseMenu.uss" />
+    <ui:VisualElement name="root" class="pause-menu pause-menu--hidden">
+        <ui:VisualElement class="pause-menu__panel">
+            <ui:Label class="pause-menu__title" text="SHIP LOST" />
+            <ui:Label name="reason" class="pause-menu__status" text="" />
+            <ui:Button name="loadButton" class="pause-menu__button" text="LOAD" />
+            <ui:Button name="quitButton" class="pause-menu__button" text="QUIT" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

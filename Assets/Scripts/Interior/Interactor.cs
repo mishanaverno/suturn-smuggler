@@ -98,7 +98,9 @@ namespace Interior
 
         IInteractable Aim()
         {
-            if (!Physics.Raycast(aim.Ray, out RaycastHit hit, aim.Reach, ~0, QueryTriggerInteraction.Collide))
+            // Слой Proximity — станции за бортом и форма корабля: они в той же сцене, что кабина.
+            int mask = ~(1 << LayerMask.NameToLayer("Proximity"));
+            if (!Physics.Raycast(aim.Ray, out RaycastHit hit, aim.Reach, mask, QueryTriggerInteraction.Collide))
             {
                 return null;
             }

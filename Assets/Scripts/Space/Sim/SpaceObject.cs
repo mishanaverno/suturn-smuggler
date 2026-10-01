@@ -16,6 +16,10 @@ namespace OuterSpace
         public SpaceObject centralBody;
         public SimTransform simTransform;
         public double radius;
+        // Вращение вокруг своей оси, как в ObjectData: по нему севший корабль едет вместе с
+        // поверхностью.
+        public bool tidallyLocked;
+        public double rotationPeriod;
         public KnowledgeSource knowledge = KnowledgeSource.Database;
         public double SOI;
         public double MU;

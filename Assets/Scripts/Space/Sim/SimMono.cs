@@ -89,6 +89,8 @@ namespace OuterSpace.Sim
             obj.GameObject.name = data.name;
             obj.GameObject.transform.parent = transform;
             obj.radius = data.radius;
+            obj.tidallyLocked = data.tidallyLocked;
+            obj.rotationPeriod = data.rotationPeriod;
             obj.knowledge = data.knowledge;
             return obj;
         }

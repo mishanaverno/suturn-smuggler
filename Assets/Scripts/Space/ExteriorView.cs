@@ -69,6 +69,8 @@ namespace OuterSpace
         Camera proximityCam;
         Camera dockingCam;
         readonly List<(Station station, Transform view)> stationViews = new();
+        /// <summary>Модели станций в сцене ближнего плана. Заводятся в первом кадре.</summary>
+        public IReadOnlyList<(Station station, Transform view)> StationViews => stationViews;
         readonly List<(SpaceObject body, Transform view, ObjectData data)> views = new();
         static readonly int SaturnDirectionId = Shader.PropertyToID("_SaturnDirection");
         Transform titanView;
@@ -264,10 +266,7 @@ namespace OuterSpace
             root.SetPositionAndRotation(Vector3.zero, frame);
             Quaterniond toShip = free != null ? Quaterniond.identity : Quaterniond.Inverse(ship.attitude.rotation);
             Vector3d origin = free != null ? free.Position : ship.simTransform.GLOBAL_R;
-            // Локальная ось Y тел — полюс Сатурна (ось Z симуляции, плоскость его экватора —
-            // опорная для орбит), поэтому кольца лежат в экваторе и не крутятся вслед за кораблём.
-            Vector3 pole = ToHull(toShip * Vector3d.forward);
-            Quaternion bodyRotation = Quaternion.LookRotation(ToHull(toShip * Vector3d.right), pole);
+            Quaternion bodyRotation = SimAxes(toShip);
             double epoch = GameMono.instance.Epoch;
             foreach ((SpaceObject body, Transform view, ObjectData data) in views)
             {
@@ -358,6 +357,14 @@ namespace OuterSpace
             float angle = (float)(360.0 * (epoch / data.rotationPeriod % 1.0));
             return fixedRotation * Quaternion.AngleAxis(angle, Vector3.up);
         }
+
+        /// <summary>
+        /// Оси симуляции в осях сцены. Локальная ось Y тел и станций — полюс Сатурна (ось Z
+        /// симуляции, плоскость его экватора — опорная для орбит), поэтому кольца лежат в
+        /// экваторе и не крутятся вслед за кораблём.
+        /// </summary>
+        public static Quaternion SimAxes(Quaterniond toShip) =>
+            Quaternion.LookRotation(ToHull(toShip * Vector3d.right), ToHull(toShip * Vector3d.forward));
 
         /// <summary>Направление сцены обратно в оси симуляции.</summary>
         public static Vector3d FromHull(Vector3 v) => new(v.z, -v.x, v.y);

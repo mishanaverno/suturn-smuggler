@@ -45,7 +45,8 @@ namespace Game
 
             if (ship != null)
             {
-                AddTrajectory(ship.trajectory, now, into);
+                // Севший корабль стоит под своей орбитой: её IMPACT — поверхность под ногами.
+                if (ship.LandedOn == null) AddTrajectory(ship.trajectory, now, into);
                 // Из плана — только ближайший узел: он один лежит на фактической траектории.
                 // Прожиг центрируется на узле, поэтому начинается раньше него.
                 Maneuver next = ship.GetNextManeuver();

@@ -83,7 +83,7 @@ namespace Interior
             Cursor.visible = resumeVisible;
         }
 
-        static void Quit()
+        public static void Quit()
         {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;

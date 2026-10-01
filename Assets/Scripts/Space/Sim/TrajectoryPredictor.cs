@@ -366,7 +366,7 @@ namespace OuterSpace.Sim
             (ShipStateAt(patches, epoch).r - BodyStateAt(target, epoch).r).magnitude;
 
         /// <summary>Корень f на интервале, где f меняет знак с плюса на минус.</summary>
-        static double Bisect(Func<double, double> f, double from, double to, double tolerance)
+        public static double Bisect(Func<double, double> f, double from, double to, double tolerance)
         {
             while (to - from > tolerance)
             {

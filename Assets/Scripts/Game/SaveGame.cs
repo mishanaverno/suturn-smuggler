@@ -47,6 +47,9 @@ namespace Game
             public int dockedPort;
             public double[] dockedOffset;
             public bool latched;
+            public string landedOn;
+            public double[] landedPosition;
+            public double[] landedAttitude;
             public double burnedDeltaV;
             public List<ManeuverData> maneuvers = new();
             public List<TimerData> timers = new();
@@ -97,7 +100,7 @@ namespace Game
                 epoch = game.Epoch,
                 central = ship.centralBody.GameObject.name,
                 orbit = ship.orbitParams,
-                rotation = new[] { ship.attitude.rotation.x, ship.attitude.rotation.y, ship.attitude.rotation.z, ship.attitude.rotation.w },
+                rotation = Array(ship.attitude.rotation),
                 angularVelocity = Array(ship.attitude.angularVelocity),
                 orientation = ship.orientation,
                 rightPortActive = ship.rightPortActive,
@@ -127,6 +130,12 @@ namespace Game
                 data.dockedPort = IndexOf(ship.DockedTo.ports, ship.DockedPort);
                 data.dockedOffset = Array(ship.DockedOffset);
                 data.latched = ship.Latched;
+            }
+            if (ship.LandedOn != null)
+            {
+                data.landedOn = ship.LandedOn.GameObject.name;
+                data.landedPosition = Array(ship.LandedPosition);
+                data.landedAttitude = Array(ship.LandedAttitude);
             }
             foreach (Maneuver maneuver in ship.Maneuvers())
             {
@@ -161,7 +170,7 @@ namespace Game
             SimMono.RebuildUpdateOrder();
             SimMono.target = data.target == null ? null : Find(data.target);
 
-            ship.attitude.rotation = new Quaterniond(data.rotation[0], data.rotation[1], data.rotation[2], data.rotation[3]);
+            ship.attitude.rotation = Rotation(data.rotation);
             ship.attitude.angularVelocity = Vector(data.angularVelocity);
             ship.orientation = data.orientation;
             ship.rightPortActive = data.rightPortActive;
@@ -183,6 +192,8 @@ namespace Game
                 Station station = (Station)Find(data.dockedTo);
                 ship.RestoreDock(station, station.ports[data.dockedPort], Vector(data.dockedOffset), data.latched);
             }
+            if (data.landedOn != null)
+                ship.RestoreLanding(Find(data.landedOn), Vector(data.landedPosition), Rotation(data.landedAttitude));
 
             ship.SyncClocks(data.epoch);
             // Реактор остывал бы от нулевой эпохи до нынешней: сначала его часы, потом его тепло.
@@ -223,5 +234,9 @@ namespace Game
         static double[] Array(Vector3d v) => new[] { v.x, v.y, v.z };
 
         static Vector3d Vector(double[] a) => new(a[0], a[1], a[2]);
+
+        static double[] Array(Quaterniond q) => new[] { q.x, q.y, q.z, q.w };
+
+        static Quaterniond Rotation(double[] a) => new(a[0], a[1], a[2], a[3]);
     }
 }

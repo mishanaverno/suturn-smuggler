@@ -81,6 +81,18 @@ namespace OuterSpace.Sim.Objects
         // Захват срабатывает на входе в допуск, а не на пребывании в нём: иначе корабль,
         // только что отпущенный узлом, защёлкивался бы обратно на том же тике.
         bool inCapture;
+        /// <summary>Тело, на поверхности которого корабль стоит, или null.</summary>
+        public SpaceObject LandedOn { get; private set; }
+        // Положение и поворот севшего корабля в осях поверхности (Surface.Frame): в них он
+        // неподвижен и едет вместе с вращением тела.
+        Vector3d landedPosition;
+        Quaterniond landedAttitude;
+        public Vector3d LandedPosition => landedPosition;
+        public Quaterniond LandedAttitude => landedAttitude;
+        /// <summary>Почему корабль погиб, или null. Погибший больше не движется.</summary>
+        public string Wreck { get; private set; }
+        // Эпоха прошлого тика: между ней и нынешней ищется момент касания поверхности.
+        double tickEpoch;
         static readonly int DefaultMaxPatches = new PredictSettings().maxPatches;
         static readonly double DefaultHorizonPeriods = new PredictSettings().horizonPeriods;
         // Прогноз пересчитывается не каждый кадр: его вход меняется от прожига и смены
@@ -385,7 +397,7 @@ namespace OuterSpace.Sim.Objects
         /// </summary>
         public void SyncClocks(double epoch)
         {
-            attitudeEpoch = burnEpoch = rcsEpoch = epoch;
+            attitudeEpoch = burnEpoch = rcsEpoch = tickEpoch = epoch;
             systems.Skip(epoch);
         }
 
@@ -580,6 +592,9 @@ namespace OuterSpace.Sim.Objects
 
         public override void FixedUpdate()
         {
+            if (Wreck != null) return;
+            double previousTick = tickEpoch;
+            tickEpoch = GameMono.instance.Epoch;
             if (DockedTo != null)
             {
                 // Отметки времени идут и у стоящего: иначе первый тик после расстыковки
@@ -591,14 +606,148 @@ namespace OuterSpace.Sim.Objects
                 UpdateDocking();
                 return;
             }
+            if (LandedOn != null)
+            {
+                UpdateLanded();
+                return;
+            }
             UpdateDirection();
             UpdateAttitude();
             engine.UpdateReactor(GameMono.instance.Epoch, thrusting);
-            if (thrusting) ApplyThrust();
-            ApplyRcs();
+            if (thrusting) Push(ThrustImpulse());
+            Push(RcsImpulse());
             systems.Update(GameMono.instance.Epoch);
             base.FixedUpdate();
-            UpdateDocking();
+            if (simTransform.RELATIVE_R.magnitude < centralBody.radius) Touchdown(previousTick);
+            else UpdateDocking();
+        }
+
+        /// <summary>
+        /// Корабль ушёл под поверхность за этот тик. Момент касания ищется между тиками, и исход
+        /// решает скорость относительно поверхности в этот момент, а не глубина: на перемотке
+        /// корабль за тик проходит сквозь луну насквозь. У Сатурна твёрдой поверхности нет —
+        /// корабль гибнет на любой скорости.
+        /// </summary>
+        void Touchdown(double previousTick)
+        {
+            double radius = centralBody.radius;
+            double contact = TrajectoryPredictor.Bisect(
+                t => AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, t).r.magnitude - radius,
+                previousTick, GameMono.instance.Epoch, 1e-3);
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, contact);
+            double speed = (v - Surface.Velocity(centralBody, r)).magnitude;
+            string body = centralBody.GameObject.name.ToUpperInvariant();
+            if (centralBody.IsRoot || speed > hull.crashSpeed)
+            {
+                Wreck = $"CRASHED INTO {body} AT {speed:F1} m/s";
+                SetThrust(false);
+                return;
+            }
+            hull.Facing(Quaterniond.Inverse(attitude.rotation) * -r)
+                .Accept(Flow.Wear, Hull.ImpactWear(speed, hull.landingSpeed, hull.crashSpeed, hull.landingWear));
+            Land(centralBody, r.normalized * radius, attitude.rotation);
+        }
+
+        /// <summary>
+        /// Удар о станцию. Где и насколько корабль вошёл в неё, ищет Unity по коллайдерам
+        /// (StationContacts), исход считается здесь: корабль выталкивается по нормали, а
+        /// скорость сближения по ней решает — погасить, отскочить с износом панели или
+        /// разбиться. Скорость вдоль станции не трогается: корабль скользит.
+        /// </summary>
+        /// <param name="normal">Направление выталкивания, из станции к кораблю, в осях симуляции.</param>
+        /// <param name="depth">Насколько корабль вошёл в станцию, м.</param>
+        public void Bump(Station station, Vector3d normal, double depth)
+        {
+            double epoch = GameMono.instance.Epoch;
+            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
+            double closing = -Vector3d.Dot(simTransform.GLOBAL_V - station.simTransform.GLOBAL_V, normal);
+            if (closing > hull.rammingSpeed)
+            {
+                Wreck = $"COLLIDED WITH {station.GameObject.name.ToUpperInvariant()} AT {closing:F1} m/s";
+                SetThrust(false);
+                return;
+            }
+            if (closing > 0.0)
+            {
+                double bounce = closing > hull.bumpSpeed ? hull.restitution : 0.0;
+                v += normal * (closing * (1.0 + bounce));
+                hull.Facing(Quaterniond.Inverse(attitude.rotation) * -normal)
+                    .Accept(Flow.Wear, Hull.ImpactWear(closing, hull.bumpSpeed, hull.rammingSpeed, hull.bumpWear));
+            }
+            orbitParams = AstroDynamic.CalculateOrbitElements(r + normal * depth, v, centralBody.MU, epoch);
+            base.FixedUpdate();
+            trajectory.Invalidate();
+        }
+
+        /// <summary>
+        /// Корабль встаёт на поверхность: двигатель глохнет, автопилот отпускает. Дальше он
+        /// неподвижен в осях поверхности, пока тяга не оторвёт его от неё.
+        /// </summary>
+        void Land(SpaceObject body, Vector3d position, Quaterniond rotation)
+        {
+            SetThrust(false);
+            BeaconHolding = false;
+            orientation = ShipOrientation.Free;
+            attitude.Release();
+            attitude.angularVelocity = Vector3d.zero;
+            Quaterniond toSurface = Quaterniond.Inverse(Surface.Frame(body, GameMono.instance.Epoch));
+            landedPosition = toSurface * position;
+            landedAttitude = toSurface * rotation;
+            LandedOn = body;
+            FollowSurface();
+            trajectory.Invalidate();
+        }
+
+        /// <summary>Встать на поверхность из сохранения: положение и поворот — в осях поверхности.</summary>
+        public void RestoreLanding(SpaceObject body, Vector3d position, Quaterniond rotation)
+        {
+            landedPosition = position;
+            landedAttitude = rotation;
+            LandedOn = body;
+            FollowSurface();
+            trajectory.Invalidate();
+        }
+
+        /// <summary>
+        /// Севший корабль: состояние выводится из поверхности каждый тик, как у пристыкованного
+        /// — из станции. Двигатель и РСУ работают; импульс от поверхности отрывает корабль, в
+        /// поверхность и вдоль неё — гасится опорой.
+        /// </summary>
+        void UpdateLanded()
+        {
+            double epoch = GameMono.instance.Epoch;
+            attitudeEpoch = epoch;
+            engine.UpdateReactor(epoch, thrusting);
+            Vector3d impulse = (thrusting ? ThrustImpulse() : Vector3d.zero) + RcsImpulse();
+            systems.Update(epoch);
+            (Vector3d r, Vector3d v) = FollowSurface();
+            if (Vector3d.Dot(impulse, r) <= 0.0) return;
+
+            LandedOn = null;
+            Vector3d departure = v + impulse;
+            // Строго вертикальный отрыв на полюсе — прямая через центр тела, у неё нет
+            // плоскости орбиты, и кеплеров решатель её не ведёт. Миллиметр в секунду вбок
+            // даёт плоскость и ничего не меняет в полёте.
+            if (Vector3d.Cross(r, departure).sqrMagnitude < 1e-12 * r.sqrMagnitude * departure.sqrMagnitude)
+                departure += Vector3d.Cross(r, Vector3d.forward).sqrMagnitude > 0.0
+                    ? Vector3d.Cross(r, Vector3d.forward).normalized * 1e-3
+                    : Vector3d.right * 1e-3;
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, departure, centralBody.MU, epoch);
+            trajectory.Invalidate();
+            base.FixedUpdate();
+        }
+
+        (Vector3d r, Vector3d v) FollowSurface()
+        {
+            double epoch = GameMono.instance.Epoch;
+            Quaterniond frame = Surface.Frame(LandedOn, epoch);
+            Vector3d r = frame * landedPosition;
+            Vector3d v = Surface.Velocity(LandedOn, r);
+            attitude.rotation = frame * landedAttitude;
+            orbitParams = AstroDynamic.CalculateOrbitElements(r, v, centralBody.MU, epoch);
+            simTransform.SetRELATIVE_R(r);
+            simTransform.SetRELATIVE_V(v);
+            return (r, v);
         }
 
         /// <summary>
@@ -611,20 +760,17 @@ namespace OuterSpace.Sim.Objects
         /// Время берётся симуляционное: реальное расходилось бы с эпохой на всякой перемотке,
         /// кроме единичной.
         /// </summary>
-        void ApplyThrust()
+        Vector3d ThrustImpulse()
         {
             double epoch = GameMono.instance.Epoch;
             double dt = epoch - burnEpoch;
             burnEpoch = epoch;
-            if (dt <= 0.0) return;
+            if (dt <= 0.0) return Vector3d.zero;
 
             Vector3d impulse = engine.Burn(attitude.Forward, Mass, dt);
             CountTowardPlan(impulse);
-            (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
-            orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
-            trajectory.Invalidate();
-
             if (cutoffArmed && RemainingDeltaV <= 0.0 || !engine.HasPropellant) SetThrust(false);
+            return impulse;
         }
 
         /// <summary>
@@ -633,19 +779,25 @@ namespace OuterSpace.Sim.Objects
         /// Эпоха отмечается и на холостом тике: иначе первое включение после паузы получило бы
         /// всё время с прошлого включения разом.
         /// </summary>
-        void ApplyRcs()
+        Vector3d RcsImpulse()
         {
             double epoch = GameMono.instance.Epoch;
             double dt = epoch - rcsEpoch;
             rcsEpoch = epoch;
-            if (dt <= 0.0) return;
+            if (dt <= 0.0) return Vector3d.zero;
 
             Vector3d impulse = rcs.Fire(attitude, Mass, dt);
+            if (impulse.sqrMagnitude > 0.0) CountTowardPlan(impulse);
+            return impulse;
+        }
+
+        void Push(Vector3d impulse)
+        {
             if (impulse.sqrMagnitude == 0.0) return;
+            double epoch = GameMono.instance.Epoch;
             (Vector3d r, Vector3d v) = AstroDynamic.CalcRelativePositionAndVelocityAtEpoch(orbitParams, epoch);
             orbitParams = AstroDynamic.CalculateOrbitElements(r, v + impulse, centralBody.MU, epoch);
             trajectory.Invalidate();
-            CountTowardPlan(impulse);
         }
 
         /// <summary>

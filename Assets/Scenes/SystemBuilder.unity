@@ -588,6 +588,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 868958d0229294161961bbff40c51698, type: 2}
   - {fileID: 11400000, guid: b964feb55610848bcb1134bd10aa1ab2, type: 2}
   - {fileID: 11400000, guid: fc474586e257548569beae79a595dea6, type: 2}
+  title: Orientation
   part: {fileID: 1262052132}
   tilt: 20
   twist: 25
@@ -1504,6 +1505,75 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &306437490
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 306437493}
+  - component: {fileID: 306437492}
+  - component: {fileID: 306437491}
+  m_Layer: 0
+  m_Name: WreckScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &306437491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 306437490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d475f3580cbfa455a818ccde75e13abb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::Interior.WreckScreen
+  document: {fileID: 306437492}
+--- !u!114 &306437492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 306437490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: e440ab07d8937488d98c1d8922d3a0d9, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 9197481963319205126, guid: 220b9e7eb585049a7b8a4749eb7e366b, type: 3}
+  m_SortingOrder: 2
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!4 &306437493
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 306437490}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &307204312
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5750,6 +5820,59 @@ Transform:
   - {fileID: 268431354}
   m_Father: {fileID: 3293512261005100271}
   m_LocalEulerAnglesHint: {x: 180, y: -90, z: 0}
+--- !u!1 &956773970
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 956773971}
+  - component: {fileID: 956773972}
+  m_Layer: 9
+  m_Name: ShipShape
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &956773971
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956773970}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1903000002}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &956773972
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956773970}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 5, y: 3.9, z: 3.8}
+  m_Center: {x: 0, y: 1.45, z: 1.1}
 --- !u!1001 &961219308
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6834,6 +6957,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1043663274}
   - component: {fileID: 1043663275}
+  - component: {fileID: 1043663276}
   m_Layer: 6
   m_Name: Space
   m_TagString: Untagged
@@ -6901,6 +7025,20 @@ MonoBehaviour:
     G: {fileID: 2100000, guid: a8bed3510cc8c42f19b1c9da49aa515e, type: 2}
   sun: {fileID: 1636745767}
   skyMaterial: {fileID: 2100000, guid: 9f4b28d13b9404d969ad3ad5dffc9d5a, type: 2}
+--- !u!114 &1043663276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1043663273}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66c4267ea69664bc5948bc37fc2200b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game::OuterSpace.StationContacts
+  exterior: {fileID: 1043663275}
+  ship: {fileID: 956773972}
 --- !u!1001 &1075019421
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12072,6 +12210,7 @@ Transform:
   - {fileID: 1597337896}
   - {fileID: 1423801796}
   - {fileID: 301800116}
+  - {fileID: 956773971}
   m_Father: {fileID: 1627326224}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1903000004
@@ -12129,6 +12268,13 @@ MonoBehaviour:
   coolTime: 600
   overheatLimit: 350
   overheatDays: 7
+  landingSpeed: 2
+  crashSpeed: 10
+  landingWear: 0.5
+  bumpSpeed: 0.5
+  rammingSpeed: 5
+  bumpWear: 0.5
+  restitution: 0.3
 --- !u!1 &1921760849
 GameObject:
   m_ObjectHideFlags: 0
@@ -14367,6 +14513,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7017c00590c1f4a9eab6cdf6d39e2d99, type: 2}
   - {fileID: 11400000, guid: 9b736ac146c3c47ae94a2fefb0076630, type: 2}
   - {fileID: 11400000, guid: 5f7c43b7d365047e79d987d581c4c18d, type: 2}
+  title: RCS moving
   part: {fileID: 4537497020990408434}
   tilt: 20
   twist: 25
@@ -16097,3 +16244,4 @@ SceneRoots:
   - {fileID: 136846817}
   - {fileID: 717378108}
   - {fileID: 2018623427}
+  - {fileID: 306437493}

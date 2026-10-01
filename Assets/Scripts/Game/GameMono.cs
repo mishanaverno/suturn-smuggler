@@ -42,6 +42,9 @@ namespace Game
             if (timers.Fire(_epoch)) TimeToggler.RealTime();
         }
         /// <summary>
+        /// В зоне маяка станции перемотки нет вовсе: за кадр перемотки корабль проскочил бы
+        /// станцию насквозь, не коснувшись её. Пристыкованному можно — он едет со станцией.
+        ///
         /// За WarpLimit.GuardSeconds до ближайшей строки расписания (Schedule — то же, что на
         /// экране часов) перемотка сбрасывается в 1×, и включать её обратно — дело игрока.
         /// Никакой лестницы ступеней и никаких страховок сверх этого: одно правило, которое
@@ -52,6 +55,14 @@ namespace Game
             WarpLimitReason = null;
             uint requested = TimeToggler.Current;
             if (requested <= 1) return requested;
+
+            Ship ship = (Ship)SimMono.playerShip;
+            if (ship.DockedTo == null && SimMono.stations.Exists(station =>
+                    (station.simTransform.GLOBAL_R - ship.simTransform.GLOBAL_R).magnitude <= station.beacon.range))
+            {
+                TimeToggler.RealTime();
+                return 1.0;
+            }
 
             Schedule.Entry? next = Schedule.Next(SimMono.playerShip as Ship, timers, _epoch, schedule);
             if (next == null) return requested;
