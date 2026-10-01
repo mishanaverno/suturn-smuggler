@@ -35,7 +35,7 @@ namespace Interior
 
         [Header("Station collisions")]
         [Tooltip("Скорость удара о станцию, до которой корабль не изнашивается и не отскакивает, м/с.")]
-        public double bumpSpeed = 0.5;
+        public double bumpSpeed = 0.3;
         [Tooltip("Скорость удара о станцию, выше которой корабль разбивается, м/с.")]
         public double rammingSpeed = 5.0;
         [Tooltip("Износ панели, ударившей станцию на скорости разрушения. Между двумя скоростями — по прямой.")]

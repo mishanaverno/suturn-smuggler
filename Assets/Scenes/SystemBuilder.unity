@@ -12271,7 +12271,7 @@ MonoBehaviour:
   landingSpeed: 2
   crashSpeed: 10
   landingWear: 0.5
-  bumpSpeed: 0.5
+  bumpSpeed: 0.3
   rammingSpeed: 5
   bumpWear: 0.5
   restitution: 0.3
